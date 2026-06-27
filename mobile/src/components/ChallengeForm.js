@@ -5,10 +5,26 @@ import { colors } from '../theme';
 const SPORTS = [
   { key: 'nfl', label: '🏈 Football' },
   { key: 'nba', label: '🏀 Basketball' },
+  { key: 'wnba', label: '🏀 WNBA' },
   { key: 'mlb', label: '⚾️ Baseball' },
 ];
 
-const ROSTER_SIZES = [3, 4, 5, 6, 8, 10];
+// Lineup presets (the backend resolves "<sport>_<preset>" to positional slots
+// and derives roster size from it). Quick = small lineup, Standard = full.
+const PRESETS = [
+  { key: 'quick', label: 'Quick' },
+  { key: 'standard', label: 'Standard' },
+];
+
+// Per-pick clock. Short = live draft; multi-hour = async (same engine).
+const CLOCKS = [
+  { secs: 30, label: '30s' },
+  { secs: 60, label: '60s' },
+  { secs: 90, label: '90s' },
+  { secs: 14400, label: '4h' },
+  { secs: 43200, label: '12h' },
+  { secs: 86400, label: '24h' },
+];
 
 // Draft-time presets — turned into an actual future timestamp at submit time.
 const TIME_OPTIONS = [
@@ -28,13 +44,15 @@ function Chip({ label, active, onPress }) {
 
 export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, submitting }) {
   const [sport, setSport] = useState(initial.sport || 'nfl');
-  const [rosterSize, setRosterSize] = useState(initial.roster_size || 5);
+  const [preset, setPreset] = useState((initial.lineup_template || '').split('_')[1] || 'standard');
+  const [clockSecs, setClockSecs] = useState(initial.pick_clock_seconds || 60);
   const [timeMs, setTimeMs] = useState(TIME_OPTIONS[0].ms);
 
   function handleSubmit() {
     onSubmit({
       sport,
-      roster_size: rosterSize,
+      lineup_template: `${sport}_${preset}`,
+      pick_clock_seconds: clockSecs,
       // Always compute from "now" so the draft time is guaranteed in the future.
       draft_starts_at: new Date(Date.now() + timeMs).toISOString(),
     });
@@ -49,10 +67,17 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
         ))}
       </View>
 
-      <Text style={styles.label}>Players each (roster size)</Text>
+      <Text style={styles.label}>Lineup</Text>
       <View style={styles.row}>
-        {ROSTER_SIZES.map((n) => (
-          <Chip key={n} label={String(n)} active={rosterSize === n} onPress={() => setRosterSize(n)} />
+        {PRESETS.map((p) => (
+          <Chip key={p.key} label={p.label} active={preset === p.key} onPress={() => setPreset(p.key)} />
+        ))}
+      </View>
+
+      <Text style={styles.label}>Pick clock</Text>
+      <View style={styles.row}>
+        {CLOCKS.map((c) => (
+          <Chip key={c.secs} label={c.label} active={clockSecs === c.secs} onPress={() => setClockSecs(c.secs)} />
         ))}
       </View>
 

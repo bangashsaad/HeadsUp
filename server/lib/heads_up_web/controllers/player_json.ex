@@ -14,7 +14,8 @@ defmodule HeadsUpWeb.PlayerJSON do
       sport: player.sport,
       name: player.name,
       team: player.team,
-      position: player.position
+      position: player.position,
+      projection: player.projection
     }
   end
 end

@@ -20,9 +20,17 @@ defmodule HeadsUp.Sports.Seeds do
       |> Enum.map(fn p -> Map.merge(p, %{inserted_at: now, updated_at: now}) end)
 
     Repo.insert_all(Player, rows,
-      on_conflict: {:replace, [:name, :team, :position, :updated_at]},
+      on_conflict: {:replace, [:name, :team, :position, :projection, :updated_at]},
       conflict_target: [:sport, :external_id]
     )
+  end
+
+  # Each sport's list is already hand-ranked best-first; assign a descending
+  # projection so the existing order becomes the draft board / auto-pick rank.
+  defp rank(players) do
+    players
+    |> Enum.with_index()
+    |> Enum.map(fn {p, i} -> Map.put(p, :projection, 100.0 - i) end)
   end
 
   defp seed_games(now) do
@@ -91,6 +99,7 @@ defmodule HeadsUp.Sports.Seeds do
         {"Brandon Aubrey", "DAL", "K"}
       ]
       |> Enum.map(fn {n, t, pos} -> p("nfl", n, t, pos) end)
+      |> rank()
 
     nba =
       [
@@ -120,6 +129,7 @@ defmodule HeadsUp.Sports.Seeds do
         {"De'Aaron Fox", "SAS", "PG"}
       ]
       |> Enum.map(fn {n, t, pos} -> p("nba", n, t, pos) end)
+      |> rank()
 
     mlb =
       [
@@ -149,11 +159,50 @@ defmodule HeadsUp.Sports.Seeds do
         {"Ronald Acuna Jr.", "ATL", "OF"},
         {"Kyle Tucker", "CHC", "OF"},
         {"Shohei Ohtani", "LAD", "DH"},
-        {"Yordan Alvarez", "HOU", "DH"}
+        {"Yordan Alvarez", "HOU", "DH"},
+        # Extra RP + C so the small SHARED pool has margin for a 2-team draft
+        # (mlb_standard/mlb_quick each demand 2 of these across both rosters).
+        {"Edwin Diaz", "NYM", "RP"},
+        {"Devin Williams", "NYY", "RP"},
+        {"Will Smith", "LAD", "C"},
+        {"Salvador Perez", "KC", "C"}
       ]
       |> Enum.map(fn {n, t, pos} -> p("mlb", n, t, pos) end)
+      |> rank()
 
-    nfl ++ nba ++ mlb
+    # WNBA reuses NBA positions (PG/SG/SF/PF/C) and scoring; in active season
+    # right now, so it's the sport to use for real end-to-end testing.
+    wnba =
+      [
+        {"Caitlin Clark", "IND", "PG"},
+        {"Sabrina Ionescu", "NY", "PG"},
+        {"Chelsea Gray", "LV", "PG"},
+        {"Courtney Vandersloot", "CHI", "PG"},
+        {"Skylar Diggins", "SEA", "PG"},
+        {"Kelsey Plum", "LA", "PG"},
+        {"Jordin Canada", "ATL", "PG"},
+        {"Natasha Cloud", "NY", "PG"},
+        {"Jackie Young", "LV", "SG"},
+        {"Arike Ogunbowale", "DAL", "SG"},
+        {"Allisha Gray", "ATL", "SG"},
+        {"Jewell Loyd", "LV", "SG"},
+        {"Breanna Stewart", "NY", "SF"},
+        {"Napheesa Collier", "MIN", "SF"},
+        {"Kahleah Copper", "PHX", "SF"},
+        {"Satou Sabally", "PHX", "SF"},
+        {"Angel Reese", "CHI", "PF"},
+        {"Alyssa Thomas", "PHX", "PF"},
+        {"Nneka Ogwumike", "SEA", "PF"},
+        {"Dearica Hamby", "LA", "PF"},
+        {"A'ja Wilson", "LV", "C"},
+        {"Jonquel Jones", "NY", "C"},
+        {"Aliyah Boston", "IND", "C"},
+        {"Brittney Griner", "ATL", "C"}
+      ]
+      |> Enum.map(fn {n, t, pos} -> p("wnba", n, t, pos) end)
+      |> rank()
+
+    nfl ++ nba ++ mlb ++ wnba
   end
 
   defp games do
@@ -169,7 +218,11 @@ defmodule HeadsUp.Sports.Seeds do
       g("mlb", "LAD", "NYY"),
       g("mlb", "ATL", "PHI"),
       g("mlb", "HOU", "TEX"),
-      g("mlb", "BAL", "CLE")
+      g("mlb", "BAL", "CLE"),
+      g("wnba", "LV", "NY"),
+      g("wnba", "MIN", "IND"),
+      g("wnba", "SEA", "PHX"),
+      g("wnba", "ATL", "CHI")
     ]
   end
 

@@ -2,7 +2,7 @@ defmodule HeadsUp.Sports.Game do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @sports ~w(nfl nba mlb)
+  @sports ~w(nfl nba mlb wnba)
   @statuses ~w(scheduled live final)
 
   schema "games" do

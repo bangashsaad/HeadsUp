@@ -13,7 +13,18 @@ import { getDuel, respondToDuel } from '../api/duels';
 import { formatDateTime } from '../utils/datetime';
 import { colors } from '../theme';
 
-const SPORT_LABEL = { nfl: '🏈 Football', nba: '🏀 Basketball', mlb: '⚾️ Baseball' };
+const SPORT_LABEL = {
+  nfl: '🏈 Football',
+  nba: '🏀 Basketball',
+  wnba: '🏀 WNBA',
+  mlb: '⚾️ Baseball',
+};
+
+function clockLabel(secs) {
+  if (!secs) return '—';
+  if (secs < 3600) return `${secs}s per pick`;
+  return `${secs / 3600}h per pick (async)`;
+}
 
 export default function DuelDetailScreen({ route, navigation }) {
   const { id } = route.params;
@@ -69,7 +80,8 @@ export default function DuelDetailScreen({ route, navigation }) {
       <View style={styles.card}>
         <Term label="Sport" value={SPORT_LABEL[duel.sport] || duel.sport} />
         <Term label="Draft type" value={cap(duel.draft_type)} />
-        <Term label="Players each" value={String(duel.roster_size)} />
+        <Term label="Lineup" value={`${cap((duel.lineup_template || '').split('_')[1] || '')} · ${duel.roster_size} slots`} />
+        <Term label="Pick clock" value={clockLabel(duel.pick_clock_seconds)} />
         <Term label="Draft starts" value={formatDateTime(duel.draft_starts_at)} />
       </View>
 
@@ -102,10 +114,28 @@ export default function DuelDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       ) : null}
 
-      {duel.status === 'accepted' ? (
-        <Text style={styles.accepted}>
-          ✅ Accepted! The live draft arrives in the next phase.
-        </Text>
+      {duel.status === 'accepted' || duel.status === 'drafting' ? (
+        <TouchableOpacity
+          style={styles.accept}
+          onPress={() =>
+            navigation.navigate('DraftRoom', { id: duel.id, opponentName: duel.opponent.username })
+          }
+        >
+          <Text style={styles.acceptText}>
+            {duel.status === 'drafting' ? 'Resume Live Draft' : 'Enter Draft Room'}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
+
+      {duel.status === 'drafted' ? (
+        <TouchableOpacity
+          style={styles.counter}
+          onPress={() =>
+            navigation.navigate('DraftRoom', { id: duel.id, opponentName: duel.opponent.username })
+          }
+        >
+          <Text style={styles.counterText}>View Draft Result</Text>
+        </TouchableOpacity>
       ) : null}
     </ScrollView>
   );
@@ -114,7 +144,11 @@ export default function DuelDetailScreen({ route, navigation }) {
 function goCounter(navigation, duel) {
   navigation.navigate('Counter', {
     id: duel.id,
-    initial: { sport: duel.sport, roster_size: duel.roster_size },
+    initial: {
+      sport: duel.sport,
+      lineup_template: duel.lineup_template,
+      pick_clock_seconds: duel.pick_clock_seconds,
+    },
   });
 }
 
@@ -131,7 +165,8 @@ const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 const prettyKey = (k) => k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 function statusStyle(status) {
-  if (status === 'accepted') return { backgroundColor: '#14532d' };
+  if (status === 'accepted' || status === 'drafted') return { backgroundColor: '#14532d' };
+  if (status === 'drafting') return { backgroundColor: '#854d0e' };
   if (status === 'pending') return { backgroundColor: '#1e3a8a' };
   return { backgroundColor: colors.card };
 }

@@ -27,6 +27,17 @@ defmodule HeadsUp.Contests.Scoring do
     "three_made" => 0.5
   }
 
+  # WNBA scoring mirrors NBA (same box-score categories).
+  @wnba %{
+    "point" => 1,
+    "rebound" => 1.25,
+    "assist" => 1.5,
+    "steal" => 2,
+    "block" => 2,
+    "turnover" => -0.5,
+    "three_made" => 0.5
+  }
+
   @mlb %{
     "single" => 3,
     "double" => 5,
@@ -44,6 +55,7 @@ defmodule HeadsUp.Contests.Scoring do
 
   def default_rules("nfl"), do: @nfl
   def default_rules("nba"), do: @nba
+  def default_rules("wnba"), do: @wnba
   def default_rules("mlb"), do: @mlb
   def default_rules(_), do: %{}
 end

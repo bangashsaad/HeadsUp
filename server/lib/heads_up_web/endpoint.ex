@@ -15,6 +15,11 @@ defmodule HeadsUpWeb.Endpoint do
     websocket: [connect_info: [session: @session_options]],
     longpoll: [connect_info: [session: @session_options]]
 
+  # Token-authenticated socket for the mobile client (live draft channel).
+  socket "/socket", HeadsUpWeb.UserSocket,
+    websocket: true,
+    longpoll: false
+
   # Serve at "/" the static files from "priv/static" directory.
   #
   # When code reloading is disabled (e.g., in production),

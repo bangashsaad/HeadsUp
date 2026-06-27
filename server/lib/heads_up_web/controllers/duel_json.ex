@@ -30,6 +30,8 @@ defmodule HeadsUpWeb.DuelJSON do
       sport: duel.sport,
       draft_type: duel.draft_type,
       roster_size: duel.roster_size,
+      lineup_template: duel.lineup_template,
+      pick_clock_seconds: duel.pick_clock_seconds,
       scoring_rules: duel.scoring_rules,
       wager_cents: duel.wager_cents,
       draft_starts_at: duel.draft_starts_at,

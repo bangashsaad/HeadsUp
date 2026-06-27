@@ -4,6 +4,7 @@ import { colors } from '../theme';
 const SPORTS = [
   { sport: 'nfl', label: 'Football', emoji: '🏈' },
   { sport: 'nba', label: 'Basketball', emoji: '🏀' },
+  { sport: 'wnba', label: 'WNBA', emoji: '🏀' },
   { sport: 'mlb', label: 'Baseball', emoji: '⚾️' },
 ];
 

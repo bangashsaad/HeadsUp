@@ -13,6 +13,7 @@ defmodule HeadsUp.Contests do
   alias HeadsUp.Accounts.User
   alias HeadsUp.Social
   alias HeadsUp.Contests.{Duel, Scoring}
+  alias HeadsUp.Drafts.Lineup
 
   @doc "Creates a challenge from `challenger` to a friend."
   def create_challenge(%User{} = challenger, attrs) do
@@ -77,6 +78,43 @@ defmodule HeadsUp.Contests do
     end
   end
 
+  @doc """
+  Internal: the draft engine flips an accepted duel to "drafting" when its
+  live draft begins. Idempotent if the duel already advanced past accepted.
+  """
+  def start_draft(duel_id) do
+    case Repo.get(Duel, duel_id) do
+      %Duel{status: "accepted"} = duel -> duel |> Duel.status_changeset("drafting") |> Repo.update()
+      %Duel{} = duel -> {:ok, duel}
+      nil -> {:error, :not_found}
+    end
+  end
+
+  @doc "Internal: the draft engine flips a duel to \"drafted\" when the draft completes."
+  def finish_draft(duel_id) do
+    case Repo.get(Duel, duel_id) do
+      %Duel{} = duel -> duel |> Duel.status_changeset("drafted") |> Repo.update()
+      nil -> {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Internal: a draft was cancelled (no-show / abort) — return the duel to
+  "cancelled". No forfeit win. Idempotent if already past drafting.
+  """
+  def cancel_drafting(duel_id) do
+    case Repo.get(Duel, duel_id) do
+      %Duel{status: s} = duel when s in ["accepted", "drafting"] ->
+        duel |> Duel.status_changeset("cancelled") |> Repo.update()
+
+      %Duel{} = duel ->
+        {:ok, duel}
+
+      nil ->
+        {:error, :not_found}
+    end
+  end
+
   @doc "All duels the user is part of, newest first, with both users preloaded."
   def list_duels(%User{id: id}) do
     from(d in Duel,
@@ -96,16 +134,39 @@ defmodule HeadsUp.Contests do
     |> Repo.one()
   end
 
+  @doc """
+  The duel for a draft room: returned only to a participant, and only once the
+  duel is accepted (or already drafting/drafted, so a room can be resumed/viewed).
+  Used by the DraftChannel to authorize a join. nil otherwise.
+  """
+  def get_duel_for_draft(user_id, duel_id) do
+    from(d in Duel,
+      where:
+        d.id == ^duel_id and
+          (d.challenger_id == ^user_id or d.opponent_id == ^user_id) and
+          d.status in ["accepted", "drafting", "drafted"],
+      preload: [:challenger, :opponent]
+    )
+    |> Repo.one()
+  end
+
   # --- helpers ---
 
   # Fills in server-controlled fields and per-sport scoring defaults.
+  # roster_size is DERIVED from the lineup template so pick count always matches.
   defp build_attrs(challenger, attrs) do
+    sport = attrs["sport"]
+    template = attrs["lineup_template"] || "#{sport}_standard"
+
     attrs
     |> Map.put("challenger_id", challenger.id)
     |> Map.put("status", "pending")
+    |> Map.put("lineup_template", template)
+    |> Map.put("roster_size", Lineup.slot_count(template))
     |> Map.put_new("draft_type", "snake")
+    |> Map.put_new("pick_clock_seconds", 60)
     |> Map.put_new("wager_cents", 0)
-    |> Map.put_new("scoring_rules", Scoring.default_rules(attrs["sport"]))
+    |> Map.put_new("scoring_rules", Scoring.default_rules(sport))
   end
 
   # Generic guarded status change: the duel must be at `from_status` and the

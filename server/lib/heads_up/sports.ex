@@ -7,7 +7,7 @@ defmodule HeadsUp.Sports do
   alias HeadsUp.Repo
   alias HeadsUp.Sports.{Player, Game}
 
-  @sports ~w(nfl nba mlb)
+  @sports ~w(nfl nba mlb wnba)
 
   def sports, do: @sports
 

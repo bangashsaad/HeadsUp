@@ -12,8 +12,11 @@ defmodule HeadsUp.Application do
       HeadsUp.Repo,
       {DNSCluster, query: Application.get_env(:heads_up, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: HeadsUp.PubSub},
-      # Start a worker by calling: HeadsUp.Worker.start_link(arg)
-      # {HeadsUp.Worker, arg},
+      # Live draft engine: a Registry to find the per-draft GenServer by draft id,
+      # and a DynamicSupervisor that owns those processes. After PubSub so a
+      # server can broadcast on replay; before Endpoint so it's up for requests.
+      {Registry, keys: :unique, name: HeadsUp.Drafts.Registry},
+      HeadsUp.Drafts.Supervisor,
       # Start to serve requests, typically the last entry
       HeadsUpWeb.Endpoint
     ]
