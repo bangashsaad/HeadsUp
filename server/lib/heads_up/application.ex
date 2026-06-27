@@ -17,6 +17,8 @@ defmodule HeadsUp.Application do
       # server can broadcast on replay; before Endpoint so it's up for requests.
       {Registry, keys: :unique, name: HeadsUp.Drafts.Registry},
       HeadsUp.Drafts.Supervisor,
+      # Automatic settlement: sweeps duels whose scoring window has closed.
+      HeadsUp.Settlement.Worker,
       # Start to serve requests, typically the last entry
       HeadsUpWeb.Endpoint
     ]

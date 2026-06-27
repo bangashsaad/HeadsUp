@@ -90,11 +90,27 @@ defmodule HeadsUp.Contests do
     end
   end
 
-  @doc "Internal: the draft engine flips a duel to \"drafted\" when the draft completes."
+  @doc """
+  Internal: the draft engine flips a duel to "drafted" when the draft completes,
+  and FREEZES the scoring window (anchored at completion, so the draft is always
+  locked before the window opens). The settlement worker sweeps on its close.
+  """
   def finish_draft(duel_id) do
     case Repo.get(Duel, duel_id) do
-      %Duel{} = duel -> duel |> Duel.status_changeset("drafted") |> Repo.update()
-      nil -> {:error, :not_found}
+      %Duel{} = duel ->
+        now = DateTime.utc_now() |> DateTime.truncate(:second)
+        window_seconds = Application.get_env(:heads_up, :scoring_window_seconds, 86_400)
+
+        duel
+        |> Duel.finish_changeset(%{
+          status: "drafted",
+          scoring_window_start: now,
+          scoring_window_end: DateTime.add(now, window_seconds, :second)
+        })
+        |> Repo.update()
+
+      nil ->
+        {:error, :not_found}
     end
   end
 

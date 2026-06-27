@@ -1,5 +1,10 @@
 import Config
 
+# Settlement: never let the worker auto-fire mid-test; tests drive it via
+# Worker.trigger_now/0 or Settlement.settle_duel/1 with explicit past windows.
+config :heads_up, :settlement_interval_ms, 3_600_000
+config :heads_up, :stats_provider, HeadsUp.Settlement.Stats.Mock
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used

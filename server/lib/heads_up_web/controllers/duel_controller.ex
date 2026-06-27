@@ -1,7 +1,9 @@
 defmodule HeadsUpWeb.DuelController do
   use HeadsUpWeb, :controller
 
-  alias HeadsUp.Contests
+  alias HeadsUp.{Contests, Settlement}
+  alias HeadsUp.Contests.Duel
+  alias HeadsUp.Settlement.Result
 
   plug :put_view, json: HeadsUpWeb.DuelJSON
   action_fallback HeadsUpWeb.FallbackController
@@ -19,6 +21,20 @@ defmodule HeadsUpWeb.DuelController do
     case Contests.get_duel(user, id) do
       nil -> {:error, :not_found}
       duel -> render(conn, :show, duel: duel, current_user_id: user.id)
+    end
+  end
+
+  # GET /api/duels/:id/result  (the settled scoreboard)
+  def result(conn, %{"id" => id}) do
+    user = conn.assigns.current_user
+
+    with %Duel{} = duel <- Contests.get_duel(user, id),
+         %Result{} = result <- Settlement.get_result(duel.id) do
+      conn
+      |> put_view(json: HeadsUpWeb.ResultJSON)
+      |> render(:show, result: result, duel: duel, current_user_id: user.id)
+    else
+      _ -> {:error, :not_found}
     end
   end
 

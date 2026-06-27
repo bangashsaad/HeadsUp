@@ -66,6 +66,13 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
+# Phase 5 scoring + settlement
+config :heads_up, :stats_provider, HeadsUp.Settlement.Stats.Mock
+# How often the settlement worker sweeps for due duels.
+config :heads_up, :settlement_interval_ms, 60_000
+# Scoring window length frozen when a draft finishes (24h default).
+config :heads_up, :scoring_window_seconds, 86_400
+
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.
 import_config "#{config_env()}.exs"

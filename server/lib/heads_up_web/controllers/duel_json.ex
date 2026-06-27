@@ -35,8 +35,24 @@ defmodule HeadsUpWeb.DuelJSON do
       scoring_rules: duel.scoring_rules,
       wager_cents: duel.wager_cents,
       draft_starts_at: duel.draft_starts_at,
+      scoring_window_end: duel.scoring_window_end,
+      # Settlement outcome (present once status == "settled"; winner_id nil = tie).
+      winner_id: duel.winner_id,
+      settled_at: duel.settled_at,
+      my_outcome: outcome(duel, current_user_id),
       parent_duel_id: duel.parent_duel_id,
       inserted_at: duel.inserted_at
     }
   end
+
+  # win / loss / tie from the viewer's POV, or nil until settled.
+  defp outcome(%Duel{status: "settled"} = duel, uid) do
+    cond do
+      is_nil(duel.winner_id) -> "tie"
+      duel.winner_id == uid -> "win"
+      true -> "loss"
+    end
+  end
+
+  defp outcome(_duel, _uid), do: nil
 end

@@ -58,6 +58,7 @@ defmodule HeadsUpWeb.Router do
     get "/duels", DuelController, :index
     post "/duels", DuelController, :create
     get "/duels/:id", DuelController, :show
+    get "/duels/:id/result", DuelController, :result
     post "/duels/:id/accept", DuelController, :accept
     post "/duels/:id/decline", DuelController, :decline
     post "/duels/:id/cancel", DuelController, :cancel

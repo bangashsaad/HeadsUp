@@ -12,7 +12,18 @@ import { useAuth } from '../auth/AuthContext';
 import { listDuels } from '../api/duels';
 import { colors } from '../theme';
 
-const SPORT_EMOJI = { nfl: '🏈', nba: '🏀', mlb: '⚾️' };
+const SPORT_EMOJI = { nfl: '🏈', nba: '🏀', wnba: '🏀', mlb: '⚾️' };
+
+// A friendly one-liner for the row: outcome for settled duels, else the status.
+function rowMeta(d) {
+  if (d.status === 'settled') {
+    const o = d.my_outcome === 'win' ? 'You won 🏆' : d.my_outcome === 'tie' ? 'Tie' : 'You lost';
+    return `${d.roster_size} players · ${o}`;
+  }
+  const label =
+    d.status === 'drafting' ? 'drafting now' : d.status === 'drafted' ? 'awaiting results' : d.status;
+  return `${d.roster_size} players · ${label}`;
+}
 
 export default function DuelsListScreen({ navigation }) {
   const { token } = useAuth();
@@ -73,9 +84,7 @@ export default function DuelsListScreen({ navigation }) {
               <Text style={styles.emoji}>{SPORT_EMOJI[item.sport] || '🎯'}</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.vs}>vs {item.opponent.username}</Text>
-                <Text style={styles.meta}>
-                  {item.roster_size} players · {item.status}
-                </Text>
+                <Text style={styles.meta}>{rowMeta(item)}</Text>
               </View>
               <Text style={styles.chevron}>›</Text>
             </TouchableOpacity>
@@ -96,14 +105,14 @@ function buildSections(duels) {
   for (const d of duels) {
     if (d.status === 'pending' && d.role === 'opponent') needsResponse.push(d);
     else if (d.status === 'pending' && d.role === 'challenger') waiting.push(d);
-    else if (d.status === 'accepted') active.push(d);
+    else if (['accepted', 'drafting', 'drafted'].includes(d.status)) active.push(d);
     else past.push(d);
   }
 
   return [
     { title: 'Needs your response', data: needsResponse },
     { title: 'Waiting on them', data: waiting },
-    { title: 'Accepted', data: active },
+    { title: 'In progress', data: active },
     { title: 'Past', data: past },
   ];
 }

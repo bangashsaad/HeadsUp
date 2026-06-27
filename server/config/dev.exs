@@ -70,6 +70,11 @@ config :heads_up, HeadsUpWeb.Endpoint,
 # Enable dev routes for dashboard and mailbox
 config :heads_up, dev_routes: true
 
+# Short scoring window in dev so you can watch a duel auto-settle on-device a
+# couple of minutes after drafting (prod uses 24h). The worker still sweeps on
+# its normal interval; `Settlement.settle_duel(id)` force-settles instantly.
+config :heads_up, :scoring_window_seconds, 120
+
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"
 

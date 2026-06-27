@@ -4,6 +4,8 @@ export const listDuels = (token) => apiRequest('/api/duels', { token });
 
 export const getDuel = (token, id) => apiRequest(`/api/duels/${id}`, { token });
 
+export const getResult = (token, id) => apiRequest(`/api/duels/${id}/result`, { token });
+
 export const createChallenge = (token, body) =>
   apiRequest('/api/duels', { method: 'POST', token, body });
 

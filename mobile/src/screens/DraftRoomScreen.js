@@ -274,7 +274,8 @@ function DraftBoard({ state, myId, opponentName, conn, error, setError }) {
         </>
       ) : (
         <Text style={styles.completeNote}>
-          Both lineups are set. Scoring &amp; the winner come in the next phase.
+          Lineups are locked. The winner is declared once the games in the scoring window finish —
+          check back from the duel screen.
         </Text>
       )}
     </View>

@@ -128,13 +128,33 @@ export default function DuelDetailScreen({ route, navigation }) {
       ) : null}
 
       {duel.status === 'drafted' ? (
+        <>
+          <TouchableOpacity
+            style={styles.counter}
+            onPress={() =>
+              navigation.navigate('DraftRoom', { id: duel.id, opponentName: duel.opponent.username })
+            }
+          >
+            <Text style={styles.counterText}>View Drafted Lineups</Text>
+          </TouchableOpacity>
+          <Text style={styles.accepted}>⏳ Lineups locked — the winner is declared once the games finish.</Text>
+        </>
+      ) : null}
+
+      {duel.status === 'settled' ? (
         <TouchableOpacity
-          style={styles.counter}
+          style={styles.accept}
           onPress={() =>
-            navigation.navigate('DraftRoom', { id: duel.id, opponentName: duel.opponent.username })
+            navigation.navigate('Results', { id: duel.id, opponentName: duel.opponent.username })
           }
         >
-          <Text style={styles.counterText}>View Draft Result</Text>
+          <Text style={styles.acceptText}>
+            {duel.my_outcome === 'win'
+              ? '🏆 View Result — You won!'
+              : duel.my_outcome === 'tie'
+                ? '🤝 View Result — Tie'
+                : 'View Result'}
+          </Text>
         </TouchableOpacity>
       ) : null}
     </ScrollView>
@@ -165,7 +185,8 @@ const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 const prettyKey = (k) => k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
 function statusStyle(status) {
-  if (status === 'accepted' || status === 'drafted') return { backgroundColor: '#14532d' };
+  if (status === 'accepted' || status === 'drafted' || status === 'settled')
+    return { backgroundColor: '#14532d' };
   if (status === 'drafting') return { backgroundColor: '#854d0e' };
   if (status === 'pending') return { backgroundColor: '#1e3a8a' };
   return { backgroundColor: colors.card };
