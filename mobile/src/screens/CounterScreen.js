@@ -3,12 +3,13 @@ import { StyleSheet, Text } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { counterChallenge } from '../api/duels';
 import ChallengeForm from '../components/ChallengeForm';
-import { colors, spacing, font } from '../theme';
+import { useThemedStyles, spacing, font } from '../theme';
 import { Screen, Card } from '../components/ui';
 
 export default function CounterScreen({ route, navigation }) {
   const { id, initial } = route.params;
   const { token } = useAuth();
+  const styles = useThemedStyles(makeStyles);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -17,7 +18,6 @@ export default function CounterScreen({ route, navigation }) {
     setError(null);
     try {
       const res = await counterChallenge(token, id, terms);
-      // The counter creates a NEW duel going the other way — show it.
       navigation.replace('DuelDetail', { id: res.duel.id });
     } catch (e) {
       setError(e.message);
@@ -38,7 +38,8 @@ export default function CounterScreen({ route, navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  intro: { color: colors.muted, fontSize: font.body, lineHeight: 21 },
-  error: { color: colors.danger, textAlign: 'center', marginTop: spacing.md },
-});
+const makeStyles = (colors) =>
+  StyleSheet.create({
+    intro: { color: colors.muted, fontSize: font.body, lineHeight: 21 },
+    error: { color: colors.danger, textAlign: 'center', marginTop: spacing.md },
+  });

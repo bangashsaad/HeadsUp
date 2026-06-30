@@ -41,6 +41,7 @@ defmodule HeadsUpWeb.Router do
     pipe_through [:api, :api_authenticated]
 
     get "/me", AuthController, :me
+    put "/me/password", AuthController, :change_password
     delete "/logout", AuthController, :logout
 
     # Friends

@@ -1,21 +1,21 @@
 import { View, ScrollView, KeyboardAvoidingView, Platform, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, spacing } from '../../theme';
+import { useTheme, spacing } from '../../theme';
 
-// Page wrapper: dark bg, safe-area (bottom by default — the nav header owns the
-// top), keyboard avoidance, and an optional scroll view with pull-to-refresh.
+// Page wrapper: themed bg, keyboard avoidance, and an optional scroll view with
+// pull-to-refresh. No safe-area insets by default (the header owns the top, the
+// tab bar owns the bottom).
 export default function Screen({
   children,
   scroll = false,
   padded = true,
   style,
   contentStyle,
-  // No extra insets by default: the nav header owns the top and the tab bar
-  // owns the bottom, so adding a safe-area edge here would leave a gap.
   edges = [],
   refreshing,
   onRefresh,
 }) {
+  const { colors } = useTheme();
   const padStyle = padded ? { padding: spacing.lg } : null;
 
   const refreshControl =

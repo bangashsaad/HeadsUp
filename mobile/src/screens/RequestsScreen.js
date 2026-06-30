@@ -1,14 +1,15 @@
 import { useCallback, useState } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
-import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { listRequests, acceptRequest, deleteRequest } from '../api/social';
-import { colors, spacing, font } from '../theme';
+import { notify, NotifyType } from '../haptics';
+import { useThemedStyles, spacing, font } from '../theme';
 import { Screen, Avatar, Button, EmptyState, SkeletonList } from '../components/ui';
 
 export default function RequestsScreen() {
   const { token } = useAuth();
+  const styles = useThemedStyles(makeStyles);
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -32,11 +33,7 @@ export default function RequestsScreen() {
   );
 
   async function respond(request, action) {
-    Haptics.notificationAsync(
-      action === 'accept' ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning
-    ).catch(() => {});
-
-    // Remove from the list immediately for a snappy feel.
+    notify(action === 'accept' ? NotifyType.Success : NotifyType.Warning);
     setRequests((prev) => prev.filter((r) => r.id !== request.id));
     try {
       if (action === 'accept') {
@@ -46,7 +43,7 @@ export default function RequestsScreen() {
       }
     } catch (e) {
       setError(e.message);
-      load(); // reload to restore correct state on error
+      load();
     }
   }
 
@@ -64,11 +61,7 @@ export default function RequestsScreen() {
             ItemSeparatorComponent={() => <View style={styles.sep} />}
             contentContainerStyle={requests.length === 0 && { flexGrow: 1, justifyContent: 'center' }}
             ListEmptyComponent={
-              <EmptyState
-                icon="mail-open-outline"
-                title="No pending requests"
-                subtitle="When someone wants to add you, it'll show up here."
-              />
+              <EmptyState icon="mail-open-outline" title="No pending requests" subtitle="When someone wants to add you, it'll show up here." />
             }
             renderItem={({ item }) => (
               <View style={styles.row}>
@@ -87,11 +80,12 @@ export default function RequestsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  body: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
-  sep: { height: StyleSheet.hairlineWidth, backgroundColor: colors.borderSubtle },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md },
-  username: { color: colors.text, fontSize: font.subtitle, fontWeight: '600', marginLeft: spacing.md, flex: 1 },
-  buttons: { flexDirection: 'row', gap: spacing.sm },
-  error: { color: colors.danger, textAlign: 'center', marginBottom: spacing.sm },
-});
+const makeStyles = (colors) =>
+  StyleSheet.create({
+    body: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+    sep: { height: StyleSheet.hairlineWidth, backgroundColor: colors.borderSubtle },
+    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md },
+    username: { color: colors.text, fontSize: font.subtitle, fontWeight: '600', marginLeft: spacing.md, flex: 1 },
+    buttons: { flexDirection: 'row', gap: spacing.sm },
+    error: { color: colors.danger, textAlign: 'center', marginBottom: spacing.sm },
+  });

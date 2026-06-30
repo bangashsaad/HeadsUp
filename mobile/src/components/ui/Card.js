@@ -1,9 +1,9 @@
 import { View, Pressable } from 'react-native';
-import { colors, radius, spacing, shadow } from '../../theme';
+import { useTheme, radius, spacing, shadow } from '../../theme';
 
-// A surface with depth — border + soft shadow. Pass onPress to make it tappable
-// (adds a gentle press animation).
+// A surface with depth — border + soft shadow. Pass onPress to make it tappable.
 export default function Card({ children, onPress, style, padded = true, elevated = false, ...rest }) {
+  const { colors } = useTheme();
   const base = [
     {
       backgroundColor: elevated ? colors.cardElevated : colors.card,

@@ -4,7 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { getDuel, respondToDuel } from '../api/duels';
 import { formatDateTime } from '../utils/datetime';
-import { colors, spacing, radius, font, statusTone } from '../theme';
+import { useTheme, useThemedStyles, spacing, font, statusTone } from '../theme';
 import { Screen, Card, Avatar, Badge, Button, SectionHeader } from '../components/ui';
 
 const SPORT_LABEL = {
@@ -20,9 +20,14 @@ function clockLabel(secs) {
   return `${secs / 3600}h per pick (async)`;
 }
 
+const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+const prettyKey = (k) => k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
 export default function DuelDetailScreen({ route, navigation }) {
   const { id } = route.params;
   const { token } = useAuth();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [duel, setDuel] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -52,6 +57,15 @@ export default function DuelDetailScreen({ route, navigation }) {
       setError(e.message);
       setBusy(false);
     }
+  }
+
+  function Term({ label, value, first }) {
+    return (
+      <View style={[styles.term, !first && styles.termDivider]}>
+        <Text style={styles.termLabel}>{label}</Text>
+        <Text style={styles.termValue}>{value}</Text>
+      </View>
+    );
   }
 
   if (!duel) {
@@ -167,31 +181,20 @@ function goCounter(navigation, duel) {
   });
 }
 
-function Term({ label, value, first }) {
-  return (
-    <View style={[styles.term, !first && styles.termDivider]}>
-      <Text style={styles.termLabel}>{label}</Text>
-      <Text style={styles.termValue}>{value}</Text>
-    </View>
-  );
-}
-
-const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
-const prettyKey = (k) => k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-
-const styles = StyleSheet.create({
-  loading: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
-  side: { alignItems: 'center', flex: 1 },
-  sideName: { color: colors.text, fontSize: font.body, fontWeight: '700', marginTop: spacing.sm, maxWidth: '90%' },
-  vs: { color: colors.placeholder, fontSize: font.body, fontWeight: '800', letterSpacing: 1, paddingHorizontal: spacing.md },
-  statusRow: { alignItems: 'center', marginBottom: spacing.lg },
-  error: { color: colors.danger, textAlign: 'center', marginBottom: spacing.md },
-  term: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, paddingHorizontal: spacing.lg },
-  termDivider: { borderTopColor: colors.borderSubtle, borderTopWidth: StyleSheet.hairlineWidth },
-  termLabel: { color: colors.muted, fontSize: font.body },
-  termValue: { color: colors.text, fontSize: font.body, fontWeight: '600' },
-  actions: { marginTop: spacing.xl, gap: spacing.md },
-  twoUp: { flexDirection: 'row', gap: spacing.md },
-  locked: { color: colors.muted, fontSize: font.body, textAlign: 'center', marginTop: spacing.sm, lineHeight: 21 },
-});
+const makeStyles = (colors) =>
+  StyleSheet.create({
+    loading: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
+    side: { alignItems: 'center', flex: 1 },
+    sideName: { color: colors.text, fontSize: font.body, fontWeight: '700', marginTop: spacing.sm, maxWidth: '90%' },
+    vs: { color: colors.placeholder, fontSize: font.body, fontWeight: '800', letterSpacing: 1, paddingHorizontal: spacing.md },
+    statusRow: { alignItems: 'center', marginBottom: spacing.lg },
+    error: { color: colors.danger, textAlign: 'center', marginBottom: spacing.md },
+    term: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, paddingHorizontal: spacing.lg },
+    termDivider: { borderTopColor: colors.borderSubtle, borderTopWidth: StyleSheet.hairlineWidth },
+    termLabel: { color: colors.muted, fontSize: font.body },
+    termValue: { color: colors.text, fontSize: font.body, fontWeight: '600' },
+    actions: { marginTop: spacing.xl, gap: spacing.md },
+    twoUp: { flexDirection: 'row', gap: spacing.md },
+    locked: { color: colors.muted, fontSize: font.body, textAlign: 'center', marginTop: spacing.sm, lineHeight: 21 },
+  });

@@ -1,9 +1,10 @@
 import { View, TextInput, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, radius, spacing, font } from '../../theme';
+import { useTheme, radius, spacing, font } from '../../theme';
 
 // Text field with a leading search icon and a clear (×) button.
 export default function SearchInput({ value, onChangeText, placeholder = 'Search', style, autoFocus = false }) {
+  const { colors } = useTheme();
   return (
     <View
       style={[

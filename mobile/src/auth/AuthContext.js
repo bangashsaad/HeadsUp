@@ -51,6 +51,14 @@ export function AuthProvider({ children }) {
     await persist(data);
   }
 
+  async function changePassword({ currentPassword, newPassword }) {
+    await apiRequest('/api/me/password', {
+      method: 'PUT',
+      token,
+      body: { current_password: currentPassword, password: newPassword },
+    });
+  }
+
   async function signOut() {
     try {
       if (token) await apiRequest('/api/logout', { method: 'DELETE', token });
@@ -63,7 +71,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, token, loading, signUp, signIn, signOut, changePassword }}>
       {children}
     </AuthContext.Provider>
   );

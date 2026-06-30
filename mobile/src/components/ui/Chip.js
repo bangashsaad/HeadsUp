@@ -1,13 +1,14 @@
 import { Pressable, Text } from 'react-native';
-import * as Haptics from 'expo-haptics';
-import { colors, radius, font } from '../../theme';
+import { selection } from '../../haptics';
+import { useTheme, radius, font } from '../../theme';
 
 // A selectable pill (filters, toggles). Light selection haptic on tap.
 export default function Chip({ label, active = false, onPress, style }) {
+  const { colors } = useTheme();
   return (
     <Pressable
       onPress={() => {
-        Haptics.selectionAsync().catch(() => {});
+        selection();
         onPress && onPress();
       }}
       style={({ pressed }) => [
@@ -23,7 +24,7 @@ export default function Chip({ label, active = false, onPress, style }) {
         style,
       ]}
     >
-      <Text style={{ color: active ? colors.bg : colors.muted, fontWeight: '700', fontSize: font.small }}>{label}</Text>
+      <Text style={{ color: active ? colors.onAccent : colors.muted, fontWeight: '700', fontSize: font.small }}>{label}</Text>
     </Pressable>
   );
 }

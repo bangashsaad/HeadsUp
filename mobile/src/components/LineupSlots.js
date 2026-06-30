@@ -1,10 +1,10 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, spacing, radius, font } from '../theme';
+import { useThemedStyles, spacing, radius, font } from '../theme';
 
 // Renders a team's lineup: one row per slot (in template order), showing the
-// drafted player or an empty placeholder. `slots` = [{key,label,eligible}],
-// `picks` = that user's picks [{slot, player, auto_picked}].
+// drafted player or an empty placeholder.
 export default function LineupSlots({ slots, picks }) {
+  const styles = useThemedStyles(makeStyles);
   const bySlot = {};
   for (const p of picks || []) bySlot[p.slot] = p;
 
@@ -37,27 +37,14 @@ export default function LineupSlots({ slots, picks }) {
   );
 }
 
-const styles = StyleSheet.create({
-  wrap: {
-    backgroundColor: colors.card,
-    borderColor: colors.borderSubtle,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-  },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm },
-  divider: { borderBottomColor: colors.borderSubtle, borderBottomWidth: StyleSheet.hairlineWidth },
-  slotChip: {
-    backgroundColor: colors.bgElevated,
-    borderRadius: radius.sm,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginRight: spacing.md,
-    minWidth: 42,
-    alignItems: 'center',
-  },
-  slotText: { color: colors.muted, fontSize: 11, fontWeight: '800' },
-  filled: { color: colors.text, fontSize: font.body, fontWeight: '600' },
-  team: { color: colors.muted, fontSize: font.caption, marginTop: 1 },
-  empty: { color: colors.placeholder, fontSize: font.body, flex: 1 },
-});
+const makeStyles = (colors) =>
+  StyleSheet.create({
+    wrap: { backgroundColor: colors.card, borderColor: colors.borderSubtle, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md },
+    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm },
+    divider: { borderBottomColor: colors.borderSubtle, borderBottomWidth: StyleSheet.hairlineWidth },
+    slotChip: { backgroundColor: colors.bgElevated, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3, marginRight: spacing.md, minWidth: 42, alignItems: 'center' },
+    slotText: { color: colors.muted, fontSize: 11, fontWeight: '800' },
+    filled: { color: colors.text, fontSize: font.body, fontWeight: '600' },
+    team: { color: colors.muted, fontSize: font.caption, marginTop: 1 },
+    empty: { color: colors.placeholder, fontSize: font.body, flex: 1 },
+  });

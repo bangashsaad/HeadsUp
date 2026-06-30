@@ -1,16 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { useAuth } from '../auth/AuthContext';
 import { listFriends } from '../api/social';
 import { createChallenge } from '../api/duels';
+import { selection } from '../haptics';
 import ChallengeForm from '../components/ChallengeForm';
-import { colors, spacing, radius, font } from '../theme';
+import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
 import { Screen, Avatar, EmptyState, SkeletonList, SectionHeader } from '../components/ui';
 
 export default function CreateChallengeScreen({ navigation }) {
   const { token } = useAuth();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [friends, setFriends] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -62,11 +64,7 @@ export default function CreateChallengeScreen({ navigation }) {
       <SectionHeader style={{ marginTop: 0 }}>Who are you challenging?</SectionHeader>
 
       {friends.length === 0 ? (
-        <EmptyState
-          icon="people-outline"
-          title="No friends yet"
-          subtitle="Add a friend from the Friends tab before you can challenge them."
-        />
+        <EmptyState icon="people-outline" title="No friends yet" subtitle="Add a friend from the Friends tab before you can challenge them." />
       ) : (
         friends.map((f) => {
           const active = selected === f.id;
@@ -74,18 +72,14 @@ export default function CreateChallengeScreen({ navigation }) {
             <Pressable
               key={f.id}
               onPress={() => {
-                Haptics.selectionAsync().catch(() => {});
+                selection();
                 setSelected(f.id);
               }}
               style={({ pressed }) => [styles.friend, active && styles.friendActive, pressed && { opacity: 0.9 }]}
             >
               <Avatar name={f.username} size={40} />
               <Text style={styles.friendName}>{f.username}</Text>
-              <Ionicons
-                name={active ? 'checkmark-circle' : 'ellipse-outline'}
-                size={22}
-                color={active ? colors.accent : colors.placeholder}
-              />
+              <Ionicons name={active ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={active ? colors.accent : colors.placeholder} />
             </Pressable>
           );
         })
@@ -96,19 +90,20 @@ export default function CreateChallengeScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  error: { color: colors.danger, marginBottom: spacing.md, textAlign: 'center' },
-  friend: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  friendActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
-  friendName: { color: colors.text, fontSize: font.bodyLg, fontWeight: '600', flex: 1, marginLeft: spacing.md },
-});
+const makeStyles = (colors) =>
+  StyleSheet.create({
+    error: { color: colors.danger, marginBottom: spacing.md, textAlign: 'center' },
+    friend: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.md,
+      marginBottom: spacing.sm,
+    },
+    friendActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
+    friendName: { color: colors.text, fontSize: font.bodyLg, fontWeight: '600', flex: 1, marginLeft: spacing.md },
+  });

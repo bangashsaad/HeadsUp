@@ -39,4 +39,15 @@ defmodule HeadsUpWeb.AuthController do
   def me(conn, _params) do
     render(conn, :user, user: conn.assigns.current_user)
   end
+
+  # PUT /api/me/password  { "current_password", "password" }  (requires auth)
+  def change_password(conn, %{"current_password" => current, "password" => new}) do
+    case Accounts.update_user_password(conn.assigns.current_user, current, %{"password" => new}) do
+      {:ok, _user} -> send_resp(conn, :no_content, "")
+      {:error, :invalid_current_password} -> {:error, "Current password is incorrect"}
+      {:error, %Ecto.Changeset{} = changeset} -> {:error, changeset}
+    end
+  end
+
+  def change_password(_conn, _params), do: {:error, "current_password and password are required"}
 end

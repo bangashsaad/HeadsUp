@@ -1,10 +1,11 @@
 import { View, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, font } from '../../theme';
+import { useTheme, spacing, font } from '../../theme';
 
 // Friendly centered placeholder: an icon coin, a title, a subtitle, and an
 // optional action node (e.g. a Button).
 export default function EmptyState({ icon = 'sparkles-outline', title, subtitle, action, style }) {
+  const { colors } = useTheme();
   return (
     <View style={[{ alignItems: 'center', justifyContent: 'center', paddingVertical: spacing.xxl, paddingHorizontal: spacing.xl }, style]}>
       <View

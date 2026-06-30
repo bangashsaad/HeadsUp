@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { colors, spacing, font } from '../theme';
+import { useThemedStyles, spacing, font } from '../theme';
 import { Chip, Button } from './ui';
 
 const SPORTS = [
@@ -10,14 +10,11 @@ const SPORTS = [
   { key: 'mlb', label: '⚾️ Baseball' },
 ];
 
-// Lineup presets (the backend resolves "<sport>_<preset>" to positional slots
-// and derives roster size from it). Quick = small lineup, Standard = full.
 const PRESETS = [
   { key: 'quick', label: 'Quick' },
   { key: 'standard', label: 'Standard' },
 ];
 
-// Per-pick clock. Short = live draft; multi-hour = async (same engine).
 const CLOCKS = [
   { secs: 30, label: '30s' },
   { secs: 60, label: '60s' },
@@ -27,7 +24,6 @@ const CLOCKS = [
   { secs: 86400, label: '24h' },
 ];
 
-// Draft-time presets — turned into an actual future timestamp at submit time.
 const TIME_OPTIONS = [
   { label: 'In 1 hour', ms: 60 * 60 * 1000 },
   { label: 'In 3 hours', ms: 3 * 60 * 60 * 1000 },
@@ -36,6 +32,7 @@ const TIME_OPTIONS = [
 ];
 
 export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, submitting }) {
+  const styles = useThemedStyles(makeStyles);
   const [sport, setSport] = useState(initial.sport || 'nfl');
   const [preset, setPreset] = useState((initial.lineup_template || '').split('_')[1] || 'standard');
   const [clockSecs, setClockSecs] = useState(initial.pick_clock_seconds || 60);
@@ -80,17 +77,16 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
         ))}
       </View>
 
-      <Text style={styles.note}>
-        Standard {sport.toUpperCase()} scoring applies — the full chart is shown on the challenge.
-      </Text>
+      <Text style={styles.note}>Standard {sport.toUpperCase()} scoring applies — the full chart is shown on the challenge.</Text>
 
       <Button title={submitLabel} icon="send" onPress={handleSubmit} loading={submitting} style={{ marginTop: spacing.xl }} />
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  label: { color: colors.text, fontSize: font.body, fontWeight: '700', marginTop: spacing.lg, marginBottom: spacing.sm },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
-  note: { color: colors.muted, fontSize: font.small, marginTop: spacing.lg, lineHeight: 19 },
-});
+const makeStyles = (colors) =>
+  StyleSheet.create({
+    label: { color: colors.text, fontSize: font.body, fontWeight: '700', marginTop: spacing.lg, marginBottom: spacing.sm },
+    row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+    note: { color: colors.muted, fontSize: font.small, marginTop: spacing.lg, lineHeight: 19 },
+  });

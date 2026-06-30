@@ -48,6 +48,17 @@ defmodule HeadsUp.Accounts.User do
     |> unique_constraint(:email)
   end
 
+  @doc """
+  Changeset for changing the password (the caller verifies the CURRENT password
+  first). Validates and re-hashes the new password.
+  """
+  def password_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:password])
+    |> validate_password()
+    |> hash_password()
+  end
+
   defp validate_password(changeset) do
     changeset
     |> validate_required([:password])

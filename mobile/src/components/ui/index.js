@@ -6,5 +6,7 @@ export { default as Avatar } from './Avatar';
 export { default as EmptyState } from './EmptyState';
 export { default as SectionHeader } from './SectionHeader';
 export { default as SearchInput } from './SearchInput';
+export { default as Field } from './Field';
 export { default as Chip } from './Chip';
+export { default as FadeIn } from './FadeIn';
 export { Skeleton, SkeletonRow, SkeletonList } from './Skeleton';

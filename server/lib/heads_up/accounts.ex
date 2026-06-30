@@ -26,6 +26,20 @@ defmodule HeadsUp.Accounts do
     if User.valid_password?(user, password), do: user
   end
 
+  @doc """
+  Changes a user's password after verifying their CURRENT password. Returns
+  `{:ok, user}`, `{:error, :invalid_current_password}`, or `{:error, changeset}`.
+  """
+  def update_user_password(%User{} = user, current_password, attrs) do
+    if User.valid_password?(user, current_password) do
+      user
+      |> User.password_changeset(attrs)
+      |> Repo.update()
+    else
+      {:error, :invalid_current_password}
+    end
+  end
+
   @doc "Creates and stores an API token for the user, returning the encoded string."
   def create_user_api_token(user) do
     {encoded, user_token} = UserToken.build_api_token(user)

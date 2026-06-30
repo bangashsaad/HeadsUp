@@ -1,16 +1,23 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Text, TextInput, View, StyleSheet } from 'react-native';
+import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
-import { authStyles as s, colors } from '../theme';
-import { Button } from '../components/ui';
+import { useTheme, useThemedStyles, spacing, font } from '../theme';
+import { Field, Button } from '../components/ui';
+
+const EMAIL_RE = /\S+@\S+\.\S+/;
 
 export default function LoginScreen({ navigation }) {
   const { signIn } = useAuth();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const emailValid = EMAIL_RE.test(email.trim());
+  const canSubmit = emailValid && password.length > 0;
 
   async function handleLogin() {
     setError(null);
@@ -25,55 +32,51 @@ export default function LoginScreen({ navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.brandWrap}>
         <View style={styles.brand}>
           <Ionicons name="flame" size={34} color={colors.accent} />
         </View>
       </View>
-      <Text style={s.title}>Heads Up</Text>
-      <Text style={s.subtitle}>Log in to challenge your friends</Text>
+      <Text style={styles.title}>Heads Up</Text>
+      <Text style={styles.subtitle}>Log in to challenge your friends</Text>
 
-      {error ? <Text style={s.error}>{error}</Text> : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <TextInput
-        style={s.input}
-        placeholder="Email"
-        placeholderTextColor={colors.placeholder}
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="email-address"
+      <Field
         value={email}
         onChangeText={setEmail}
+        placeholder="Email"
+        keyboardType="email-address"
+        valid={emailValid}
       />
-      <TextInput
-        style={s.input}
-        placeholder="Password"
-        placeholderTextColor={colors.placeholder}
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
+      <Field value={password} onChangeText={setPassword} placeholder="Password" secure />
 
-      <Button title="Log In" onPress={handleLogin} loading={submitting} style={{ marginTop: 8 }} />
+      <Button title="Log In" onPress={handleLogin} loading={submitting} disabled={!canSubmit} style={{ marginTop: spacing.sm }} />
 
-      <Text style={s.link} onPress={() => navigation.navigate('SignUp')}>
+      <Text style={styles.link} onPress={() => navigation.navigate('SignUp')}>
         No account? Sign up
       </Text>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  brandWrap: { alignItems: 'center', marginBottom: 8 },
-  brand: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: colors.accentSoft,
-    borderWidth: 1,
-    borderColor: colors.accentBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+const makeStyles = (colors) =>
+  StyleSheet.create({
+    container: { flex: 1, backgroundColor: colors.bg, justifyContent: 'center', padding: 24 },
+    brandWrap: { alignItems: 'center', marginBottom: spacing.sm },
+    brand: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: colors.accentSoft,
+      borderWidth: 1,
+      borderColor: colors.accentBorder,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: { color: colors.text, fontSize: 30, fontWeight: '800', textAlign: 'center' },
+    subtitle: { color: colors.muted, fontSize: font.body, textAlign: 'center', marginTop: 6, marginBottom: 28 },
+    error: { color: colors.danger, textAlign: 'center', marginBottom: 14, fontSize: font.body },
+    link: { color: colors.accent, textAlign: 'center', marginTop: 18, fontSize: font.body },
+  });

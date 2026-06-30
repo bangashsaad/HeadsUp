@@ -4,25 +4,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { listFriends, listRequests } from '../api/social';
-import { colors, spacing, radius, font } from '../theme';
+import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
 import { Screen, Avatar, Button, EmptyState, SkeletonList } from '../components/ui';
-
-function ActionTile({ icon, label, onPress, count = 0 }) {
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.tile, pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] }]}>
-      <Ionicons name={icon} size={20} color={colors.accent} />
-      <Text style={styles.tileText}>{label}</Text>
-      {count > 0 ? (
-        <View style={styles.countBadge}>
-          <Text style={styles.countText}>{count}</Text>
-        </View>
-      ) : null}
-    </Pressable>
-  );
-}
 
 export default function FriendsScreen({ navigation }) {
   const { token, signOut } = useAuth();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [friends, setFriends] = useState([]);
   const [requestCount, setRequestCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -52,6 +40,20 @@ export default function FriendsScreen({ navigation }) {
   function onRefresh() {
     setRefreshing(true);
     load();
+  }
+
+  function ActionTile({ icon, label, onPress, count = 0 }) {
+    return (
+      <Pressable onPress={onPress} style={({ pressed }) => [styles.tile, pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] }]}>
+        <Ionicons name={icon} size={20} color={colors.accent} />
+        <Text style={styles.tileText}>{label}</Text>
+        {count > 0 ? (
+          <View style={styles.countBadge}>
+            <Text style={styles.countText}>{count}</Text>
+          </View>
+        ) : null}
+      </Pressable>
+    );
   }
 
   return (
@@ -98,34 +100,27 @@ export default function FriendsScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  body: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
-  actions: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
-  tile: {
-    flex: 1,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.md,
-    paddingVertical: 14,
-  },
-  tileText: { color: colors.text, fontSize: font.body, fontWeight: '700', marginLeft: 8 },
-  countBadge: {
-    marginLeft: 8,
-    backgroundColor: colors.accent,
-    borderRadius: 10,
-    minWidth: 20,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    alignItems: 'center',
-  },
-  countText: { color: colors.bg, fontSize: font.caption, fontWeight: '800' },
-  sep: { height: StyleSheet.hairlineWidth, backgroundColor: colors.borderSubtle },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md },
-  username: { color: colors.text, fontSize: font.subtitle, fontWeight: '600', marginLeft: spacing.md },
-  error: { color: colors.danger, textAlign: 'center', marginBottom: spacing.sm },
-  footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-});
+const makeStyles = (colors) =>
+  StyleSheet.create({
+    body: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+    actions: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
+    tile: {
+      flex: 1,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: radius.md,
+      paddingVertical: 14,
+    },
+    tileText: { color: colors.text, fontSize: font.body, fontWeight: '700', marginLeft: 8 },
+    countBadge: { marginLeft: 8, backgroundColor: colors.accent, borderRadius: 10, minWidth: 20, paddingHorizontal: 6, paddingVertical: 1, alignItems: 'center' },
+    countText: { color: colors.onAccent, fontSize: font.caption, fontWeight: '800' },
+    sep: { height: StyleSheet.hairlineWidth, backgroundColor: colors.borderSubtle },
+    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md },
+    username: { color: colors.text, fontSize: font.subtitle, fontWeight: '600', marginLeft: spacing.md },
+    error: { color: colors.danger, textAlign: 'center', marginBottom: spacing.sm },
+    footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  });

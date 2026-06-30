@@ -1,8 +1,9 @@
 import { Text } from 'react-native';
-import { colors, font, spacing } from '../../theme';
+import { useTheme, font, spacing } from '../../theme';
 
 // Small uppercase group label used between list sections.
 export default function SectionHeader({ children, style }) {
+  const { colors } = useTheme();
   return (
     <Text
       style={[

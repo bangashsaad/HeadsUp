@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { Animated, View } from 'react-native';
-import { colors, radius, spacing } from '../../theme';
+import { useTheme, radius, spacing } from '../../theme';
 
 // A single pulsing placeholder bar.
 export function Skeleton({ width = '100%', height = 14, style, round = false }) {
+  const { colors } = useTheme();
   const opacity = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {

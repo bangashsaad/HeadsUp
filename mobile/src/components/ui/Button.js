@@ -1,16 +1,7 @@
 import { Pressable, Text, ActivityIndicator, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
-import { colors, radius, shadow } from '../../theme';
-
-// One button to rule them all: variants, sizes, loading, leading/trailing
-// icons, a subtle press animation, and a light haptic tap.
-const VARIANTS = {
-  primary: { bg: colors.accent, fg: colors.bg, border: 'transparent' },
-  outline: { bg: 'transparent', fg: colors.text, border: colors.border },
-  danger: { bg: colors.dangerSoft, fg: colors.danger, border: 'rgba(248,113,113,0.4)' },
-  ghost: { bg: 'transparent', fg: colors.muted, border: 'transparent' },
-};
+import { impact } from '../../haptics';
+import { useTheme, radius, shadow } from '../../theme';
 
 const SIZES = {
   sm: { py: 9, px: 14, font: 14, icon: 16 },
@@ -31,13 +22,20 @@ export default function Button({
   full = true,
   style,
 }) {
+  const { colors } = useTheme();
+  const VARIANTS = {
+    primary: { bg: colors.accent, fg: colors.onAccent, border: 'transparent' },
+    outline: { bg: 'transparent', fg: colors.text, border: colors.border },
+    danger: { bg: colors.dangerSoft, fg: colors.danger, border: colors.dangerBorder },
+    ghost: { bg: 'transparent', fg: colors.muted, border: 'transparent' },
+  };
   const v = VARIANTS[variant] || VARIANTS.primary;
   const s = SIZES[size] || SIZES.md;
   const isDisabled = disabled || loading;
 
   function handlePress(e) {
     if (isDisabled) return;
-    if (haptic) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    if (haptic) impact();
     onPress && onPress(e);
   }
 

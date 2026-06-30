@@ -2,17 +2,18 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { searchUsers, sendFriendRequest } from '../api/social';
-import { colors, spacing, font } from '../theme';
+import { useTheme, useThemedStyles, spacing, font } from '../theme';
 import { Screen, Avatar, Button, Badge, EmptyState, SearchInput } from '../components/ui';
 
 export default function SearchScreen() {
   const { token } = useAuth();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Debounced live search: wait 300ms after the last keystroke, then search.
   useEffect(() => {
     const trimmed = query.trim();
     if (trimmed.length < 2) {
@@ -100,10 +101,11 @@ export default function SearchScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  body: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
-  sep: { height: StyleSheet.hairlineWidth, backgroundColor: colors.borderSubtle },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md },
-  username: { color: colors.text, fontSize: font.subtitle, fontWeight: '600', marginLeft: spacing.md, flex: 1 },
-  error: { color: colors.danger, textAlign: 'center', marginVertical: spacing.sm },
-});
+const makeStyles = (colors) =>
+  StyleSheet.create({
+    body: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+    sep: { height: StyleSheet.hairlineWidth, backgroundColor: colors.borderSubtle },
+    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md },
+    username: { color: colors.text, fontSize: font.subtitle, fontWeight: '600', marginLeft: spacing.md, flex: 1 },
+    error: { color: colors.danger, textAlign: 'center', marginVertical: spacing.sm },
+  });

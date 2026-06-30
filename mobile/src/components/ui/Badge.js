@@ -1,8 +1,9 @@
 import { View, Text } from 'react-native';
-import { tones, radius, font } from '../../theme';
+import { useTheme, radius, font } from '../../theme';
 
 // Small uppercase status pill. `tone` is one of the keys in theme `tones`.
 export default function Badge({ label, tone = 'neutral', style, dot = false }) {
+  const { tones } = useTheme();
   const t = tones[tone] || tones.neutral;
   return (
     <View
@@ -21,9 +22,7 @@ export default function Badge({ label, tone = 'neutral', style, dot = false }) {
         style,
       ]}
     >
-      {dot && (
-        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: t.text, marginRight: 6 }} />
-      )}
+      {dot && <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: t.text, marginRight: 6 }} />}
       <Text style={{ color: t.text, fontSize: font.caption, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 }}>
         {label}
       </Text>

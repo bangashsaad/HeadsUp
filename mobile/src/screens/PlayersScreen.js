@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { listPlayers } from '../api/sports';
-import { colors, spacing, radius, font } from '../theme';
-import { Screen, Avatar, EmptyState, SkeletonList, SearchInput, Chip } from '../components/ui';
+import { useThemedStyles, spacing, radius, font } from '../theme';
+import { Screen, Avatar, EmptyState, SkeletonList, SearchInput, Chip, FadeIn } from '../components/ui';
 
 export default function PlayersScreen({ route }) {
   const { sport } = route.params;
   const { token } = useAuth();
+  const styles = useThemedStyles(makeStyles);
 
   const [players, setPlayers] = useState([]);
   const [positions, setPositions] = useState([]);
@@ -16,8 +17,6 @@ export default function PlayersScreen({ route }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Re-fetch whenever the sport, search text, or position filter changes.
-  // (Search text is debounced 300ms so we don't hit the server on every key.)
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -50,12 +49,7 @@ export default function PlayersScreen({ route }) {
         <SearchInput value={query} onChangeText={setQuery} placeholder="Search players" />
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
           {chips.map((pos) => (
-            <Chip
-              key={pos ?? 'all'}
-              label={pos ?? 'All'}
-              active={pos === activePosition}
-              onPress={() => setActivePosition(pos)}
-            />
+            <Chip key={pos ?? 'all'} label={pos ?? 'All'} active={pos === activePosition} onPress={() => setActivePosition(pos)} />
           ))}
         </ScrollView>
       </View>
@@ -73,11 +67,10 @@ export default function PlayersScreen({ route }) {
           keyboardShouldPersistTaps="handled"
           contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl }}
           ItemSeparatorComponent={() => <View style={styles.sep} />}
-          ListEmptyComponent={
-            <EmptyState icon="search" title="No players found" subtitle="Try a different name or position filter." />
-          }
+          ListEmptyComponent={<EmptyState icon="search" title="No players found" subtitle="Try a different name or position filter." />}
           renderItem={({ item, index }) => (
-            <View style={styles.row}>
+            <FadeIn index={index}>
+              <View style={styles.row}>
               <Text style={styles.rank}>{index + 1}</Text>
               <Avatar name={item.name} size={40} />
               <View style={{ flex: 1, marginLeft: spacing.md }}>
@@ -93,7 +86,8 @@ export default function PlayersScreen({ route }) {
               <View style={styles.posBadge}>
                 <Text style={styles.posText}>{item.position}</Text>
               </View>
-            </View>
+              </View>
+            </FadeIn>
           )}
         />
       )}
@@ -101,27 +95,28 @@ export default function PlayersScreen({ route }) {
   );
 }
 
-const styles = StyleSheet.create({
-  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
-  chips: { paddingVertical: spacing.md, gap: spacing.sm },
-  error: { color: colors.danger, textAlign: 'center', marginVertical: spacing.md },
-  sep: { height: StyleSheet.hairlineWidth, backgroundColor: colors.borderSubtle },
-  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md },
-  rank: { color: colors.placeholder, fontSize: font.small, fontWeight: '700', width: 22 },
-  name: { color: colors.text, fontSize: font.subtitle, fontWeight: '600' },
-  meta: { color: colors.muted, fontSize: font.small, marginTop: 2 },
-  projWrap: { alignItems: 'center', marginRight: spacing.md },
-  proj: { color: colors.accent, fontWeight: '800', fontSize: font.bodyLg },
-  projLabel: { color: colors.placeholder, fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
-  posBadge: {
-    backgroundColor: colors.accentSoft,
-    borderColor: colors.accentBorder,
-    borderWidth: 1,
-    borderRadius: radius.sm,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    minWidth: 38,
-    alignItems: 'center',
-  },
-  posText: { color: colors.accent, fontWeight: '700', fontSize: font.small },
-});
+const makeStyles = (colors) =>
+  StyleSheet.create({
+    header: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+    chips: { paddingVertical: spacing.md, gap: spacing.sm },
+    error: { color: colors.danger, textAlign: 'center', marginVertical: spacing.md },
+    sep: { height: StyleSheet.hairlineWidth, backgroundColor: colors.borderSubtle },
+    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md },
+    rank: { color: colors.placeholder, fontSize: font.small, fontWeight: '700', width: 22 },
+    name: { color: colors.text, fontSize: font.subtitle, fontWeight: '600' },
+    meta: { color: colors.muted, fontSize: font.small, marginTop: 2 },
+    projWrap: { alignItems: 'center', marginRight: spacing.md },
+    proj: { color: colors.accent, fontWeight: '800', fontSize: font.bodyLg },
+    projLabel: { color: colors.placeholder, fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
+    posBadge: {
+      backgroundColor: colors.accentSoft,
+      borderColor: colors.accentBorder,
+      borderWidth: 1,
+      borderRadius: radius.sm,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      minWidth: 38,
+      alignItems: 'center',
+    },
+    posText: { color: colors.accent, fontWeight: '700', fontSize: font.small },
+  });
