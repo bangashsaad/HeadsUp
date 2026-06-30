@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { counterChallenge } from '../api/duels';
 import ChallengeForm from '../components/ChallengeForm';
-import { colors } from '../theme';
+import { colors, spacing, font } from '../theme';
+import { Screen, Card } from '../components/ui';
 
 export default function CounterScreen({ route, navigation }) {
   const { id, initial } = route.params;
@@ -25,24 +26,19 @@ export default function CounterScreen({ route, navigation }) {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
-      <Text style={styles.intro}>
-        Change the terms and send it back. They'll get a new challenge to accept, decline, or
-        counter again.
-      </Text>
+    <Screen scroll>
+      <Card style={{ marginBottom: spacing.md }}>
+        <Text style={styles.intro}>
+          Change the terms and send it back. They'll get a new challenge to accept, decline, or counter again.
+        </Text>
+      </Card>
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <ChallengeForm
-        initial={initial}
-        onSubmit={submit}
-        submitLabel="Send Counter"
-        submitting={submitting}
-      />
-    </ScrollView>
+      <ChallengeForm initial={initial} onSubmit={submit} submitLabel="Send Counter" submitting={submitting} />
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  intro: { color: colors.muted, fontSize: 14, lineHeight: 20, marginBottom: 6 },
-  error: { color: colors.danger, textAlign: 'center', marginTop: 12 },
+  intro: { color: colors.muted, fontSize: font.body, lineHeight: 21 },
+  error: { color: colors.danger, textAlign: 'center', marginTop: spacing.md },
 });

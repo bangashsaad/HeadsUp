@@ -1,17 +1,13 @@
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '../auth/AuthContext';
 import { listFriends } from '../api/social';
 import { createChallenge } from '../api/duels';
 import ChallengeForm from '../components/ChallengeForm';
-import { colors } from '../theme';
+import { colors, spacing, radius, font } from '../theme';
+import { Screen, Avatar, EmptyState, SkeletonList, SectionHeader } from '../components/ui';
 
 export default function CreateChallengeScreen({ navigation }) {
   const { token } = useAuth();
@@ -52,59 +48,67 @@ export default function CreateChallengeScreen({ navigation }) {
   }
 
   if (loading) {
-    return <ActivityIndicator size="large" color={colors.accent} style={{ marginTop: 40 }} />;
+    return (
+      <Screen>
+        <SkeletonList count={5} />
+      </Screen>
+    );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 16 }}>
+    <Screen scroll>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Text style={styles.label}>Who are you challenging?</Text>
+      <SectionHeader style={{ marginTop: 0 }}>Who are you challenging?</SectionHeader>
+
       {friends.length === 0 ? (
-        <Text style={styles.empty}>Add a friend first (Friends tab) to challenge them.</Text>
+        <EmptyState
+          icon="people-outline"
+          title="No friends yet"
+          subtitle="Add a friend from the Friends tab before you can challenge them."
+        />
       ) : (
         friends.map((f) => {
           const active = selected === f.id;
           return (
-            <TouchableOpacity
+            <Pressable
               key={f.id}
-              style={[styles.friend, active && styles.friendActive]}
-              onPress={() => setSelected(f.id)}
+              onPress={() => {
+                Haptics.selectionAsync().catch(() => {});
+                setSelected(f.id);
+              }}
+              style={({ pressed }) => [styles.friend, active && styles.friendActive, pressed && { opacity: 0.9 }]}
             >
-              <Text style={[styles.friendName, active && { color: colors.bg }]}>
-                {f.username}
-              </Text>
-              {active ? <Text style={styles.check}>✓</Text> : null}
-            </TouchableOpacity>
+              <Avatar name={f.username} size={40} />
+              <Text style={styles.friendName}>{f.username}</Text>
+              <Ionicons
+                name={active ? 'checkmark-circle' : 'ellipse-outline'}
+                size={22}
+                color={active ? colors.accent : colors.placeholder}
+              />
+            </Pressable>
           );
         })
       )}
 
-      {friends.length > 0 ? (
-        <ChallengeForm onSubmit={submit} submitLabel="Send Challenge" submitting={submitting} />
-      ) : null}
-    </ScrollView>
+      {friends.length > 0 ? <ChallengeForm onSubmit={submit} submitLabel="Send Challenge" submitting={submitting} /> : null}
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg },
-  label: { color: colors.text, fontSize: 15, fontWeight: '700', marginBottom: 10 },
+  error: { color: colors.danger, marginBottom: spacing.md, textAlign: 'center' },
   friend: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 8,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    marginBottom: spacing.sm,
   },
-  friendActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  friendName: { color: colors.text, fontSize: 16, fontWeight: '600' },
-  check: { color: colors.bg, fontSize: 18, fontWeight: '800' },
-  empty: { color: colors.muted, fontSize: 15, lineHeight: 22 },
-  error: { color: colors.danger, marginBottom: 12, textAlign: 'center' },
+  friendActive: { backgroundColor: colors.accentSoft, borderColor: colors.accentBorder },
+  friendName: { color: colors.text, fontSize: font.bodyLg, fontWeight: '600', flex: 1, marginLeft: spacing.md },
 });

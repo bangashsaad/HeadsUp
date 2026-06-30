@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { colors } from '../theme';
+import { colors, spacing, radius, font } from '../theme';
 
 // Renders a team's lineup: one row per slot (in template order), showing the
 // drafted player or an empty placeholder. `slots` = [{key,label,eligible}],
@@ -10,18 +10,25 @@ export default function LineupSlots({ slots, picks }) {
 
   return (
     <View style={styles.wrap}>
-      {slots.map((slot) => {
+      {slots.map((slot, i) => {
         const pick = bySlot[slot.key];
         return (
-          <View key={slot.key} style={styles.row}>
-            <Text style={styles.slot}>{slot.label}</Text>
+          <View key={slot.key} style={[styles.row, i < slots.length - 1 && styles.divider]}>
+            <View style={styles.slotChip}>
+              <Text style={styles.slotText}>{slot.label}</Text>
+            </View>
             {pick ? (
-              <Text style={styles.filled} numberOfLines={1}>
-                {pick.player.name} · {pick.player.team}
-                {pick.auto_picked ? '  (auto)' : ''}
-              </Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.filled} numberOfLines={1}>
+                  {pick.player.name}
+                </Text>
+                <Text style={styles.team} numberOfLines={1}>
+                  {pick.player.team}
+                  {pick.auto_picked ? ' · auto' : ''}
+                </Text>
+              </View>
             ) : (
-              <Text style={styles.empty}>—</Text>
+              <Text style={styles.empty}>Empty</Text>
             )}
           </View>
         );
@@ -33,19 +40,24 @@ export default function LineupSlots({ slots, picks }) {
 const styles = StyleSheet.create({
   wrap: {
     backgroundColor: colors.card,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
     borderWidth: 1,
-    borderRadius: 12,
-    paddingHorizontal: 14,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
   },
-  row: {
-    flexDirection: 'row',
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm },
+  divider: { borderBottomColor: colors.borderSubtle, borderBottomWidth: StyleSheet.hairlineWidth },
+  slotChip: {
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.sm,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    marginRight: spacing.md,
+    minWidth: 42,
     alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomColor: colors.border,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  slot: { color: colors.muted, fontSize: 13, fontWeight: '700', width: 56 },
-  filled: { color: colors.text, fontSize: 15, fontWeight: '600', flex: 1 },
-  empty: { color: colors.placeholder, fontSize: 15, flex: 1 },
+  slotText: { color: colors.muted, fontSize: 11, fontWeight: '800' },
+  filled: { color: colors.text, fontSize: font.body, fontWeight: '600' },
+  team: { color: colors.muted, fontSize: font.caption, marginTop: 1 },
+  empty: { color: colors.placeholder, fontSize: font.body, flex: 1 },
 });

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { colors } from '../theme';
+import { StyleSheet, Text, View } from 'react-native';
+import { colors, spacing, font } from '../theme';
+import { Chip, Button } from './ui';
 
 const SPORTS = [
   { key: 'nfl', label: '🏈 Football' },
@@ -34,14 +35,6 @@ const TIME_OPTIONS = [
   { label: 'In 2 days', ms: 2 * 24 * 60 * 60 * 1000 },
 ];
 
-function Chip({ label, active, onPress }) {
-  return (
-    <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={onPress}>
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
 export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, submitting }) {
   const [sport, setSport] = useState(initial.sport || 'nfl');
   const [preset, setPreset] = useState((initial.lineup_template || '').split('_')[1] || 'standard');
@@ -53,7 +46,6 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
       sport,
       lineup_template: `${sport}_${preset}`,
       pick_clock_seconds: clockSecs,
-      // Always compute from "now" so the draft time is guaranteed in the future.
       draft_starts_at: new Date(Date.now() + timeMs).toISOString(),
     });
   }
@@ -92,38 +84,13 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
         Standard {sport.toUpperCase()} scoring applies — the full chart is shown on the challenge.
       </Text>
 
-      <TouchableOpacity style={styles.button} onPress={handleSubmit} disabled={submitting}>
-        {submitting ? (
-          <ActivityIndicator color={colors.bg} />
-        ) : (
-          <Text style={styles.buttonText}>{submitLabel}</Text>
-        )}
-      </TouchableOpacity>
+      <Button title={submitLabel} icon="send" onPress={handleSubmit} loading={submitting} style={{ marginTop: spacing.xl }} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  label: { color: colors.text, fontSize: 15, fontWeight: '700', marginTop: 18, marginBottom: 10 },
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 20,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  chipText: { color: colors.muted, fontWeight: '600' },
-  chipTextActive: { color: colors.bg },
-  note: { color: colors.muted, fontSize: 13, marginTop: 18, lineHeight: 19 },
-  button: {
-    backgroundColor: colors.accent,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 24,
-  },
-  buttonText: { color: colors.bg, fontSize: 16, fontWeight: '700' },
+  label: { color: colors.text, fontSize: font.body, fontWeight: '700', marginTop: spacing.lg, marginBottom: spacing.sm },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  note: { color: colors.muted, fontSize: font.small, marginTop: spacing.lg, lineHeight: 19 },
 });
