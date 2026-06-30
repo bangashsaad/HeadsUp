@@ -61,7 +61,8 @@ defmodule HeadsUp.Drafts.ServerTest do
 
       assert state.pick_number == 2
       assert state.current_picker_id == ctx.opponent.id
-      assert state.rosters[ctx.challenger.id] == %{"PG1" => pg.id}
+      # wnba_standard is now coarse G/F/C — a PG fills the first guard slot.
+      assert state.rosters[ctx.challenger.id] == %{"G1" => pg.id}
       refute Enum.any?(state.available, &(&1.id == pg.id))
     end
 
@@ -89,8 +90,8 @@ defmodule HeadsUp.Drafts.ServerTest do
       assert state.pick_number == 2
       [pick] = state.picks
       assert pick.auto_picked == true
-      # highest-projection player overall is a PG (proj 100) -> fills PG1
-      assert pick.slot == "PG1"
+      # highest-projection player overall is a PG -> fills the first guard slot
+      assert pick.slot == "G1"
       assert pick.player.position == "PG"
     end
 
@@ -152,7 +153,7 @@ defmodule HeadsUp.Drafts.ServerTest do
       assert state.pick_number == 2
       assert state.first_picker_id == ctx.challenger.id
       assert state.current_picker_id == ctx.opponent.id
-      assert state.rosters[ctx.challenger.id] == %{"PG1" => pg.id}
+      assert state.rosters[ctx.challenger.id] == %{"G1" => pg.id}
     end
   end
 

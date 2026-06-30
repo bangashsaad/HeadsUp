@@ -5,6 +5,11 @@ import Config
 config :heads_up, :settlement_interval_ms, 3_600_000
 config :heads_up, :stats_provider, HeadsUp.Settlement.Stats.Mock
 
+# ESPN: point at an unroutable base so any un-stubbed real-feed call fails loudly
+# instead of reaching the internet. Tests that exercise the client/provider
+# inject a `Req.Test` plug + disable retry via `req_options` in their setup.
+config :heads_up, HeadsUp.Sports.Espn, base_url: "http://localhost:0", req_options: []
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used

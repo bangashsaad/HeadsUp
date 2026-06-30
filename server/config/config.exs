@@ -68,6 +68,12 @@ config :phoenix, :json_library, Jason
 
 # Phase 5 scoring + settlement
 config :heads_up, :stats_provider, HeadsUp.Settlement.Stats.Mock
+
+# Phase 5b — ESPN WNBA feed. One namespace both the HTTP client and the live
+# stats provider read. `req_options` is where tests inject a `Req.Test` plug.
+config :heads_up, HeadsUp.Sports.Espn,
+  base_url: "https://site.api.espn.com/apis/site/v2/sports/basketball/wnba",
+  req_options: []
 # How often the settlement worker sweeps for due duels.
 config :heads_up, :settlement_interval_ms, 60_000
 # Scoring window length frozen when a draft finishes (24h default).

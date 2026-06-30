@@ -23,9 +23,40 @@ defmodule HeadsUp.Drafts.LineupTest do
       assert Lineup.templates_for("xxx") == []
     end
 
-    test "wnba mirrors nba structure exactly" do
-      assert Lineup.slots("wnba_standard") == Lineup.slots("nba_standard")
-      assert Lineup.slots("wnba_quick") == Lineup.slots("nba_quick")
+    test "wnba uses the coarse G/F/C scheme (the ESPN feed only emits G/F/C)" do
+      assert Enum.map(Lineup.slots("wnba_quick"), & &1.label) == ~w(G F C)
+
+      assert Enum.map(Lineup.slots("wnba_standard"), & &1.key) ==
+               ~w(G1 G2 F1 F2 UTIL1)
+
+      # every WNBA slot's eligibility accepts the coarse codes the feed emits...
+      assert Lineup.can_fill?(Lineup.slots("wnba_standard"), [], "G") == {:ok, "G1"}
+      assert Lineup.can_fill?(Lineup.slots("wnba_standard"), [], "F") == {:ok, "F1"}
+      assert Lineup.can_fill?(Lineup.slots("wnba_standard"), [], "C") == {:ok, "UTIL1"}
+      # ...and still accepts legacy granular codes from un-reseeded rows.
+      assert Lineup.can_fill?(Lineup.slots("wnba_standard"), [], "PG") == {:ok, "G1"}
+      assert Lineup.can_fill?(Lineup.slots("wnba_standard"), [], "SF") == {:ok, "F1"}
+    end
+
+    test "wnba_standard can be filled by both sides of a center-scarce 1v1 (no deadlock)" do
+      slots = Lineup.slots("wnba_standard")
+
+      # A pool with only ONE center between the two teams — UTIL absorbs it on
+      # one side; the other side fills UTIL with a guard/forward. Neither stalls.
+      fill = fn positions ->
+        Enum.reduce(positions, {[], true}, fn pos, {filled, ok?} ->
+          case Lineup.can_fill?(slots, filled, pos) do
+            {:ok, key} -> {[key | filled], ok?}
+            :error -> {filled, false}
+          end
+        end)
+      end
+
+      {teamA, okA} = fill.(~w(G G F F C))
+      {teamB, okB} = fill.(~w(G G F F G))
+      assert okA and okB
+      assert Lineup.roster_complete?(slots, teamA)
+      assert Lineup.roster_complete?(slots, teamB)
     end
   end
 

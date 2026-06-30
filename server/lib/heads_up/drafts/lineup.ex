@@ -25,6 +25,13 @@ defmodule HeadsUp.Drafts.Lineup do
   @nfl_flex ~w(RB WR TE)
   @nba_g ~w(PG SG)
   @nba_f ~w(SF PF)
+  # WNBA uses a COARSE G/F/C scheme because the ESPN feed only exposes
+  # Guard/Forward/Center. Legacy granular codes (PG/SG/SF/PF) stay in the
+  # eligibility lists so any not-yet-reseeded rows remain draftable.
+  @wnba_g ~w(G PG SG)
+  @wnba_f ~w(F SF PF)
+  @wnba_c ~w(C)
+  @wnba_util ~w(G F C PG SG SF PF)
   @mlb_hitter ~w(C 1B 2B 3B SS OF DH)
   @mlb_if ~w(1B 2B 3B SS)
   @mlb_ci ~w(1B 3B)
@@ -45,6 +52,22 @@ defmodule HeadsUp.Drafts.Lineup do
     %{key: "C1", label: "C", eligible: ["C"]}
   ]
 
+  # WNBA coarse G/F/C templates (the live ESPN feed only emits G/F/C). The
+  # UTIL slot accepts any position so a 1v1 can never deadlock on the league's
+  # scarce centers.
+  @wnba_quick [
+    %{key: "G1", label: "G", eligible: @wnba_g},
+    %{key: "F1", label: "F", eligible: @wnba_f},
+    %{key: "C1", label: "C", eligible: @wnba_c}
+  ]
+  @wnba_standard [
+    %{key: "G1", label: "G", eligible: @wnba_g},
+    %{key: "G2", label: "G", eligible: @wnba_g},
+    %{key: "F1", label: "F", eligible: @wnba_f},
+    %{key: "F2", label: "F", eligible: @wnba_f},
+    %{key: "UTIL1", label: "UTIL", eligible: @wnba_util}
+  ]
+
   @templates %{
     "nfl_quick" => [
       %{key: "QB1", label: "QB", eligible: ["QB"]},
@@ -63,8 +86,8 @@ defmodule HeadsUp.Drafts.Lineup do
     ],
     "nba_quick" => @nba_quick,
     "nba_standard" => @nba_standard,
-    "wnba_quick" => @nba_quick,
-    "wnba_standard" => @nba_standard,
+    "wnba_quick" => @wnba_quick,
+    "wnba_standard" => @wnba_standard,
     "mlb_quick" => [
       %{key: "SP1", label: "SP", eligible: ["SP"]},
       %{key: "C1", label: "C", eligible: ["C"]},

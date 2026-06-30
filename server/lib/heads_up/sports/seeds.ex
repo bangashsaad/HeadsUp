@@ -4,14 +4,159 @@ defmodule HeadsUp.Sports.Seeds do
   Teams/rosters are approximate and will be REPLACED by the live stats
   provider later — accuracy here doesn't matter, only that the pool exists.
   """
+  import Ecto.Query, only: [from: 2]
+
   alias HeadsUp.Repo
   alias HeadsUp.Sports.{Player, Game}
+  alias HeadsUp.Sports.Espn.{Client, Parse}
+
+  # Newly-discovered players (mostly depth / expansion rosters) seed at a flat
+  # mid-pack projection — below the hand-ranked stars (76–100), so the board
+  # ordering stays meaningful while every rostered player becomes draftable.
+  @wnba_default_projection 40.0
 
   def run do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
     seed_players(now)
     seed_games(now)
     :ok
+  end
+
+  @doc """
+  Re-seed the WNBA player pool from the live ESPN feed (Phase 5b). Pulls every
+  team's roster and upserts players keyed FIRST by ESPN athlete id, then by
+  normalized name — so existing rows keep their `id` and hand-ranked
+  `projection` (drafted duels stay intact) while their `external_id` is migrated
+  to the ESPN id the stats provider joins on. New players are inserted at the
+  default projection. The whole thing runs in one transaction and aborts before
+  any write if ANY ESPN fetch fails, so the pool is never left half-migrated.
+
+  Idempotent: a second run matches the same rows by ESPN id and is a no-op.
+  `opts[:client]` lets tests inject a stub implementing the `Client` API.
+
+  Returns `{:ok, %{inserted: n, updated: m, total: t}}` or `{:error, reason}`.
+  """
+  def run_wnba_from_espn(opts \\ []) do
+    client = Keyword.get(opts, :client, Client)
+
+    with {:ok, teams} <- fetch_teams(client),
+         {:ok, candidates} <- fetch_all_rosters(client, teams) do
+      upsert_wnba(Enum.uniq_by(candidates, & &1.external_id))
+    end
+  end
+
+  defp fetch_teams(client) do
+    case client.teams() do
+      {:ok, body} ->
+        teams =
+          body
+          |> get_in(["sports", Access.at(0), "leagues", Access.at(0), "teams"])
+          |> List.wrap()
+          |> Enum.map(& &1["team"])
+          |> Enum.reject(&is_nil/1)
+          |> Enum.map(fn t -> %{id: t["id"], abbrev: t["abbreviation"]} end)
+          |> Enum.reject(&is_nil(&1.id))
+
+        if teams == [], do: {:error, :no_teams}, else: {:ok, teams}
+
+      {:error, reason} ->
+        {:error, {:teams, reason}}
+    end
+  end
+
+  defp fetch_all_rosters(client, teams) do
+    Enum.reduce_while(teams, {:ok, []}, fn team, {:ok, acc} ->
+      case client.roster(team.id) do
+        {:ok, body} ->
+          abbrev = get_in(body, ["team", "abbreviation"]) || team.abbrev
+          cands = body |> athletes_from() |> Enum.map(&candidate(&1, abbrev)) |> Enum.reject(&is_nil/1)
+          {:cont, {:ok, acc ++ cands}}
+
+        {:error, reason} ->
+          {:halt, {:error, {:roster, team.id, reason}}}
+      end
+    end)
+  end
+
+  # ESPN rosters are usually a flat athlete list; tolerate the grouped
+  # `[%{"items" => [...]}]` shape some endpoints return.
+  defp athletes_from(body) do
+    (body["athletes"] || [])
+    |> Enum.flat_map(fn
+      %{"items" => items} when is_list(items) -> items
+      athlete when is_map(athlete) -> [athlete]
+      _ -> []
+    end)
+  end
+
+  defp candidate(athlete, abbrev) do
+    id = athlete["id"]
+    name = athlete["displayName"] || athlete["fullName"]
+
+    if is_nil(id) or name in [nil, ""] do
+      nil
+    else
+      %{
+        sport: "wnba",
+        external_id: to_string(id),
+        name: name,
+        team: abbrev,
+        position: Parse.normalize_position(get_in(athlete, ["position", "abbreviation"]))
+      }
+    end
+  end
+
+  defp upsert_wnba(candidates) do
+    Repo.transaction(fn ->
+      existing = Repo.all(from p in Player, where: p.sport == "wnba")
+      by_eid = Map.new(existing, &{&1.external_id, &1})
+
+      # Collision-aware name index: a normalized name shared by more than one
+      # existing row is AMBIGUOUS and excluded, so a candidate can never update
+      # the WRONG same-named player. (ESPN-id matching still works; a genuinely
+      # new same-named athlete is inserted fresh rather than corrupting a row.)
+      by_name =
+        existing
+        |> Enum.group_by(&Parse.normalize_name(&1.name))
+        |> Enum.flat_map(fn
+          {key, [only]} -> [{key, only}]
+          {_key, _ambiguous} -> []
+        end)
+        |> Map.new()
+
+      {ins, upd, _used} =
+        Enum.reduce(candidates, {0, 0, MapSet.new()}, fn cand, {ins, upd, used} ->
+          case find_match(cand, by_eid, by_name, used) do
+            nil ->
+              %Player{}
+              |> Player.changeset(Map.put(cand, :projection, @wnba_default_projection))
+              |> Repo.insert!()
+
+              {ins + 1, upd, used}
+
+            %Player{} = match ->
+              # Preserve id + projection; migrate external_id and refresh name/team/position.
+              match
+              |> Player.changeset(Map.take(cand, [:external_id, :name, :team, :position]))
+              |> Repo.update!()
+
+              {ins, upd + 1, MapSet.put(used, match.id)}
+          end
+        end)
+
+      %{inserted: ins, updated: upd, total: ins + upd}
+    end)
+  end
+
+  defp find_match(cand, by_eid, by_name, used) do
+    eid = Map.get(by_eid, cand.external_id)
+    named = Map.get(by_name, Parse.normalize_name(cand.name))
+
+    cond do
+      eid && not MapSet.member?(used, eid.id) -> eid
+      named && not MapSet.member?(used, named.id) -> named
+      true -> nil
+    end
   end
 
   defp seed_players(now) do
