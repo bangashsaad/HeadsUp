@@ -10,7 +10,9 @@ export default function Screen({
   padded = true,
   style,
   contentStyle,
-  edges = ['bottom'],
+  // No extra insets by default: the nav header owns the top and the tab bar
+  // owns the bottom, so adding a safe-area edge here would leave a gap.
+  edges = [],
   refreshing,
   onRefresh,
 }) {
