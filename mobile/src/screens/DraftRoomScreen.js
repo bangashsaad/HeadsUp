@@ -9,7 +9,7 @@ import LineupSlots from '../components/LineupSlots';
 import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
 import { Avatar, Button, Chip, SearchInput, EmptyState } from '../components/ui';
 
-export default function DraftRoomScreen({ route }) {
+export default function DraftRoomScreen({ route, navigation }) {
   const { id, opponentName = 'Opponent' } = route.params;
   const { token, user } = useAuth();
   const myId = user.id;
@@ -51,7 +51,17 @@ export default function DraftRoomScreen({ route }) {
     return <Lobby state={state} myId={myId} opponentName={opponentName} conn={connRef.current} />;
   }
 
-  return <DraftBoard state={state} myId={myId} opponentName={opponentName} conn={connRef.current} error={error} setError={setError} />;
+  return (
+    <DraftBoard
+      state={state}
+      myId={myId}
+      opponentName={opponentName}
+      conn={connRef.current}
+      error={error}
+      setError={setError}
+      navigation={navigation}
+    />
+  );
 }
 
 function Lobby({ state, myId, opponentName, conn }) {
@@ -98,7 +108,7 @@ function ReadyPill({ name, ready }) {
   );
 }
 
-function DraftBoard({ state, myId, opponentName, conn, error, setError }) {
+function DraftBoard({ state, myId, opponentName, conn, error, setError, navigation }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const complete = state.phase === 'complete';
@@ -205,7 +215,6 @@ function DraftBoard({ state, myId, opponentName, conn, error, setError }) {
             renderItem={({ item }) => (
               <Pressable
                 onPress={() => pick(item)}
-                disabled={!isMyTurn}
                 style={({ pressed }) => [styles.player, !isMyTurn && styles.playerDim, pressed && isMyTurn && { opacity: 0.85, transform: [{ scale: 0.99 }] }]}
               >
                 <Avatar name={item.name} size={38} />
@@ -215,7 +224,14 @@ function DraftBoard({ state, myId, opponentName, conn, error, setError }) {
                     {item.position} · {item.team}
                   </Text>
                 </View>
-                <View style={styles.projWrap}>
+                <Pressable
+                  onPress={() => navigation.navigate('PlayerProfile', { id: item.id, name: item.name, team: item.team, position: item.position })}
+                  hitSlop={8}
+                  style={{ paddingHorizontal: 4 }}
+                >
+                  <Ionicons name="information-circle-outline" size={22} color={colors.muted} />
+                </Pressable>
+                <View style={[styles.projWrap, { marginLeft: spacing.sm }]}>
                   <Text style={styles.proj}>{Math.round(item.projection)}</Text>
                   <Text style={styles.projLabel}>PROJ</Text>
                 </View>

@@ -35,11 +35,40 @@ function rowBadge(d) {
   }
 }
 
+const ACTIVE_STATES = ['pending', 'accepted', 'drafting', 'drafted', 'countered'];
+
+function partition(duels) {
+  const active = duels.filter((d) => ACTIVE_STATES.includes(d.status));
+  const past = duels.filter((d) => !ACTIVE_STATES.includes(d.status));
+  return { active, past };
+}
+
+function activeSections(active) {
+  const needsResponse = active.filter((d) => d.status === 'pending' && d.role === 'opponent');
+  const waiting = active.filter((d) => d.status === 'pending' && d.role === 'challenger');
+  const inProgress = active.filter((d) => ['accepted', 'drafting', 'drafted', 'countered'].includes(d.status));
+  return [
+    { title: 'Needs your response', data: needsResponse },
+    { title: 'Waiting on them', data: waiting },
+    { title: 'In progress', data: inProgress },
+  ];
+}
+
+function pastSections(past) {
+  const completed = past.filter((d) => d.status === 'settled');
+  const other = past.filter((d) => d.status !== 'settled');
+  return [
+    { title: 'Completed', data: completed },
+    { title: 'Declined & cancelled', data: other },
+  ];
+}
+
 export default function DuelsListScreen({ navigation }) {
   const { token } = useAuth();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [duels, setDuels] = useState([]);
+  const [tab, setTab] = useState('active');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -60,19 +89,23 @@ export default function DuelsListScreen({ navigation }) {
     }, [load])
   );
 
-  const sections = buildSections(duels);
+  const { active, past } = partition(duels);
+  const sections = tab === 'active' ? activeSections(active) : pastSections(past);
 
   return (
     <Screen padded={false}>
       <View style={styles.body}>
         <Button title="New Challenge" icon="add" onPress={() => navigation.navigate('CreateChallenge')} />
 
+        <View style={styles.segment}>
+          <SegTab label="Active" count={active.length} on={tab === 'active'} onPress={() => setTab('active')} styles={styles} colors={colors} />
+          <SegTab label="Past" count={past.length} on={tab === 'past'} onPress={() => setTab('past')} styles={styles} colors={colors} />
+        </View>
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         {loading ? (
-          <View style={{ marginTop: spacing.md }}>
-            <SkeletonList count={5} />
-          </View>
+          <SkeletonList count={5} />
         ) : (
           <SectionList
             sections={sections}
@@ -81,32 +114,36 @@ export default function DuelsListScreen({ navigation }) {
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: spacing.xl, flexGrow: 1 }}
             ListEmptyComponent={
-              <EmptyState
-                icon="flame-outline"
-                title="No challenges yet"
-                subtitle="Throw down the gauntlet — challenge a friend to a head-to-head draft."
-                action={<Button title="New Challenge" icon="add" onPress={() => navigation.navigate('CreateChallenge')} />}
-              />
+              tab === 'active' ? (
+                <EmptyState
+                  icon="flame-outline"
+                  title="No active duels"
+                  subtitle="Challenge a friend to a head-to-head draft to get started."
+                  action={<Button title="New Challenge" icon="add" onPress={() => navigation.navigate('CreateChallenge')} />}
+                />
+              ) : (
+                <EmptyState icon="time-outline" title="No past duels yet" subtitle="Finished duels will show up here." />
+              )
             }
             renderSectionHeader={({ section }) => (section.data.length ? <Text style={styles.sectionHeader}>{section.title}</Text> : null)}
             renderItem={({ item, index }) => {
               const badge = rowBadge(item);
               return (
                 <FadeIn index={index}>
-                <Pressable
-                  onPress={() => navigation.navigate('DuelDetail', { id: item.id })}
-                  style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.card }]}
-                >
-                  <View style={styles.emojiCircle}>
-                    <Text style={styles.emoji}>{SPORT_EMOJI[item.sport] || '🎯'}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.vs}>vs {item.opponent.username}</Text>
-                    <Text style={styles.meta}>{item.roster_size} players</Text>
-                  </View>
-                  <Badge label={badge.label} tone={badge.tone} />
-                  <Ionicons name="chevron-forward" size={18} color={colors.placeholder} style={{ marginLeft: spacing.sm }} />
-                </Pressable>
+                  <Pressable
+                    onPress={() => navigation.navigate('DuelDetail', { id: item.id })}
+                    style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.card }]}
+                  >
+                    <View style={styles.emojiCircle}>
+                      <Text style={styles.emoji}>{SPORT_EMOJI[item.sport] || '🎯'}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.vs}>vs {item.opponent.username}</Text>
+                      <Text style={styles.meta}>{item.roster_size} players</Text>
+                    </View>
+                    <Badge label={badge.label} tone={badge.tone} />
+                    <Ionicons name="chevron-forward" size={18} color={colors.placeholder} style={{ marginLeft: spacing.sm }} />
+                  </Pressable>
                 </FadeIn>
               );
             }}
@@ -117,30 +154,24 @@ export default function DuelsListScreen({ navigation }) {
   );
 }
 
-function buildSections(duels) {
-  const needsResponse = [];
-  const waiting = [];
-  const active = [];
-  const past = [];
-
-  for (const d of duels) {
-    if (d.status === 'pending' && d.role === 'opponent') needsResponse.push(d);
-    else if (d.status === 'pending' && d.role === 'challenger') waiting.push(d);
-    else if (['accepted', 'drafting', 'drafted'].includes(d.status)) active.push(d);
-    else past.push(d);
-  }
-
-  return [
-    { title: 'Needs your response', data: needsResponse },
-    { title: 'Waiting on them', data: waiting },
-    { title: 'In progress', data: active },
-    { title: 'Past', data: past },
-  ];
+function SegTab({ label, count, on, onPress, styles, colors }) {
+  return (
+    <Pressable onPress={onPress} style={[styles.segTab, on && styles.segTabOn]}>
+      <Text style={[styles.segLabel, { color: on ? colors.onAccent : colors.muted }]}>
+        {label}
+        {count > 0 ? `  ${count}` : ''}
+      </Text>
+    </Pressable>
+  );
 }
 
 const makeStyles = (colors) =>
   StyleSheet.create({
     body: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+    segment: { flexDirection: 'row', gap: spacing.xs, backgroundColor: colors.card, borderRadius: radius.md, padding: spacing.xs, marginTop: spacing.md, borderWidth: 1, borderColor: colors.borderSubtle },
+    segTab: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: radius.sm },
+    segTabOn: { backgroundColor: colors.accent },
+    segLabel: { fontSize: font.body, fontWeight: '700' },
     sectionHeader: {
       color: colors.muted,
       fontSize: font.caption,

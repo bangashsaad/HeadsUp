@@ -18,20 +18,22 @@ defmodule HeadsUp.Sports do
     Player
     |> where([p], p.sport == ^sport)
     |> filter_position(Keyword.get(opts, :position))
+    |> filter_team(Keyword.get(opts, :team))
     |> filter_name(Keyword.get(opts, :q))
-    |> order_by([p], asc: p.name)
+    |> order_by([p], desc: p.projection, asc: p.name)
     |> limit(^Keyword.get(opts, :limit, 200))
     |> Repo.all()
   end
 
   def get_player(id), do: Repo.get(Player, id)
 
-  @doc "Distinct positions present for a sport (for filter chips)."
+  @doc "Distinct positions present for a sport (sorted; for filter chips)."
   def list_positions(sport) do
     Player
     |> where([p], p.sport == ^sport and not is_nil(p.position))
     |> select([p], p.position)
     |> distinct(true)
+    |> order_by([p], asc: p.position)
     |> Repo.all()
   end
 
@@ -49,6 +51,10 @@ defmodule HeadsUp.Sports do
   defp filter_position(query, nil), do: query
   defp filter_position(query, ""), do: query
   defp filter_position(query, position), do: where(query, [p], p.position == ^position)
+
+  defp filter_team(query, nil), do: query
+  defp filter_team(query, ""), do: query
+  defp filter_team(query, team), do: where(query, [p], p.team == ^team)
 
   defp filter_name(query, nil), do: query
 

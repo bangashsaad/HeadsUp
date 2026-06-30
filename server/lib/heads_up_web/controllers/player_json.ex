@@ -18,4 +18,13 @@ defmodule HeadsUpWeb.PlayerJSON do
       projection: player.projection
     }
   end
+
+  def profile(%{profile: p}) do
+    %{
+      player: data(p.player),
+      available: p.available,
+      season: p.season,
+      games: p.games
+    }
+  end
 end

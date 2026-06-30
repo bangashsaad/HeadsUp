@@ -73,6 +73,7 @@ config :heads_up, :stats_provider, HeadsUp.Settlement.Stats.Mock
 # stats provider read. `req_options` is where tests inject a `Req.Test` plug.
 config :heads_up, HeadsUp.Sports.Espn,
   base_url: "https://site.api.espn.com/apis/site/v2/sports/basketball/wnba",
+  web_base_url: "https://site.web.api.espn.com/apis/common/v3/sports/basketball/wnba",
   req_options: []
 # How often the settlement worker sweeps for due duels.
 config :heads_up, :settlement_interval_ms, 60_000

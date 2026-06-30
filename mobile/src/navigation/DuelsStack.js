@@ -5,6 +5,7 @@ import DuelDetailScreen from '../screens/DuelDetailScreen';
 import CounterScreen from '../screens/CounterScreen';
 import DraftRoomScreen from '../screens/DraftRoomScreen';
 import ResultsScreen from '../screens/ResultsScreen';
+import PlayerProfileScreen from '../screens/PlayerProfileScreen';
 import { useNavHeader } from '../theme';
 
 const Stack = createNativeStackNavigator();
@@ -19,6 +20,11 @@ export default function DuelsStack() {
       <Stack.Screen name="Counter" component={CounterScreen} options={{ title: 'Counter Offer' }} />
       <Stack.Screen name="DraftRoom" component={DraftRoomScreen} options={{ title: 'Live Draft' }} />
       <Stack.Screen name="Results" component={ResultsScreen} options={{ title: 'Result' }} />
+      <Stack.Screen
+        name="PlayerProfile"
+        component={PlayerProfileScreen}
+        options={({ route }) => ({ title: route.params?.name || 'Player' })}
+      />
     </Stack.Navigator>
   );
 }

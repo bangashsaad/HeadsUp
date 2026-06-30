@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { getResult } from '../api/duels';
@@ -42,7 +42,7 @@ function topStats(statLine) {
     .join(' · ');
 }
 
-export default function ResultsScreen({ route }) {
+export default function ResultsScreen({ route, navigation }) {
   const { id, opponentName = 'Opponent' } = route.params;
   const { token } = useAuth();
   const { colors, tones } = useTheme();
@@ -140,7 +140,11 @@ export default function ResultsScreen({ route }) {
         <Text style={styles.teamTitle}>{title}</Text>
         <Card padded={false} style={highlight && { borderColor: colors.accentBorder }}>
           {lineup.players.map((p, i) => (
-            <View key={`${p.slot}-${p.player_id}`} style={[styles.playerRow, i < lineup.players.length - 1 && styles.playerDivider]}>
+            <Pressable
+              key={`${p.slot}-${p.player_id}`}
+              onPress={() => navigation.navigate('PlayerProfile', { id: p.player_id, name: p.name, team: p.team, position: p.position })}
+              style={({ pressed }) => [styles.playerRow, i < lineup.players.length - 1 && styles.playerDivider, pressed && { opacity: 0.7 }]}
+            >
               <View style={styles.slotChip}>
                 <Text style={styles.slotText}>{p.slot}</Text>
               </View>
@@ -149,7 +153,7 @@ export default function ResultsScreen({ route }) {
                 <Text style={styles.statLine}>{topStats(p.stat_line)}</Text>
               </View>
               <Text style={styles.points}>{p.points}</Text>
-            </View>
+            </Pressable>
           ))}
         </Card>
       </View>

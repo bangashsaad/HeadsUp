@@ -54,6 +54,8 @@ defmodule HeadsUpWeb.Router do
 
     # Sports / draft pool
     get "/players", PlayerController, :index
+    get "/players/:id/profile", PlayerController, :profile
+    get "/games/upcoming", GameController, :upcoming
 
     # Challenges (duels)
     get "/duels", DuelController, :index

@@ -1,7 +1,7 @@
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import FriendsStack from './FriendsStack';
-import SportsStack from './SportsStack';
+import GamesStack from './GamesStack';
 import DuelsStack from './DuelsStack';
 import ProfileStack from './ProfileStack';
 import { useTheme } from '../theme';
@@ -12,7 +12,7 @@ const Tab = createBottomTabNavigator();
 const ICONS = {
   FriendsTab: { on: 'people', off: 'people-outline' },
   DuelsTab: { on: 'flame', off: 'flame-outline' },
-  SportsTab: { on: 'basketball', off: 'basketball-outline' },
+  GamesTab: { on: 'basketball', off: 'basketball-outline' },
   ProfileTab: { on: 'person-circle', off: 'person-circle-outline' },
 };
 
@@ -32,9 +32,9 @@ export default function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="FriendsTab" component={FriendsStack} options={{ title: 'Friends' }} />
       <Tab.Screen name="DuelsTab" component={DuelsStack} options={{ title: 'Duels' }} />
-      <Tab.Screen name="SportsTab" component={SportsStack} options={{ title: 'Sports' }} />
+      <Tab.Screen name="GamesTab" component={GamesStack} options={{ title: 'Games' }} />
+      <Tab.Screen name="FriendsTab" component={FriendsStack} options={{ title: 'Friends' }} />
       <Tab.Screen name="ProfileTab" component={ProfileStack} options={{ title: 'Profile' }} />
     </Tab.Navigator>
   );
