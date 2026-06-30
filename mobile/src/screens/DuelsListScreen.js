@@ -1,28 +1,39 @@
 import { useCallback, useState } from 'react';
-import {
-  ActivityIndicator,
-  SectionList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { SectionList, StyleSheet, Text, View, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { listDuels } from '../api/duels';
-import { colors } from '../theme';
+import { colors, spacing, radius, font } from '../theme';
+import { Screen, Button, Badge, EmptyState, SkeletonList } from '../components/ui';
 
 const SPORT_EMOJI = { nfl: '🏈', nba: '🏀', wnba: '🏀', mlb: '⚾️' };
 
-// A friendly one-liner for the row: outcome for settled duels, else the status.
-function rowMeta(d) {
+// A status/outcome chip for the row's right edge.
+function rowBadge(d) {
   if (d.status === 'settled') {
-    const o = d.my_outcome === 'win' ? 'You won 🏆' : d.my_outcome === 'tie' ? 'Tie' : 'You lost';
-    return `${d.roster_size} players · ${o}`;
+    if (d.my_outcome === 'win') return { label: 'Won', tone: 'accent' };
+    if (d.my_outcome === 'tie') return { label: 'Tie', tone: 'neutral' };
+    return { label: 'Lost', tone: 'danger' };
   }
-  const label =
-    d.status === 'drafting' ? 'drafting now' : d.status === 'drafted' ? 'awaiting results' : d.status;
-  return `${d.roster_size} players · ${label}`;
+  switch (d.status) {
+    case 'drafting':
+      return { label: 'Drafting', tone: 'warning' };
+    case 'drafted':
+      return { label: 'Awaiting', tone: 'info' };
+    case 'accepted':
+      return { label: 'Ready', tone: 'accent' };
+    case 'pending':
+      return d.role === 'opponent' ? { label: 'Respond', tone: 'info' } : { label: 'Pending', tone: 'neutral' };
+    case 'declined':
+      return { label: 'Declined', tone: 'danger' };
+    case 'cancelled':
+      return { label: 'Cancelled', tone: 'neutral' };
+    case 'countered':
+      return { label: 'Countered', tone: 'info' };
+    default:
+      return { label: d.status, tone: 'neutral' };
+  }
 }
 
 export default function DuelsListScreen({ navigation }) {
@@ -51,51 +62,60 @@ export default function DuelsListScreen({ navigation }) {
   const sections = buildSections(duels);
 
   return (
-    <View style={styles.container}>
-      <TouchableOpacity
-        style={styles.newBtn}
-        onPress={() => navigation.navigate('CreateChallenge')}
-      >
-        <Text style={styles.newBtnText}>＋ New Challenge</Text>
-      </TouchableOpacity>
+    <Screen padded={false}>
+      <View style={styles.body}>
+        <Button title="New Challenge" icon="add" onPress={() => navigation.navigate('CreateChallenge')} />
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {loading ? (
-        <ActivityIndicator size="large" color={colors.accent} style={{ marginTop: 30 }} />
-      ) : (
-        <SectionList
-          sections={sections}
-          keyExtractor={(item) => String(item.id)}
-          stickySectionHeadersEnabled={false}
-          ListEmptyComponent={
-            <Text style={styles.empty}>
-              No challenges yet.{'\n'}Tap “New Challenge” to duel a friend.
-            </Text>
-          }
-          renderSectionHeader={({ section }) =>
-            section.data.length ? <Text style={styles.sectionHeader}>{section.title}</Text> : null
-          }
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.row}
-              onPress={() => navigation.navigate('DuelDetail', { id: item.id })}
-            >
-              <Text style={styles.emoji}>{SPORT_EMOJI[item.sport] || '🎯'}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.vs}>vs {item.opponent.username}</Text>
-                <Text style={styles.meta}>{rowMeta(item)}</Text>
-              </View>
-              <Text style={styles.chevron}>›</Text>
-            </TouchableOpacity>
-          )}
-        />
-      )}
-    </View>
+        {loading ? (
+          <View style={{ marginTop: spacing.md }}>
+            <SkeletonList count={5} />
+          </View>
+        ) : (
+          <SectionList
+            sections={sections}
+            keyExtractor={(item) => String(item.id)}
+            stickySectionHeadersEnabled={false}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: spacing.xl, flexGrow: 1 }}
+            ListEmptyComponent={
+              <EmptyState
+                icon="flame-outline"
+                title="No challenges yet"
+                subtitle="Throw down the gauntlet — challenge a friend to a head-to-head draft."
+                action={<Button title="New Challenge" icon="add" onPress={() => navigation.navigate('CreateChallenge')} />}
+              />
+            }
+            renderSectionHeader={({ section }) =>
+              section.data.length ? <Text style={styles.sectionHeader}>{section.title}</Text> : null
+            }
+            renderItem={({ item }) => {
+              const badge = rowBadge(item);
+              return (
+                <Pressable
+                  onPress={() => navigation.navigate('DuelDetail', { id: item.id })}
+                  style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.card }]}
+                >
+                  <View style={styles.emojiCircle}>
+                    <Text style={styles.emoji}>{SPORT_EMOJI[item.sport] || '🎯'}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.vs}>vs {item.opponent.username}</Text>
+                    <Text style={styles.meta}>{item.roster_size} players</Text>
+                  </View>
+                  <Badge label={badge.label} tone={badge.tone} />
+                  <Ionicons name="chevron-forward" size={18} color={colors.placeholder} style={{ marginLeft: spacing.sm }} />
+                </Pressable>
+              );
+            }}
+          />
+        )}
+      </View>
+    </Screen>
   );
 }
 
-// Group duels into meaningful buckets for the current user.
 function buildSections(duels) {
   const needsResponse = [];
   const waiting = [];
@@ -118,35 +138,36 @@ function buildSections(duels) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, padding: 16 },
-  newBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  newBtnText: { color: colors.bg, fontSize: 16, fontWeight: '700' },
+  body: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
   sectionHeader: {
     color: colors.muted,
-    fontSize: 13,
-    fontWeight: '700',
+    fontSize: font.caption,
+    fontWeight: '800',
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginTop: 16,
-    marginBottom: 6,
+    letterSpacing: 1,
+    marginTop: spacing.lg,
+    marginBottom: spacing.xs,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomColor: colors.border,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radius.md,
   },
-  emoji: { fontSize: 26, marginRight: 14 },
-  vs: { color: colors.text, fontSize: 17, fontWeight: '600' },
-  meta: { color: colors.muted, fontSize: 13, marginTop: 2 },
-  chevron: { color: colors.muted, fontSize: 24 },
-  empty: { color: colors.muted, textAlign: 'center', marginTop: 60, fontSize: 16, lineHeight: 24 },
-  error: { color: colors.danger, textAlign: 'center', marginBottom: 10 },
+  emojiCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: spacing.md,
+  },
+  emoji: { fontSize: 22 },
+  vs: { color: colors.text, fontSize: font.subtitle, fontWeight: '700' },
+  meta: { color: colors.muted, fontSize: font.small, marginTop: 2 },
+  error: { color: colors.danger, textAlign: 'center', marginTop: spacing.sm },
 });

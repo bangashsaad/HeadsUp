@@ -1,17 +1,9 @@
 import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { FlatList, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { listPlayers } from '../api/sports';
-import { colors } from '../theme';
+import { colors, spacing, radius, font } from '../theme';
+import { Screen, Avatar, EmptyState, SkeletonList, SearchInput, Chip } from '../components/ui';
 
 export default function PlayersScreen({ route }) {
   const { sport } = route.params;
@@ -32,14 +24,9 @@ export default function PlayersScreen({ route }) {
 
     const timer = setTimeout(async () => {
       try {
-        const res = await listPlayers(token, {
-          sport,
-          q: query.trim(),
-          position: activePosition,
-        });
+        const res = await listPlayers(token, { sport, q: query.trim(), position: activePosition });
         if (cancelled) return;
         setPlayers(res.players);
-        // Keep the full position list stable (only set it from an unfiltered load).
         if (!activePosition && !query.trim()) setPositions(res.positions);
         setError(null);
       } catch (e) {
@@ -58,54 +45,51 @@ export default function PlayersScreen({ route }) {
   const chips = [null, ...positions];
 
   return (
-    <View style={styles.container}>
-      <TextInput
-        style={styles.input}
-        placeholder="Search players"
-        placeholderTextColor={colors.placeholder}
-        autoCapitalize="none"
-        autoCorrect={false}
-        value={query}
-        onChangeText={setQuery}
-      />
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chips}
-      >
-        {chips.map((pos) => {
-          const active = pos === activePosition;
-          return (
-            <TouchableOpacity
+    <Screen padded={false}>
+      <View style={styles.header}>
+        <SearchInput value={query} onChangeText={setQuery} placeholder="Search players" />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          {chips.map((pos) => (
+            <Chip
               key={pos ?? 'all'}
-              style={[styles.chip, active && styles.chipActive]}
+              label={pos ?? 'All'}
+              active={pos === activePosition}
               onPress={() => setActivePosition(pos)}
-            >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                {pos ?? 'All'}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+            />
+          ))}
+        </ScrollView>
+      </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {loading ? (
-        <ActivityIndicator size="large" color={colors.accent} style={{ marginTop: 30 }} />
+        <View style={{ paddingHorizontal: spacing.lg }}>
+          <SkeletonList count={8} />
+        </View>
       ) : (
         <FlatList
           data={players}
           keyExtractor={(item) => String(item.id)}
           keyboardShouldPersistTaps="handled"
-          ListEmptyComponent={<Text style={styles.empty}>No players found.</Text>}
-          renderItem={({ item }) => (
+          contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xl }}
+          ItemSeparatorComponent={() => <View style={styles.sep} />}
+          ListEmptyComponent={
+            <EmptyState icon="search" title="No players found" subtitle="Try a different name or position filter." />
+          }
+          renderItem={({ item, index }) => (
             <View style={styles.row}>
-              <View style={{ flex: 1 }}>
+              <Text style={styles.rank}>{index + 1}</Text>
+              <Avatar name={item.name} size={40} />
+              <View style={{ flex: 1, marginLeft: spacing.md }}>
                 <Text style={styles.name}>{item.name}</Text>
                 <Text style={styles.meta}>{item.team}</Text>
               </View>
+              {item.projection != null ? (
+                <View style={styles.projWrap}>
+                  <Text style={styles.proj}>{Math.round(item.projection)}</Text>
+                  <Text style={styles.projLabel}>PROJ</Text>
+                </View>
+              ) : null}
               <View style={styles.posBadge}>
                 <Text style={styles.posText}>{item.position}</Text>
               </View>
@@ -113,51 +97,31 @@ export default function PlayersScreen({ route }) {
           )}
         />
       )}
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, padding: 16 },
-  input: {
-    backgroundColor: colors.card,
-    color: colors.text,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chips: { paddingVertical: 12, gap: 8 },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
-  chipText: { color: colors.muted, fontWeight: '600' },
-  chipTextActive: { color: colors.bg },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomColor: colors.border,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  name: { color: colors.text, fontSize: 17, fontWeight: '600' },
-  meta: { color: colors.muted, fontSize: 13, marginTop: 2 },
+  header: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  chips: { paddingVertical: spacing.md, gap: spacing.sm },
+  error: { color: colors.danger, textAlign: 'center', marginVertical: spacing.md },
+  sep: { height: StyleSheet.hairlineWidth, backgroundColor: colors.borderSubtle },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md },
+  rank: { color: colors.placeholder, fontSize: font.small, fontWeight: '700', width: 22 },
+  name: { color: colors.text, fontSize: font.subtitle, fontWeight: '600' },
+  meta: { color: colors.muted, fontSize: font.small, marginTop: 2 },
+  projWrap: { alignItems: 'center', marginRight: spacing.md },
+  proj: { color: colors.accent, fontWeight: '800', fontSize: font.bodyLg },
+  projLabel: { color: colors.placeholder, fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
   posBadge: {
-    backgroundColor: colors.card,
-    borderColor: colors.border,
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accentBorder,
     borderWidth: 1,
-    borderRadius: 8,
+    borderRadius: radius.sm,
     paddingHorizontal: 10,
     paddingVertical: 4,
+    minWidth: 38,
+    alignItems: 'center',
   },
-  posText: { color: colors.accent, fontWeight: '700', fontSize: 13 },
-  empty: { color: colors.muted, textAlign: 'center', marginTop: 50, fontSize: 16 },
+  posText: { color: colors.accent, fontWeight: '700', fontSize: font.small },
 });

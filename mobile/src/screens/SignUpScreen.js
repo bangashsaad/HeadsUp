@@ -1,14 +1,9 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Text,
-  TextInput,
-  TouchableOpacity,
-} from 'react-native';
+import { KeyboardAvoidingView, Platform, Text, TextInput, View, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
 import { authStyles as s, colors } from '../theme';
+import { Button } from '../components/ui';
 
 export default function SignUpScreen({ navigation }) {
   const { signUp } = useAuth();
@@ -23,7 +18,6 @@ export default function SignUpScreen({ navigation }) {
     setSubmitting(true);
     try {
       await signUp({ username: username.trim(), email: email.trim(), password });
-      // On success, the app automatically switches to the Home screen.
     } catch (e) {
       setError(e.message);
     } finally {
@@ -32,10 +26,12 @@ export default function SignUpScreen({ navigation }) {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={s.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <KeyboardAvoidingView style={s.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={styles.brandWrap}>
+        <View style={styles.brand}>
+          <Ionicons name="flame" size={34} color={colors.accent} />
+        </View>
+      </View>
       <Text style={s.title}>Create your account</Text>
       <Text style={s.subtitle}>Pick a username your buddies will know you by</Text>
 
@@ -69,17 +65,25 @@ export default function SignUpScreen({ navigation }) {
         onChangeText={setPassword}
       />
 
-      <TouchableOpacity style={s.button} onPress={handleSignUp} disabled={submitting}>
-        {submitting ? (
-          <ActivityIndicator color={colors.bg} />
-        ) : (
-          <Text style={s.buttonText}>Sign Up</Text>
-        )}
-      </TouchableOpacity>
+      <Button title="Sign Up" onPress={handleSignUp} loading={submitting} style={{ marginTop: 8 }} />
 
-      <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-        <Text style={s.link}>Already have an account? Log in</Text>
-      </TouchableOpacity>
+      <Text style={s.link} onPress={() => navigation.navigate('Login')}>
+        Already have an account? Log in
+      </Text>
     </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  brandWrap: { alignItems: 'center', marginBottom: 8 },
+  brand: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: colors.accentBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

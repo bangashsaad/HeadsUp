@@ -1,16 +1,11 @@
 import { useCallback, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { listRequests, acceptRequest, deleteRequest } from '../api/social';
-import { colors } from '../theme';
+import { colors, spacing, font } from '../theme';
+import { Screen, Avatar, Button, EmptyState, SkeletonList } from '../components/ui';
 
 export default function RequestsScreen() {
   const { token } = useAuth();
@@ -37,6 +32,10 @@ export default function RequestsScreen() {
   );
 
   async function respond(request, action) {
+    Haptics.notificationAsync(
+      action === 'accept' ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Warning
+    ).catch(() => {});
+
     // Remove from the list immediately for a snappy feel.
     setRequests((prev) => prev.filter((r) => r.id !== request.id));
     try {
@@ -52,62 +51,47 @@ export default function RequestsScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+    <Screen padded={false}>
+      <View style={styles.body}>
+        {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {loading ? (
-        <ActivityIndicator size="large" color={colors.accent} style={{ marginTop: 40 }} />
-      ) : (
-        <FlatList
-          data={requests}
-          keyExtractor={(item) => String(item.id)}
-          ListEmptyComponent={<Text style={styles.empty}>No pending requests.</Text>}
-          renderItem={({ item }) => (
-            <View style={styles.row}>
-              <Text style={styles.username}>{item.user.username}</Text>
-              <View style={styles.buttons}>
-                <TouchableOpacity
-                  style={styles.accept}
-                  onPress={() => respond(item, 'accept')}
-                >
-                  <Text style={styles.acceptText}>Accept</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.decline}
-                  onPress={() => respond(item, 'decline')}
-                >
-                  <Text style={styles.declineText}>Decline</Text>
-                </TouchableOpacity>
+        {loading ? (
+          <SkeletonList count={4} />
+        ) : (
+          <FlatList
+            data={requests}
+            keyExtractor={(item) => String(item.id)}
+            ItemSeparatorComponent={() => <View style={styles.sep} />}
+            contentContainerStyle={requests.length === 0 && { flexGrow: 1, justifyContent: 'center' }}
+            ListEmptyComponent={
+              <EmptyState
+                icon="mail-open-outline"
+                title="No pending requests"
+                subtitle="When someone wants to add you, it'll show up here."
+              />
+            }
+            renderItem={({ item }) => (
+              <View style={styles.row}>
+                <Avatar name={item.user.username} size={44} />
+                <Text style={styles.username}>{item.user.username}</Text>
+                <View style={styles.buttons}>
+                  <Button title="Accept" size="sm" full={false} icon="checkmark" onPress={() => respond(item, 'accept')} />
+                  <Button title="Decline" size="sm" variant="outline" full={false} haptic={false} onPress={() => respond(item, 'decline')} />
+                </View>
               </View>
-            </View>
-          )}
-        />
-      )}
-    </View>
+            )}
+          />
+        )}
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, padding: 16 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 14,
-    borderBottomColor: colors.border,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  username: { color: colors.text, fontSize: 17, flex: 1 },
-  buttons: { flexDirection: 'row', gap: 10 },
-  accept: { backgroundColor: colors.accent, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 8 },
-  acceptText: { color: colors.bg, fontWeight: '700' },
-  decline: {
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  declineText: { color: colors.muted, fontWeight: '600' },
-  empty: { color: colors.muted, textAlign: 'center', marginTop: 60, fontSize: 16 },
+  body: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  sep: { height: StyleSheet.hairlineWidth, backgroundColor: colors.borderSubtle },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md },
+  username: { color: colors.text, fontSize: font.subtitle, fontWeight: '600', marginLeft: spacing.md, flex: 1 },
+  buttons: { flexDirection: 'row', gap: spacing.sm },
+  error: { color: colors.danger, textAlign: 'center', marginBottom: spacing.sm },
 });

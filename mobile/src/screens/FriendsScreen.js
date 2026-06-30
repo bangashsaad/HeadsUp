@@ -1,17 +1,25 @@
 import { useCallback, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { listFriends, listRequests } from '../api/social';
-import { colors } from '../theme';
+import { colors, spacing, radius, font } from '../theme';
+import { Screen, Avatar, Button, EmptyState, SkeletonList } from '../components/ui';
+
+function ActionTile({ icon, label, onPress, count = 0 }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.tile, pressed && { opacity: 0.85, transform: [{ scale: 0.99 }] }]}>
+      <Ionicons name={icon} size={20} color={colors.accent} />
+      <Text style={styles.tileText}>{label}</Text>
+      {count > 0 ? (
+        <View style={styles.countBadge}>
+          <Text style={styles.countText}>{count}</Text>
+        </View>
+      ) : null}
+    </Pressable>
+  );
+}
 
 export default function FriendsScreen({ navigation }) {
   const { token, signOut } = useAuth();
@@ -24,10 +32,7 @@ export default function FriendsScreen({ navigation }) {
   const load = useCallback(async () => {
     setError(null);
     try {
-      const [friendsRes, requestsRes] = await Promise.all([
-        listFriends(token),
-        listRequests(token),
-      ]);
+      const [friendsRes, requestsRes] = await Promise.all([listFriends(token), listRequests(token)]);
       setFriends(friendsRes.friends);
       setRequestCount(requestsRes.requests.length);
     } catch (e) {
@@ -38,7 +43,6 @@ export default function FriendsScreen({ navigation }) {
     }
   }, [token]);
 
-  // Reload every time this screen comes into focus (e.g. after accepting a request).
   useFocusEffect(
     useCallback(() => {
       load();
@@ -51,61 +55,53 @@ export default function FriendsScreen({ navigation }) {
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.actions}>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Search')}>
-          <Text style={styles.actionText}>＋ Add friends</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.actionBtn} onPress={() => navigation.navigate('Requests')}>
-          <Text style={styles.actionText}>Requests</Text>
-          {requestCount > 0 ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{requestCount}</Text>
-            </View>
-          ) : null}
-        </TouchableOpacity>
+    <Screen padded={false}>
+      <View style={styles.body}>
+        <View style={styles.actions}>
+          <ActionTile icon="person-add" label="Add friends" onPress={() => navigation.navigate('Search')} />
+          <ActionTile icon="mail" label="Requests" count={requestCount} onPress={() => navigation.navigate('Requests')} />
+        </View>
+
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        {loading ? (
+          <SkeletonList count={6} />
+        ) : (
+          <FlatList
+            data={friends}
+            keyExtractor={(item) => String(item.id)}
+            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.muted} />}
+            ItemSeparatorComponent={() => <View style={styles.sep} />}
+            contentContainerStyle={friends.length === 0 && { flexGrow: 1, justifyContent: 'center' }}
+            ListEmptyComponent={
+              <EmptyState
+                icon="people-outline"
+                title="No friends yet"
+                subtitle="Add your buddies to start challenging them head-to-head."
+                action={<Button title="Add friends" icon="person-add" onPress={() => navigation.navigate('Search')} />}
+              />
+            }
+            renderItem={({ item }) => (
+              <View style={styles.row}>
+                <Avatar name={item.username} size={44} />
+                <Text style={styles.username}>{item.username}</Text>
+              </View>
+            )}
+          />
+        )}
       </View>
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      {loading ? (
-        <ActivityIndicator size="large" color={colors.accent} style={{ marginTop: 40 }} />
-      ) : (
-        <FlatList
-          data={friends}
-          keyExtractor={(item) => String(item.id)}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.muted} />
-          }
-          ListEmptyComponent={
-            <Text style={styles.empty}>
-              No friends yet.{'\n'}Tap “Add friends” to find your buddies.
-            </Text>
-          }
-          renderItem={({ item }) => (
-            <View style={styles.row}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {item.username.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-              <Text style={styles.username}>{item.username}</Text>
-            </View>
-          )}
-        />
-      )}
-
-      <TouchableOpacity style={styles.logout} onPress={signOut}>
-        <Text style={styles.logoutText}>Log Out</Text>
-      </TouchableOpacity>
-    </View>
+      <View style={styles.footer}>
+        <Button title="Log Out" variant="danger" icon="log-out-outline" onPress={signOut} />
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.bg, padding: 16 },
-  actions: { flexDirection: 'row', gap: 12, marginBottom: 16 },
-  actionBtn: {
+  body: { flex: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+  actions: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md },
+  tile: {
     flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
@@ -113,11 +109,11 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderColor: colors.border,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: radius.md,
     paddingVertical: 14,
   },
-  actionText: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  badge: {
+  tileText: { color: colors.text, fontSize: font.body, fontWeight: '700', marginLeft: 8 },
+  countBadge: {
     marginLeft: 8,
     backgroundColor: colors.accent,
     borderRadius: 10,
@@ -126,34 +122,10 @@ const styles = StyleSheet.create({
     paddingVertical: 1,
     alignItems: 'center',
   },
-  badgeText: { color: colors.bg, fontSize: 12, fontWeight: '800' },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomColor: colors.border,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
-  },
-  avatarText: { color: colors.accent, fontWeight: '800', fontSize: 16 },
-  username: { color: colors.text, fontSize: 17 },
-  empty: { color: colors.muted, textAlign: 'center', marginTop: 60, fontSize: 16, lineHeight: 24 },
-  error: { color: colors.danger, textAlign: 'center', marginBottom: 10 },
-  logout: {
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  logoutText: { color: colors.danger, fontSize: 16, fontWeight: '600' },
+  countText: { color: colors.bg, fontSize: font.caption, fontWeight: '800' },
+  sep: { height: StyleSheet.hairlineWidth, backgroundColor: colors.borderSubtle },
+  row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md },
+  username: { color: colors.text, fontSize: font.subtitle, fontWeight: '600', marginLeft: spacing.md },
+  error: { color: colors.danger, textAlign: 'center', marginBottom: spacing.sm },
+  footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
 });
