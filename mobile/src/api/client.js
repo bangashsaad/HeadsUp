@@ -1,8 +1,10 @@
 import Constants from 'expo-constants';
 
-// Auto-detect the Mac's address from whatever Expo Go is already connected to,
-// so we NEVER hardcode a WiFi IP again. If your network changes, this just
-// follows along. Falls back to localhost outside of Expo Go.
+// Where's the backend?
+//  - DEV (connected to a Metro dev server): talk to THAT machine's local
+//    backend on :4000 — auto-detected, so a changing WiFi IP just follows along.
+//  - STANDALONE build (no Metro — e.g. a preview build friends install): use the
+//    configured production URL from app.json `extra.apiUrl` (the deployed server).
 function resolveApiUrl() {
   const hostUri =
     Constants.expoConfig?.hostUri ||
@@ -10,8 +12,12 @@ function resolveApiUrl() {
     Constants.manifest2?.extra?.expoGo?.debuggerHost ||
     '';
 
-  const host = hostUri.split(':')[0] || 'localhost';
-  return `http://${host}:4000`;
+  if (hostUri) {
+    const host = hostUri.split(':')[0] || 'localhost';
+    return `http://${host}:4000`;
+  }
+
+  return Constants.expoConfig?.extra?.apiUrl || 'http://localhost:4000';
 }
 
 export const API_URL = resolveApiUrl();

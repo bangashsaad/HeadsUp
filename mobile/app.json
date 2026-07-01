@@ -32,6 +32,7 @@
       "expo-font"
     ],
     "extra": {
+      "apiUrl": "https://headsup-fantasy.fly.dev",
       "eas": {
         "projectId": "778f9a93-60b4-4fa0-a6ef-7d873f3205a6"
       }
