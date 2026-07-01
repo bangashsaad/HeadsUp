@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
@@ -45,6 +45,12 @@ export default function ProfileScreen({ navigation }) {
       };
     }, [token])
   );
+
+  function invite() {
+    Share.share({
+      message: `Play me 1-on-1 in Heads Up fantasy 🏀⚾️ — draft a lineup, winner takes bragging rights. Add me: my username is ${user?.username}.`,
+    }).catch(() => {});
+  }
 
   function howToPlay() {
     Alert.alert(
@@ -128,6 +134,8 @@ export default function ProfileScreen({ navigation }) {
       ) : null}
 
       <Card padded={false} style={{ marginTop: spacing.lg }}>
+        <Row icon="person-add-outline" label="Invite a friend" sublabel="Share your username to duel" onPress={invite} />
+        <View style={styles.menuDivider} />
         <Row icon="podium-outline" label="Leaderboard" sublabel="Standings among your friends" onPress={() => navigation.navigate('Leaderboard')} />
         <View style={styles.menuDivider} />
         <Row icon="settings-outline" label="Settings" sublabel="Appearance, preferences, account" onPress={() => navigation.navigate('Settings')} />

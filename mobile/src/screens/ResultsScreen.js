@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
-import { getResult } from '../api/duels';
+import { getResult, rematch } from '../api/duels';
 import { ApiError } from '../api/client';
 import { notify, NotifyType } from '../haptics';
 import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
-import { Screen, Card, Avatar, EmptyState } from '../components/ui';
+import { Screen, Card, Avatar, Button, EmptyState } from '../components/ui';
 
 const OUTCOME = {
   win: { tone: 'accent', icon: '🏆', title: 'You win!' },
@@ -52,6 +52,17 @@ export default function ResultsScreen({ route, navigation }) {
   const [error, setError] = useState(null);
   const celebrated = useRef(false);
   const pop = useRef(new Animated.Value(0.85)).current;
+  const [rematching, setRematching] = useState(false);
+
+  async function doRematch() {
+    setRematching(true);
+    try {
+      const res = await rematch(token, id);
+      navigation.navigate('DuelDetail', { id: res.duel.id });
+    } catch (e) {
+      setRematching(false);
+    }
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -120,6 +131,13 @@ export default function ResultsScreen({ route, navigation }) {
   const o = OUTCOME[result.my_outcome] || OUTCOME.tie;
   const tone = tones[o.tone];
 
+  function shareResult() {
+    const verb = result.my_outcome === 'win' ? 'won' : result.my_outcome === 'loss' ? 'lost' : 'tied';
+    Share.share({
+      message: `I ${verb} my Heads Up fantasy duel vs ${opponentName} — ${me.total.toFixed(1)} to ${them.total.toFixed(1)}! 🏀⚾️`,
+    }).catch(() => {});
+  }
+
   function ScoreSide({ name, value, win }) {
     const shown = useCountUp(value);
     return (
@@ -177,6 +195,15 @@ export default function ResultsScreen({ route, navigation }) {
 
       <Team title="Your lineup" lineup={me} highlight={result.my_outcome === 'win'} />
       <Team title={`${opponentName}'s lineup`} lineup={them} highlight={result.my_outcome === 'loss'} />
+
+      <Button
+        title={rematching ? 'Sending…' : `Rematch ${opponentName}`}
+        icon="refresh"
+        onPress={doRematch}
+        disabled={rematching}
+        style={{ marginTop: spacing.xl }}
+      />
+      <Button title="Share result" icon="share-outline" variant="outline" onPress={shareResult} style={{ marginTop: spacing.sm }} />
     </Screen>
   );
 }

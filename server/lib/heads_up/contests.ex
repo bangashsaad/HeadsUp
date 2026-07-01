@@ -50,6 +50,38 @@ defmodule HeadsUp.Contests do
   end
 
   @doc """
+  Rematch: create a fresh pending challenge from `user` to the OTHER participant
+  of `duel_id`, cloning its terms (sport, lineup, clock, scoring). `attrs` may
+  override `"draft_starts_at"`; otherwise it defaults to ~15 min out. Links back
+  via `parent_duel_id`.
+  """
+  def rematch(%User{} = user, duel_id, attrs \\ %{}) do
+    case get_duel(user, duel_id) do
+      nil ->
+        {:error, :not_found}
+
+      %Duel{} = duel ->
+        other = if duel.challenger_id == user.id, do: duel.opponent_id, else: duel.challenger_id
+
+        create_challenge(user, %{
+          "opponent_id" => other,
+          "sport" => duel.sport,
+          "lineup_template" => duel.lineup_template,
+          "draft_type" => duel.draft_type,
+          "pick_clock_seconds" => duel.pick_clock_seconds,
+          "scoring_rules" => duel.scoring_rules,
+          "wager_cents" => duel.wager_cents,
+          "draft_starts_at" => attrs["draft_starts_at"] || default_rematch_start(),
+          "parent_duel_id" => duel.id
+        })
+    end
+  end
+
+  defp default_rematch_start do
+    DateTime.utc_now() |> DateTime.add(900, :second) |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+  end
+
+  @doc """
   Opponent counters a pending challenge with new terms: marks the original
   "countered" and creates a new pending duel in the opposite direction.
   """

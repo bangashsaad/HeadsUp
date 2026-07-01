@@ -5,6 +5,7 @@ import GamesScreen from '../screens/GamesScreen';
 import GameDetailScreen from '../screens/GameDetailScreen';
 import PlayerProfileScreen from '../screens/PlayerProfileScreen';
 import PlayerSearchScreen from '../screens/PlayerSearchScreen';
+import CompareScreen from '../screens/CompareScreen';
 import { useNavHeader, useTheme } from '../theme';
 
 const Stack = createNativeStackNavigator();
@@ -27,7 +28,19 @@ export default function GamesStack() {
         })}
       />
       <Stack.Screen name="GameDetail" component={GameDetailScreen} options={{ title: 'Matchup' }} />
-      <Stack.Screen name="PlayerSearch" component={PlayerSearchScreen} options={{ title: 'Search Players' }} />
+      <Stack.Screen
+        name="PlayerSearch"
+        component={PlayerSearchScreen}
+        options={({ navigation }) => ({
+          title: 'Search Players',
+          headerRight: () => (
+            <Pressable onPress={() => navigation.navigate('Compare')} hitSlop={10}>
+              <Ionicons name="git-compare-outline" size={22} color={colors.text} />
+            </Pressable>
+          ),
+        })}
+      />
+      <Stack.Screen name="Compare" component={CompareScreen} options={{ title: 'Compare Players' }} />
       <Stack.Screen
         name="PlayerProfile"
         component={PlayerProfileScreen}

@@ -96,6 +96,17 @@ defmodule HeadsUpWeb.DuelController do
     end
   end
 
+  # POST /api/duels/:id/rematch — clone terms into a new challenge to the same opponent
+  def rematch(conn, %{"id" => id} = params) do
+    user = conn.assigns.current_user
+
+    with {:ok, duel} <- Contests.rematch(user, id, Map.drop(params, ["id"])) do
+      conn
+      |> put_status(:created)
+      |> render(:show, duel: duel, current_user_id: user.id)
+    end
+  end
+
   defp act(conn, fun, id) do
     user = conn.assigns.current_user
 

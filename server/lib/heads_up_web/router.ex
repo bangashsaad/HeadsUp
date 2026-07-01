@@ -75,6 +75,7 @@ defmodule HeadsUpWeb.Router do
     post "/duels/:id/decline", DuelController, :decline
     post "/duels/:id/cancel", DuelController, :cancel
     post "/duels/:id/counter", DuelController, :counter
+    post "/duels/:id/rematch", DuelController, :rematch
   end
 
   # Enable LiveDashboard and Swoosh mailbox preview in development

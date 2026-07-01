@@ -19,3 +19,6 @@ export const respondToDuel = (token, id, action) =>
 
 export const counterChallenge = (token, id, body) =>
   apiRequest(`/api/duels/${id}/counter`, { method: 'POST', token, body });
+
+// Re-challenge the same opponent with the same terms; returns the new duel.
+export const rematch = (token, id) => apiRequest(`/api/duels/${id}/rematch`, { method: 'POST', token });
