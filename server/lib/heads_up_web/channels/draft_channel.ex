@@ -60,6 +60,11 @@ defmodule HeadsUpWeb.DraftChannel do
     |> ack(socket)
   end
 
+  def handle_in("set_queue", %{"player_ids" => ids}, socket) when is_list(ids) do
+    Server.set_queue(socket.assigns.draft_id, socket.assigns.current_user_id, ids)
+    {:reply, :ok, socket}
+  end
+
   def handle_in("cancel", _payload, socket) do
     socket.assigns.draft_id
     |> Server.cancel(socket.assigns.current_user_id)

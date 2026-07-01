@@ -9,6 +9,8 @@ defmodule HeadsUpWeb.StatsJSON do
     }
   end
 
+  def achievements(%{achievements: list}), do: %{achievements: list}
+
   def leaderboard(%{rows: rows}) do
     %{
       leaderboard:

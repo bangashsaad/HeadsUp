@@ -3,7 +3,7 @@ import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
-import { getMyStats } from '../api/me';
+import { getMyStats, getAchievements } from '../api/me';
 import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
 import { Screen, Card, Avatar, Button } from '../components/ui';
 
@@ -29,12 +29,16 @@ export default function ProfileScreen({ navigation }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [stats, setStats] = useState(null);
+  const [trophies, setTrophies] = useState([]);
 
   useFocusEffect(
     useCallback(() => {
       let active = true;
       getMyStats(token)
         .then((s) => active && setStats(s))
+        .catch(() => {});
+      getAchievements(token)
+        .then((r) => active && setTrophies(r.achievements || []))
         .catch(() => {});
       return () => {
         active = false;
@@ -106,6 +110,23 @@ export default function ProfileScreen({ navigation }) {
         </>
       ) : null}
 
+      {/* Trophies */}
+      {trophies.length > 0 ? (
+        <>
+          <View style={styles.trophyHead}>
+            <Text style={styles.sectionLabel}>Trophies</Text>
+            <Text style={styles.trophyCount}>
+              {trophies.filter((t) => t.earned).length}/{trophies.length}
+            </Text>
+          </View>
+          <View style={styles.trophyGrid}>
+            {trophies.map((t) => (
+              <Trophy key={t.key} trophy={t} styles={styles} colors={colors} />
+            ))}
+          </View>
+        </>
+      ) : null}
+
       <Card padded={false} style={{ marginTop: spacing.lg }}>
         <Row icon="podium-outline" label="Leaderboard" sublabel="Standings among your friends" onPress={() => navigation.navigate('Leaderboard')} />
         <View style={styles.menuDivider} />
@@ -130,6 +151,23 @@ function RecStat({ value, label, accent, styles }) {
   );
 }
 
+function Trophy({ trophy, styles, colors }) {
+  const earned = trophy.earned;
+  return (
+    <View style={styles.trophy}>
+      <View style={[styles.trophyIcon, { backgroundColor: earned ? colors.accentSoft : colors.card, borderColor: earned ? colors.accentBorder : colors.borderSubtle }]}>
+        <Ionicons name={trophy.icon} size={24} color={earned ? colors.accent : colors.placeholder} />
+      </View>
+      <Text style={[styles.trophyTitle, !earned && { color: colors.muted }]} numberOfLines={1}>
+        {trophy.title}
+      </Text>
+      <Text style={styles.trophySub} numberOfLines={1}>
+        {earned ? '✓ Earned' : `${Math.min(trophy.value, trophy.threshold)}/${trophy.threshold}`}
+      </Text>
+    </View>
+  );
+}
+
 const makeStyles = (colors) =>
   StyleSheet.create({
     headerCard: { alignItems: 'center', paddingVertical: spacing.xl },
@@ -145,6 +183,13 @@ const makeStyles = (colors) =>
     recLabel: { color: colors.muted, fontSize: 10, fontWeight: '800', letterSpacing: 0.5, marginTop: 2 },
     recNote: { color: colors.placeholder, fontSize: font.caption, textAlign: 'center', marginTop: spacing.md },
     sectionLabel: { color: colors.muted, fontSize: font.caption, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.lg, marginBottom: spacing.sm },
+    trophyHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+    trophyCount: { color: colors.accent, fontSize: font.small, fontWeight: '800' },
+    trophyGrid: { flexDirection: 'row', flexWrap: 'wrap' },
+    trophy: { width: '25%', alignItems: 'center', paddingVertical: spacing.sm },
+    trophyIcon: { width: 52, height: 52, borderRadius: 26, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+    trophyTitle: { color: colors.text, fontSize: 11, fontWeight: '700', marginTop: 6, textAlign: 'center' },
+    trophySub: { color: colors.placeholder, fontSize: 9, fontWeight: '700', marginTop: 1 },
     h2hRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
     h2hName: { color: colors.text, fontSize: font.body, fontWeight: '600', flex: 1, marginLeft: spacing.md },
     h2hRec: { color: colors.muted, fontSize: font.body, fontWeight: '800' },

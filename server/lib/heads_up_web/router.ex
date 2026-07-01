@@ -46,6 +46,7 @@ defmodule HeadsUpWeb.Router do
 
     # Competitive stats + home dashboard
     get "/me/stats", StatsController, :me
+    get "/me/achievements", StatsController, :achievements
     get "/leaderboard", StatsController, :leaderboard
     get "/home", HomeController, :index
 
@@ -59,6 +60,7 @@ defmodule HeadsUpWeb.Router do
 
     # Sports / draft pool
     get "/players", PlayerController, :index
+    get "/players/search", PlayerController, :search
     get "/players/:id/profile", PlayerController, :profile
     get "/games/upcoming", GameController, :upcoming
     get "/games/:event_id/boxscore", GameController, :boxscore

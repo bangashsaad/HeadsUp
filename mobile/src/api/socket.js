@@ -23,6 +23,7 @@ export function connectDraft(duelId, token, handlers) {
   return {
     ready: () => channel.push('ready', {}),
     makePick: (playerId) => channel.push('make_pick', { player_id: playerId }),
+    setQueue: (playerIds) => channel.push('set_queue', { player_ids: playerIds }),
     cancel: () => channel.push('cancel', {}),
     leave: () => {
       channel.leave();

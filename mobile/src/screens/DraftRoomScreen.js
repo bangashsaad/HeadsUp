@@ -125,6 +125,27 @@ function DraftBoard({ state, myId, opponentName, conn, error, setError, navigati
 
   const [query, setQuery] = useState('');
   const [posFilter, setPosFilter] = useState(null);
+  const [queue, setQueue] = useState([]);
+  const queued = useMemo(() => new Set(queue), [queue]);
+
+  // Keep the server's private auto-pick order in sync with the local queue.
+  useEffect(() => {
+    conn?.setQueue?.(queue);
+  }, [queue, conn]);
+
+  // Drop drafted players from the queue as they leave the pool.
+  useEffect(() => {
+    const availIds = new Set(state.available.map((p) => p.id));
+    setQueue((q) => {
+      const pruned = q.filter((pid) => availIds.has(pid));
+      return pruned.length === q.length ? q : pruned;
+    });
+  }, [state.available]);
+
+  function toggleQueue(pid) {
+    impact(ImpactStyle.Light);
+    setQueue((q) => (q.includes(pid) ? q.filter((x) => x !== pid) : [...q, pid]));
+  }
 
   const prevTurn = useRef(false);
   useEffect(() => {
@@ -150,6 +171,15 @@ function DraftBoard({ state, myId, opponentName, conn, error, setError, navigati
       return true;
     });
   }, [state.available, eligible, lineupFull, activePos, query]);
+
+  // Pin queued players (in queue order) to the top of the list.
+  const ordered = useMemo(() => {
+    if (queue.length === 0) return visible;
+    const byId = new Map(visible.map((p) => [p.id, p]));
+    const top = queue.map((pid) => byId.get(pid)).filter(Boolean);
+    const rest = visible.filter((p) => !queued.has(p.id));
+    return [...top, ...rest];
+  }, [visible, queue, queued]);
 
   function pick(player) {
     if (!isMyTurn || complete) return;
@@ -205,39 +235,54 @@ function DraftBoard({ state, myId, opponentName, conn, error, setError, navigati
             ))}
           </ScrollView>
 
+          {queue.length > 0 ? (
+            <Text style={styles.queueHint}>★ {queue.length} queued — auto-pick drafts these first if your clock runs out.</Text>
+          ) : null}
+
           <FlatList
             style={styles.list}
-            data={visible}
+            data={ordered}
             keyExtractor={(p) => String(p.id)}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={<EmptyState icon="search" title="No players match" subtitle="Adjust your search or position filter." />}
-            renderItem={({ item }) => (
-              <Pressable
-                onPress={() => pick(item)}
-                style={({ pressed }) => [styles.player, !isMyTurn && styles.playerDim, pressed && isMyTurn && { opacity: 0.85, transform: [{ scale: 0.99 }] }]}
-              >
-                <Avatar name={item.name} size={38} />
-                <View style={{ flex: 1, marginLeft: spacing.md }}>
-                  <Text style={styles.playerName}>{item.name}</Text>
-                  <Text style={styles.playerMeta}>
-                    {item.position} · {item.team}
-                  </Text>
-                </View>
+            renderItem={({ item }) => {
+              const isQ = queued.has(item.id);
+              return (
                 <Pressable
-                  onPress={() => navigation.navigate('PlayerProfile', { id: item.id, name: item.name, team: item.team, position: item.position })}
-                  hitSlop={8}
-                  style={{ paddingHorizontal: 4 }}
+                  onPress={() => pick(item)}
+                  style={({ pressed }) => [
+                    styles.player,
+                    isQ && styles.playerQueued,
+                    !isMyTurn && styles.playerDim,
+                    pressed && isMyTurn && { opacity: 0.85, transform: [{ scale: 0.99 }] },
+                  ]}
                 >
-                  <Ionicons name="information-circle-outline" size={22} color={colors.muted} />
+                  <Avatar name={item.name} size={38} />
+                  <View style={{ flex: 1, marginLeft: spacing.md }}>
+                    <Text style={styles.playerName}>{item.name}</Text>
+                    <Text style={styles.playerMeta}>
+                      {item.position} · {item.team}
+                    </Text>
+                  </View>
+                  <Pressable onPress={() => toggleQueue(item.id)} hitSlop={8} style={{ paddingHorizontal: 4 }}>
+                    <Ionicons name={isQ ? 'star' : 'star-outline'} size={22} color={isQ ? colors.accent : colors.muted} />
+                  </Pressable>
+                  <Pressable
+                    onPress={() => navigation.navigate('PlayerProfile', { id: item.id, name: item.name, team: item.team, position: item.position })}
+                    hitSlop={8}
+                    style={{ paddingHorizontal: 4 }}
+                  >
+                    <Ionicons name="information-circle-outline" size={22} color={colors.muted} />
+                  </Pressable>
+                  <View style={[styles.projWrap, { marginLeft: spacing.sm }]}>
+                    <Text style={styles.proj}>{(item.projection ?? 0).toFixed(1)}</Text>
+                    <Text style={styles.projLabel}>FPG</Text>
+                  </View>
+                  {isMyTurn ? <Ionicons name="add-circle" size={24} color={colors.accent} style={{ marginLeft: spacing.sm }} /> : null}
                 </Pressable>
-                <View style={[styles.projWrap, { marginLeft: spacing.sm }]}>
-                  <Text style={styles.proj}>{(item.projection ?? 0).toFixed(1)}</Text>
-                  <Text style={styles.projLabel}>FPG</Text>
-                </View>
-                {isMyTurn ? <Ionicons name="add-circle" size={24} color={colors.accent} style={{ marginLeft: spacing.sm }} /> : null}
-              </Pressable>
-            )}
+              );
+            }}
           />
         </>
       ) : (
@@ -290,7 +335,9 @@ const makeStyles = (colors) =>
     watchNote: { color: colors.muted, fontSize: font.small, marginTop: spacing.md, fontStyle: 'italic' },
     list: { flex: 1, marginTop: spacing.sm },
     player: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderSubtle, padding: spacing.md, marginBottom: spacing.sm },
+    playerQueued: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
     playerDim: { opacity: 0.45 },
+    queueHint: { color: colors.muted, fontSize: font.small, marginTop: spacing.sm, fontStyle: 'italic' },
     playerName: { color: colors.text, fontSize: font.body, fontWeight: '600' },
     playerMeta: { color: colors.muted, fontSize: font.small, marginTop: 2 },
     projWrap: { alignItems: 'center' },

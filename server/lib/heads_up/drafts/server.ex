@@ -41,6 +41,10 @@ defmodule HeadsUp.Drafts.Server do
   def make_pick(draft_id, user_id, player_id),
     do: safe_call(draft_id, {:make_pick, user_id, player_id})
 
+  @doc "Set a user's private auto-pick queue (ordered player_ids). Auto-pick prefers it."
+  def set_queue(draft_id, user_id, player_ids),
+    do: safe_call(draft_id, {:set_queue, user_id, player_ids})
+
   @doc "Tell the draft a user's socket dropped; shrinks their clock to a 60s grace window."
   def disconnected(draft_id, user_id) do
     GenServer.cast(via_tuple(draft_id), {:disconnected, user_id})
@@ -93,6 +97,9 @@ defmodule HeadsUp.Drafts.Server do
       current_picker_id: nil,
       available: draftable_pool(duel.sport, slots),
       rosters: %{duel.challenger_id => %{}, duel.opponent_id => %{}},
+      # Per-user priority queue of player_ids (client-authoritative, in-memory);
+      # auto-pick prefers it. Never broadcast — it's each player's private plan.
+      queue: %{duel.challenger_id => [], duel.opponent_id => []},
       picks: [],
       timer_ref: nil,
       deadline: nil,
@@ -212,6 +219,14 @@ defmodule HeadsUp.Drafts.Server do
   def handle_call({:make_pick, _uid, _pid}, _from, state),
     do: {:reply, {:error, :not_active}, state}
 
+  def handle_call({:set_queue, uid, ids}, _from, state) do
+    if Map.has_key?(state.queue, uid) do
+      {:reply, :ok, put_in(state.queue[uid], Enum.filter(List.wrap(ids), &is_integer/1))}
+    else
+      {:reply, {:error, :not_a_participant}, state}
+    end
+  end
+
   def handle_call({:cancel, uid}, _from, %{phase: phase} = state) when phase in [:lobby, :active] do
     {:ok, _} = Drafts.cancel_draft(state.draft_id)
     state = %{state | phase: :cancelled, current_picker_id: nil} |> cancel_clock()
@@ -227,7 +242,7 @@ defmodule HeadsUp.Drafts.Server do
   def handle_info({:clock_expired, pick_no}, %{phase: :active, clock_owner_pick: pick_no} = state) do
     uid = state.current_picker_id
 
-    case AutoPick.pick(state.available, Map.keys(state.rosters[uid]), state.slots) do
+    case AutoPick.pick(state.available, Map.keys(state.rosters[uid]), state.slots, Map.get(state.queue, uid, [])) do
       {:ok, player_id, slot_key} ->
         {:noreply, commit_pick(state, uid, player_id, slot_key, true)}
 

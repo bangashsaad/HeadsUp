@@ -21,6 +21,12 @@ defmodule HeadsUpWeb.PlayerController do
     end
   end
 
+  # GET /api/players/search?q=  — cross-sport search over real ESPN players
+  def search(conn, params) do
+    players = Sports.search_players(params["q"] || "")
+    render(conn, :search, players: players)
+  end
+
   # GET /api/players/:id/profile  — season averages + fantasy game log
   def profile(conn, %{"id" => id}) do
     case Sports.get_player(id) do

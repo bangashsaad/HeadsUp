@@ -15,6 +15,11 @@ export function getPlayerProfile(token, id) {
   return apiRequest(`/api/players/${id}/profile`, { token });
 }
 
+// Cross-sport player search by name (real ESPN players only).
+export function searchPlayers(token, q) {
+  return apiRequest(`/api/players/search?q=${encodeURIComponent(q)}`, { token });
+}
+
 // Upcoming games for a sport (schedule).
 export function listUpcomingGames(token, sport = 'wnba') {
   return apiRequest(`/api/games/upcoming?sport=${encodeURIComponent(sport)}`, { token });

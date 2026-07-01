@@ -8,6 +8,8 @@ defmodule HeadsUpWeb.PlayerJSON do
     }
   end
 
+  def search(%{players: players}), do: %{players: Enum.map(players, &data/1)}
+
   def data(%Player{} = player) do
     %{
       id: player.id,

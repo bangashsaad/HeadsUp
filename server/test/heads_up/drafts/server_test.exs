@@ -95,6 +95,19 @@ defmodule HeadsUp.Drafts.ServerTest do
       assert pick.player.position == "PG"
     end
 
+    test "auto-pick honors the picker's queue over projection", ctx do
+      picker = Server.get_state(ctx.draft.id).current_picker_id
+      # a specific guard that is NOT the top-projection player overall
+      target = player_at("SG", 0)
+      assert :ok = Server.set_queue(ctx.draft.id, picker, [target.id])
+
+      state = expire(ctx.pid, ctx.draft.id)
+
+      [pick] = state.picks
+      assert pick.player.id == target.id
+      assert pick.auto_picked
+    end
+
     test "a stale clock_expired (for an already-made pick) is ignored", ctx do
       # make pick 1 manually -> now on pick 2, clock owner = 2
       Server.make_pick(ctx.draft.id, ctx.challenger.id, player_at("PG", 0).id)

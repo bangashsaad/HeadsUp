@@ -27,6 +27,19 @@ defmodule HeadsUp.Sports do
 
   def get_player(id), do: Repo.get(Player, id)
 
+  @doc """
+  Cross-sport player search by name. Only returns real ESPN-seeded players
+  (numeric external_id) so results are all profile-able, ranked by projection.
+  """
+  def search_players(q, opts \\ []) when is_binary(q) do
+    Player
+    |> where([p], fragment("? ~ '^[0-9]+$'", p.external_id))
+    |> filter_name(q)
+    |> order_by([p], desc: p.projection, asc: p.name)
+    |> limit(^Keyword.get(opts, :limit, 30))
+    |> Repo.all()
+  end
+
   @doc "Distinct positions present for a sport (sorted; for filter chips)."
   def list_positions(sport) do
     Player

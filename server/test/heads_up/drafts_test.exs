@@ -168,6 +168,33 @@ defmodule HeadsUp.DraftsTest do
       available = [%{id: 1, position: "PG", projection: 99.0}]
       assert AutoPick.pick(available, ["PG1"], @slots) == :error
     end
+
+    test "a queued player is taken over a higher-projection one" do
+      available = [
+        %{id: 1, position: "PG", projection: 99.0},
+        %{id: 2, position: "SG", projection: 40.0}
+      ]
+
+      # id 2 is queued despite the lower projection
+      assert AutoPick.pick(available, [], @slots, [2]) == {:ok, 2, "SG1"}
+    end
+
+    test "queue is honored in order, then falls back to projection" do
+      available = [
+        %{id: 1, position: "PG", projection: 99.0},
+        %{id: 2, position: "SG", projection: 40.0},
+        %{id: 3, position: "SF", projection: 50.0}
+      ]
+
+      # queue [3, 2] → take 3 first; a filled SF slot next time would fall to 2, then rank
+      assert AutoPick.pick(available, [], @slots, [3, 2]) == {:ok, 3, "SF1"}
+    end
+
+    test "an already-drafted (unavailable) queued id is skipped" do
+      available = [%{id: 1, position: "PG", projection: 99.0}]
+      # 99 is queued but gone; fall back to available rank
+      assert AutoPick.pick(available, [], @slots, [99]) == {:ok, 1, "PG1"}
+    end
   end
 
   # Insert N real wnba players (projection descending) into the test DB.
