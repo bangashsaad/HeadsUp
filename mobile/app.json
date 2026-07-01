@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Heads Up",
+    "name": "HeadsUp Fantasy",
     "slug": "heads-up-fantasy",
     "owner": "saadbangash",
     "scheme": "headsup",
@@ -10,7 +10,10 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.headsupfantasy.app"
+      "bundleIdentifier": "com.headsupfantasy.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.headsupfantasy.app",
