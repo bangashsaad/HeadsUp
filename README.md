@@ -5,6 +5,10 @@
 > product without reading the code and help brainstorm new features, positioning,
 > and monetization. It describes what is **built and working today**, what is
 > **stubbed/deferred**, and the **constraints** shaping decisions.
+>
+> _Accurate as of June 2026. Concrete counts (players, tests, schedule window)
+> drift as the product and season move; treat them as "order of magnitude."_
+> _For dev setup / how to run it, see `CLAUDE.md`._
 
 ---
 
@@ -132,7 +136,8 @@ A real-time, two-phone draft experience:
   scoring, plus **Rematch** and **Share result** actions.
 
 ### 3.6 Sports & player data (real, from a live feed)
-- **Four sports modeled:** WNBA, MLB, NBA, NFL.
+- **Two sports live, two modeled:** WNBA + MLB are fully live; NBA + NFL are
+  modeled (schemas, scoring, lineups) but running on placeholder data (offseason).
 - **WNBA and MLB are LIVE with real data** — real rosters (~200 WNBA / ~780 MLB
   players across all real teams), real season stats, real box scores, and real
   settlement. These are the two **in-season** sports.
@@ -274,8 +279,12 @@ These are **intentional gaps**, useful for spotting opportunities:
   product is "empty" for a sport in its offseason unless we broaden coverage.
 - **Strictly 1v1** is a core design choice (fast, personal). Multiplayer would be a
   big expansion, not a tweak.
-- **Real-data dependency:** the "auto-settle on real box scores" magic depends on a
-  free public feed; scale/reliability/coverage there is a real consideration.
+- **Real-data dependency (reliability AND legal):** the "auto-settle on real box
+  scores" magic depends on a **free, undocumented public feed**. Beyond
+  scale/reliability/coverage, this is a **Terms-of-Service / licensing risk**:
+  it's fine for a free beta, but **monetizing on it is not viable** — the money
+  layer effectively requires switching to a **licensed data provider** (a real,
+  ongoing cost to budget into the business case).
 - **No money yet**, but the intended model (per-contest rake, not wager-based) shapes
   what "fair" and "regulated" look like later.
 
