@@ -1,10 +1,10 @@
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
-import { getDuel, respondToDuel } from '../api/duels';
+import { getDuel, respondToDuel, getLiveResult } from '../api/duels';
 import { formatDateTime } from '../utils/datetime';
-import { useTheme, useThemedStyles, spacing, font, statusTone } from '../theme';
+import { useTheme, useThemedStyles, spacing, radius, font, statusTone } from '../theme';
 import { Screen, Card, Avatar, Badge, Button, SectionHeader } from '../components/ui';
 
 const SPORT_LABEL = {
@@ -142,6 +142,18 @@ export default function DuelDetailScreen({ route, navigation }) {
 
         {duel.status === 'drafted' ? (
           <>
+            <LiveScore
+              token={token}
+              id={duel.id}
+              styles={styles}
+              colors={colors}
+              onOpen={() => navigation.navigate('LiveMatchup', { id: duel.id, opponentName: duel.opponent.username })}
+            />
+            <Button
+              title="Watch Live Matchup"
+              icon="pulse"
+              onPress={() => navigation.navigate('LiveMatchup', { id: duel.id, opponentName: duel.opponent.username })}
+            />
             <Button
               title="View Drafted Lineups"
               variant="outline"
@@ -167,6 +179,83 @@ export default function DuelDetailScreen({ route, navigation }) {
         ) : null}
       </View>
     </Screen>
+  );
+}
+
+function LiveScore({ token, id, styles, colors, onOpen }) {
+  const [live, setLive] = useState(null);
+  const [started, setStarted] = useState(false);
+  const timer = useRef(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      const tick = async () => {
+        try {
+          const res = await getLiveResult(token, id);
+          if (active) {
+            setLive(res);
+            setStarted(true);
+          }
+        } catch (e) {
+          // 409 once settled / not live — stop polling, leave last snapshot.
+          if (active) setStarted(true);
+        }
+      };
+      tick();
+      timer.current = setInterval(tick, 20000);
+      return () => {
+        active = false;
+        if (timer.current) clearInterval(timer.current);
+      };
+    }, [token, id])
+  );
+
+  if (!live) {
+    return (
+      <Card style={styles.liveCard}>
+        <Text style={styles.liveHead}>LIVE SCORE</Text>
+        <Text style={styles.liveWaiting}>{started ? 'Waiting on the first game to tip off…' : 'Loading…'}</Text>
+      </Card>
+    );
+  }
+
+  const me = live.challenger.is_me ? live.challenger : live.opponent;
+  const them = live.challenger.is_me ? live.opponent : live.challenger;
+  const meLeads = live.leader_id && me.user.id === live.leader_id;
+  const themLead = live.leader_id && them.user.id === live.leader_id;
+  const g = live.games || {};
+  const gameLine = [g.final ? `${g.final} final` : null, g.live ? `${g.live} live` : null, g.upcoming ? `${g.upcoming} upcoming` : null]
+    .filter(Boolean)
+    .join(' · ');
+
+  return (
+    <Pressable onPress={onOpen} style={({ pressed }) => pressed && { opacity: 0.85 }}>
+      <Card style={styles.liveCard}>
+        <View style={styles.liveTop}>
+          <Text style={styles.liveHead}>LIVE SCORE</Text>
+          {g.live > 0 ? <Badge label="LIVE" tone="danger" dot /> : null}
+        </View>
+        <View style={styles.liveRow}>
+          <LiveSide label="You" total={me.total} lead={meLeads} colors={colors} styles={styles} />
+          <Text style={styles.liveDash}>–</Text>
+          <LiveSide label={them.user.username} total={them.total} lead={themLead} colors={colors} styles={styles} />
+        </View>
+        <Text style={styles.liveGames}>{gameLine || 'No games in the window yet'} › tap for full matchup</Text>
+      </Card>
+    </Pressable>
+  );
+}
+
+function LiveSide({ label, total, lead, colors, styles }) {
+  return (
+    <View style={styles.liveSide}>
+      <Text style={[styles.liveTotal, lead && { color: colors.accent }]}>{(total ?? 0).toFixed(1)}</Text>
+      <Text style={styles.liveName} numberOfLines={1}>
+        {label}
+      </Text>
+      {lead ? <Text style={styles.liveLeading}>LEADING</Text> : <Text style={styles.liveLeadingSpacer} />}
+    </View>
   );
 }
 
@@ -197,4 +286,16 @@ const makeStyles = (colors) =>
     actions: { marginTop: spacing.xl, gap: spacing.md },
     twoUp: { flexDirection: 'row', gap: spacing.md },
     locked: { color: colors.muted, fontSize: font.body, textAlign: 'center', marginTop: spacing.sm, lineHeight: 21 },
+    liveCard: { borderColor: colors.accentBorder },
+    liveTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+    liveHead: { color: colors.muted, fontSize: font.caption, fontWeight: '800', letterSpacing: 1, textAlign: 'center' },
+    liveWaiting: { color: colors.muted, fontSize: font.body, textAlign: 'center', marginTop: spacing.xs },
+    liveRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+    liveSide: { flex: 1, alignItems: 'center' },
+    liveTotal: { color: colors.text, fontSize: font.hero, fontWeight: '900' },
+    liveName: { color: colors.muted, fontSize: font.small, marginTop: 2, maxWidth: '90%' },
+    liveLeading: { color: colors.accent, fontSize: 10, fontWeight: '800', letterSpacing: 1, marginTop: 2 },
+    liveLeadingSpacer: { fontSize: 10, marginTop: 2, height: 13 },
+    liveDash: { color: colors.placeholder, fontSize: font.title, fontWeight: '800', paddingHorizontal: spacing.sm },
+    liveGames: { color: colors.muted, fontSize: font.caption, textAlign: 'center', marginTop: spacing.sm },
   });

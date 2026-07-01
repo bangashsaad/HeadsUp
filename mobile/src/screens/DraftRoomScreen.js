@@ -232,8 +232,8 @@ function DraftBoard({ state, myId, opponentName, conn, error, setError, navigati
                   <Ionicons name="information-circle-outline" size={22} color={colors.muted} />
                 </Pressable>
                 <View style={[styles.projWrap, { marginLeft: spacing.sm }]}>
-                  <Text style={styles.proj}>{Math.round(item.projection)}</Text>
-                  <Text style={styles.projLabel}>PROJ</Text>
+                  <Text style={styles.proj}>{(item.projection ?? 0).toFixed(1)}</Text>
+                  <Text style={styles.projLabel}>FPG</Text>
                 </View>
                 {isMyTurn ? <Ionicons name="add-circle" size={24} color={colors.accent} style={{ marginLeft: spacing.sm }} /> : null}
               </Pressable>

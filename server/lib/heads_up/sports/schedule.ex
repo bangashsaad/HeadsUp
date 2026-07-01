@@ -2,7 +2,8 @@ defmodule HeadsUp.Sports.Schedule do
   @moduledoc """
   Upcoming games from the live ESPN scoreboard. Walks the next several ET
   calendar days and returns each game's teams + status, sorted by tip-off.
-  Only WNBA has a live feed today; other sports return an empty schedule.
+  Any sport the ESPN `Client` has a league mapping for (WNBA, MLB, …) gets a
+  live schedule; anything else returns an empty list.
   """
   alias HeadsUp.Sports.Espn.Client
 
@@ -14,17 +15,17 @@ defmodule HeadsUp.Sports.Schedule do
     client = Keyword.get(opts, :client, Client)
     now = Keyword.get(opts, :now, DateTime.utc_now())
 
-    if sport == "wnba", do: {:ok, fetch(client, now)}, else: {:ok, []}
+    if Client.supported?(sport), do: {:ok, fetch(sport, client, now)}, else: {:ok, []}
   end
 
-  defp fetch(client, now) do
+  defp fetch(sport, client, now) do
     start = now |> DateTime.add(@et_offset_seconds, :second) |> DateTime.to_date()
 
     0..(@days - 1)
     |> Enum.flat_map(fn d ->
       ymd = start |> Date.add(d) |> Calendar.strftime("%Y%m%d")
 
-      case client.scoreboard(ymd) do
+      case client.scoreboard(sport, ymd) do
         {:ok, body} -> body |> Map.get("events", []) |> Enum.map(&game/1)
         {:error, _} -> []
       end

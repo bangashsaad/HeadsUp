@@ -1,59 +1,85 @@
 defmodule HeadsUp.Sports.Espn.Client do
   @moduledoc """
-  Thin Req wrapper over the undocumented ESPN WNBA endpoints. Every function
-  returns `{:ok, body_map}` or `{:error, reason}` and NEVER raises — callers
-  decide how to degrade.
+  Thin Req wrapper over the undocumented ESPN endpoints, league-aware: every
+  call takes the `sport` ("wnba" | "nba" | "mlb" | "nfl") as its first argument
+  and is routed to that league's path. Functions return `{:ok, body_map}` or
+  `{:error, reason}` and NEVER raise on a transport/HTTP failure — callers decide
+  how to degrade. (An unknown sport DOES raise, since it's a programmer error.)
 
-  Two ESPN hosts are used: the `site.api` host (scoreboard/summary/teams/roster,
-  Phase 5b) and the `site.web.api` "common/v3" host (athlete gamelog + stats,
-  Phase 7). Both base URLs + Req options come from one app-config namespace so
-  tests can point them at a `Req.Test` plug:
+  Two ESPN hosts are used: the `site.api` host (scoreboard/summary/teams/roster)
+  and the `site.web.api` "common/v3" host (athlete gamelog + stats). Both host
+  roots + Req options come from one app-config namespace so tests can point them
+  at a `Req.Test` plug:
 
       config :heads_up, HeadsUp.Sports.Espn,
-        base_url: "https://site.api.espn.com/apis/site/v2/sports/basketball/wnba",
-        web_base_url: "https://site.web.api.espn.com/apis/common/v3/sports/basketball/wnba",
+        site_host: "https://site.api.espn.com/apis/site/v2/sports",
+        web_host: "https://site.web.api.espn.com/apis/common/v3/sports",
         req_options: []
+
+  The host root is joined with the per-sport league path (e.g. `baseball/mlb`)
+  to form the base URL, so adding a sport is one entry in `@leagues`.
   """
 
-  @default_web_base "https://site.web.api.espn.com/apis/common/v3/sports/basketball/wnba"
+  @default_site_host "https://site.api.espn.com/apis/site/v2/sports"
+  @default_web_host "https://site.web.api.espn.com/apis/common/v3/sports"
+
+  # ESPN league path segment per sport (host_root <> "/" <> league <> path).
+  @leagues %{
+    "wnba" => "basketball/wnba",
+    "nba" => "basketball/nba",
+    "mlb" => "baseball/mlb",
+    "nfl" => "football/nfl"
+  }
+
+  @doc "Sports with a live ESPN league mapping."
+  @spec leagues() :: [String.t()]
+  def leagues, do: Map.keys(@leagues)
+
+  @doc "True if `sport` has an ESPN league mapping (a live feed)."
+  @spec supported?(String.t()) :: boolean()
+  def supported?(sport), do: Map.has_key?(@leagues, sport)
 
   @doc "Games for one calendar day, `date` as `\"YYYYMMDD\"`."
-  @spec scoreboard(String.t()) :: {:ok, map()} | {:error, term()}
-  def scoreboard(date) when is_binary(date), do: get("/scoreboard", dates: date)
+  @spec scoreboard(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  def scoreboard(sport, date) when is_binary(date), do: get(sport, "/scoreboard", dates: date)
 
   @doc "Full game summary (incl. boxscore) for an ESPN event id."
-  @spec summary(String.t() | integer()) :: {:ok, map()} | {:error, term()}
-  def summary(event_id), do: get("/summary", event: to_string(event_id))
+  @spec summary(String.t(), String.t() | integer()) :: {:ok, map()} | {:error, term()}
+  def summary(sport, event_id), do: get(sport, "/summary", event: to_string(event_id))
 
-  @doc "All WNBA teams."
-  @spec teams() :: {:ok, map()} | {:error, term()}
-  def teams, do: get("/teams", [])
+  @doc "All teams in the league."
+  @spec teams(String.t()) :: {:ok, map()} | {:error, term()}
+  def teams(sport), do: get(sport, "/teams", [])
 
   @doc "One team's roster (athletes with id/name/position)."
-  @spec roster(String.t() | integer()) :: {:ok, map()} | {:error, term()}
-  def roster(team_id), do: get("/teams/#{team_id}/roster", [])
+  @spec roster(String.t(), String.t() | integer()) :: {:ok, map()} | {:error, term()}
+  def roster(sport, team_id), do: get(sport, "/teams/#{team_id}/roster", [])
 
   @doc "An athlete's per-game log (labels + events + per-game stats)."
-  @spec gamelog(String.t() | integer()) :: {:ok, map()} | {:error, term()}
-  def gamelog(athlete_id), do: get_web("/athletes/#{athlete_id}/gamelog", [])
+  @spec gamelog(String.t(), String.t() | integer()) :: {:ok, map()} | {:error, term()}
+  def gamelog(sport, athlete_id), do: get_web(sport, "/athletes/#{athlete_id}/gamelog", [])
 
   @doc "An athlete's season splits (averages / totals categories)."
-  @spec athlete_stats(String.t() | integer()) :: {:ok, map()} | {:error, term()}
-  def athlete_stats(athlete_id), do: get_web("/athletes/#{athlete_id}/stats", [])
+  @spec athlete_stats(String.t(), String.t() | integer()) :: {:ok, map()} | {:error, term()}
+  def athlete_stats(sport, athlete_id), do: get_web(sport, "/athletes/#{athlete_id}/stats", [])
 
   # --- internals ----------------------------------------------------------
 
-  defp get(path, params), do: request(base(:base_url) <> path, params)
+  defp get(sport, path, params), do: request(site_base(sport) <> path, params)
 
-  defp get_web(path, params), do: request(web_base() <> path, params)
+  defp get_web(sport, path, params), do: request(web_base(sport) <> path, params)
 
-  defp base(key) do
-    Application.get_env(:heads_up, HeadsUp.Sports.Espn, []) |> Keyword.fetch!(key)
+  defp site_base(sport), do: host(:site_host, @default_site_host) <> "/" <> league!(sport)
+
+  defp web_base(sport), do: host(:web_host, @default_web_host) <> "/" <> league!(sport)
+
+  defp league!(sport) do
+    Map.get(@leagues, sport) ||
+      raise ArgumentError, "no ESPN league mapping for sport #{inspect(sport)}"
   end
 
-  defp web_base do
-    Application.get_env(:heads_up, HeadsUp.Sports.Espn, [])
-    |> Keyword.get(:web_base_url, @default_web_base)
+  defp host(key, default) do
+    Application.get_env(:heads_up, HeadsUp.Sports.Espn, []) |> Keyword.get(key, default)
   end
 
   defp request(url, params) do

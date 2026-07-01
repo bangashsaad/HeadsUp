@@ -7,13 +7,15 @@ defmodule HeadsUp.Sports.Seeds do
   import Ecto.Query, only: [from: 2]
 
   alias HeadsUp.Repo
-  alias HeadsUp.Sports.{Player, Game}
+  alias HeadsUp.Drafts.Pick
+  alias HeadsUp.Sports.{Gamelog, Player, Game}
   alias HeadsUp.Sports.Espn.{Client, Parse}
 
-  # Newly-discovered players (mostly depth / expansion rosters) seed at a flat
-  # mid-pack projection — below the hand-ranked stars (76–100), so the board
-  # ordering stays meaningful while every rostered player becomes draftable.
-  @wnba_default_projection 40.0
+  # Newly-discovered players (no game log yet) seed at a flat default projection
+  # so they're draftable; the FPPG pass overwrites it for anyone with games.
+  defp default_projection("wnba"), do: 40.0
+  defp default_projection("mlb"), do: 5.0
+  defp default_projection(_), do: 10.0
 
   def run do
     now = DateTime.utc_now() |> DateTime.truncate(:second)
@@ -36,17 +38,24 @@ defmodule HeadsUp.Sports.Seeds do
 
   Returns `{:ok, %{inserted: n, updated: m, total: t}}` or `{:error, reason}`.
   """
-  def run_wnba_from_espn(opts \\ []) do
+  def run_wnba_from_espn(opts \\ []), do: run_from_espn("wnba", opts)
+
+  @doc """
+  Generic version of `run_wnba_from_espn/1` for any sport with a live ESPN feed
+  (WNBA, MLB, …). Same upsert/match semantics; position normalization is sport-
+  specific (basketball coarsens to G/F/C, baseball keeps SP/RP/C/1B/…).
+  """
+  def run_from_espn(sport, opts \\ []) do
     client = Keyword.get(opts, :client, Client)
 
-    with {:ok, teams} <- fetch_teams(client),
-         {:ok, candidates} <- fetch_all_rosters(client, teams) do
-      upsert_wnba(Enum.uniq_by(candidates, & &1.external_id))
+    with {:ok, teams} <- fetch_teams(client, sport),
+         {:ok, candidates} <- fetch_all_rosters(client, sport, teams) do
+      upsert(sport, Enum.uniq_by(candidates, & &1.external_id))
     end
   end
 
-  defp fetch_teams(client) do
-    case client.teams() do
+  defp fetch_teams(client, sport) do
+    case client.teams(sport) do
       {:ok, body} ->
         teams =
           body
@@ -64,18 +73,91 @@ defmodule HeadsUp.Sports.Seeds do
     end
   end
 
-  defp fetch_all_rosters(client, teams) do
+  defp fetch_all_rosters(client, sport, teams) do
     Enum.reduce_while(teams, {:ok, []}, fn team, {:ok, acc} ->
-      case client.roster(team.id) do
+      case client.roster(sport, team.id) do
         {:ok, body} ->
           abbrev = get_in(body, ["team", "abbreviation"]) || team.abbrev
-          cands = body |> athletes_from() |> Enum.map(&candidate(&1, abbrev)) |> Enum.reject(&is_nil/1)
+          cands = body |> athletes_from() |> Enum.map(&candidate(&1, abbrev, sport)) |> Enum.reject(&is_nil/1)
           {:cont, {:ok, acc ++ cands}}
 
         {:error, reason} ->
           {:halt, {:error, {:roster, team.id, reason}}}
       end
     end)
+  end
+
+  @doc """
+  Second seed pass: compute each player's season FPPG (fantasy points/game) from
+  their ESPN game log and store it in `projection`, so the draft board ranks by
+  real expected output instead of a hand-tuned number. Network-bound (one gamelog
+  per player) but resilient — a player whose log can't be read or who has no games
+  keeps their current projection. `opts[:client]` injects a stub in tests.
+
+  Returns `{:ok, %{updated: n, total: t}}` (t = players with a numeric ESPN id).
+  """
+  def refresh_projections(sport, opts \\ []) do
+    client = Keyword.get(opts, :client, Client)
+    numeric = Repo.all(from p in Player, where: p.sport == ^sport) |> Enum.filter(&numeric_id?/1)
+
+    updates =
+      numeric
+      |> Task.async_stream(fn p -> {p.id, fppg(sport, p.external_id, client)} end,
+        max_concurrency: 8,
+        timeout: 30_000,
+        on_timeout: :kill_task,
+        ordered: false
+      )
+      |> Enum.flat_map(fn
+        # Real game log → real FPPG. Reached but no games (DNP / no feed data) →
+        # 0.0 so they sink below everyone who's actually produced, instead of
+        # keeping a stale high rank. Fetch error → leave projection untouched.
+        {:ok, {id, {:value, val}}} -> [{id, val}]
+        {:ok, {id, :empty}} -> [{id, 0.0}]
+        _ -> []
+      end)
+
+    Enum.each(updates, fn {id, val} ->
+      from(p in Player, where: p.id == ^id) |> Repo.update_all(set: [projection: val])
+    end)
+
+    {:ok, %{updated: length(updates), total: length(numeric)}}
+  end
+
+  defp fppg(sport, external_id, client) do
+    case client.gamelog(sport, external_id) do
+      {:ok, body} ->
+        case Gamelog.parse(sport, body) do
+          [] -> :empty
+          games -> {:value, Float.round(Enum.sum(Enum.map(games, & &1.fantasy)) / length(games), 1)}
+        end
+
+      {:error, _} ->
+        :error
+    end
+  end
+
+  defp numeric_id?(p), do: is_binary(p.external_id) and Regex.match?(~r/^\d+$/, p.external_id)
+
+  @doc """
+  Drop pre-ESPN placeholder rows for a sport: any player with a NON-numeric
+  external_id (the name-slug ids the base `seeds.exs` made) that the ESPN reseed
+  didn't migrate, EXCEPT any already used in a draft (the `:restrict` FK is the
+  backstop). Keeps the live pool to real ESPN athletes only. Returns the count
+  removed.
+  """
+  def prune_legacy(sport) do
+    referenced = from(pk in Pick, select: pk.player_id)
+
+    {count, _} =
+      from(p in Player,
+        where:
+          p.sport == ^sport and fragment("? !~ '^[0-9]+$'", p.external_id) and
+            p.id not in subquery(referenced)
+      )
+      |> Repo.delete_all()
+
+    count
   end
 
   # ESPN rosters are usually a flat athlete list; tolerate the grouped
@@ -89,26 +171,50 @@ defmodule HeadsUp.Sports.Seeds do
     end)
   end
 
-  defp candidate(athlete, abbrev) do
+  defp candidate(athlete, abbrev, sport) do
     id = athlete["id"]
     name = athlete["displayName"] || athlete["fullName"]
+    pos = get_in(athlete, ["position", "abbreviation"])
 
     if is_nil(id) or name in [nil, ""] do
       nil
     else
       %{
-        sport: "wnba",
+        sport: sport,
         external_id: to_string(id),
         name: name,
         team: abbrev,
-        position: Parse.normalize_position(get_in(athlete, ["position", "abbreviation"]))
+        position: normalize_position(sport, pos)
       }
     end
   end
 
-  defp upsert_wnba(candidates) do
+  # Basketball coarsens to G/F/C (the only positions the feed exposes); baseball
+  # keeps the granular slot (SP/RP/C/1B/2B/3B/SS/OF/DH) the lineup templates need.
+  defp normalize_position("mlb", pos), do: normalize_baseball_position(pos)
+  defp normalize_position(_sport, pos), do: Parse.normalize_position(pos)
+
+  defp normalize_baseball_position(pos) do
+    p = (pos || "") |> to_string() |> String.downcase() |> String.trim()
+
+    cond do
+      p == "sp" or String.contains?(p, "starting") -> "SP"
+      p in ~w(rp cp cl p) or String.contains?(p, "relief") or String.contains?(p, "pitch") -> "RP"
+      p == "c" or String.contains?(p, "catch") -> "C"
+      p == "1b" or String.contains?(p, "first") -> "1B"
+      p == "2b" or String.contains?(p, "second") -> "2B"
+      p == "3b" or String.contains?(p, "third") -> "3B"
+      p == "ss" or String.contains?(p, "short") -> "SS"
+      p == "dh" or String.contains?(p, "designated") -> "DH"
+      p in ~w(of lf cf rf) or String.contains?(p, "field") -> "OF"
+      # Unknown → OF: a UTIL-eligible hitter slot, so the player is never undraftable.
+      true -> "OF"
+    end
+  end
+
+  defp upsert(sport, candidates) do
     Repo.transaction(fn ->
-      existing = Repo.all(from p in Player, where: p.sport == "wnba")
+      existing = Repo.all(from p in Player, where: p.sport == ^sport)
       by_eid = Map.new(existing, &{&1.external_id, &1})
 
       # Collision-aware name index: a normalized name shared by more than one
@@ -129,7 +235,7 @@ defmodule HeadsUp.Sports.Seeds do
           case find_match(cand, by_eid, by_name, used) do
             nil ->
               %Player{}
-              |> Player.changeset(Map.put(cand, :projection, @wnba_default_projection))
+              |> Player.changeset(Map.put(cand, :projection, default_projection(sport)))
               |> Repo.insert!()
 
               {ins + 1, upd, used}

@@ -26,18 +26,15 @@ defmodule HeadsUp.Settlement.Stats.WnbaEspn do
 
   alias HeadsUp.Contests.Scoring
   alias HeadsUp.Settlement.Window
+  alias HeadsUp.Settlement.Stats.WindowScan
   alias HeadsUp.Sports.Espn.{Client, Parse}
 
-  # The whole WNBA season (May–Sep) is EDT = UTC−4; no tzdata needed.
-  @et_offset_seconds -4 * 3600
-  # A sane upper bound so a mis-built months-long window can't hammer ESPN.
-  @max_days 35
   # Documented boxscore column order — fallback when a row omits its `labels`.
   @default_labels ~w(MIN PTS FG 3PT FT REB AST TO STL BLK OREB DREB PF +/-)
 
   @impl true
-  def stats_final?(%Window{} = window) do
-    case window_events(window) do
+  def stats_final?(%Window{sport: sport} = window) do
+    case WindowScan.events(client(), window) do
       {:error, reason} ->
         Logger.info("WnbaEspn.stats_final? deferring duel #{window.duel_id}: #{inspect(reason)}")
         false
@@ -47,19 +44,29 @@ defmodule HeadsUp.Settlement.Stats.WnbaEspn do
         true
 
       {:ok, events} ->
-        Enum.all?(events, & &1.final?) and boxscores_reachable?(events)
+        Enum.all?(events, & &1.final?) and boxscores_reachable?(sport, events)
     end
   end
 
   @impl true
-  def fetch_stats(players, %Window{} = window) when is_list(players) do
-    final_ids =
-      case window_events(window) do
-        {:ok, events} -> events |> Enum.filter(& &1.final?) |> Enum.map(& &1.id)
+  def fetch_stats(players, %Window{} = window) when is_list(players), do: do_fetch(players, window, true)
+
+  @impl true
+  def fetch_live_stats(players, %Window{} = window) when is_list(players), do: do_fetch(players, window, false)
+
+  @impl true
+  def live_games(%Window{} = window), do: WindowScan.game_counts(client(), window)
+
+  # Sum boxscores across in-window games. `only_final?` true (settlement) counts
+  # only FINAL games; false (live) includes in-progress boxscores too.
+  defp do_fetch(players, %Window{sport: sport} = window, only_final?) do
+    ids =
+      case WindowScan.events(client(), window) do
+        {:ok, events} -> events |> include(only_final?) |> Enum.map(& &1.id)
         {:error, _} -> []
       end
 
-    summed = sum_across_games(final_ids)
+    summed = sum_across_games(sport, ids)
     cats = categories(window.sport)
     eid_to_pid = Map.new(players, &{&1.external_id, &1.id})
     base = Map.new(players, &{&1.id, zeros(cats)})
@@ -72,82 +79,20 @@ defmodule HeadsUp.Settlement.Stats.WnbaEspn do
     end)
   end
 
-  # --- window scan --------------------------------------------------------
-
-  # In-window events as %{id, final?}, or {:error, reason} if any day's
-  # scoreboard can't be fetched (can't prove finality → must defer).
-  defp window_events(%Window{opens_at: o, closes_at: c}) do
-    case et_dates(o, c) do
-      {:error, reason} ->
-        {:error, reason}
-
-      {:ok, dates} ->
-        Enum.reduce_while(dates, {:ok, []}, fn date, {:ok, acc} ->
-          ymd = Calendar.strftime(date, "%Y%m%d")
-
-          case client().scoreboard(ymd) do
-            {:ok, body} -> {:cont, {:ok, acc ++ parse_events(body, o, c)}}
-            {:error, reason} -> {:halt, {:error, {:scoreboard, ymd, reason}}}
-          end
-        end)
-    end
-  end
-
-  defp parse_events(body, opens_at, closes_at) do
-    body
-    |> Map.get("events", [])
-    |> List.wrap()
-    |> Enum.filter(fn e -> in_window?(e["date"], opens_at, closes_at) end)
-    |> Enum.map(fn e ->
-      %{id: to_string(e["id"]), final?: get_in(e, ["status", "type", "name"]) == "STATUS_FINAL"}
-    end)
-  end
-
-  defp et_dates(o, c) do
-    start_d = o |> DateTime.add(@et_offset_seconds, :second) |> DateTime.to_date()
-    end_d = c |> DateTime.add(@et_offset_seconds, :second) |> DateTime.to_date()
-    span = Date.diff(end_d, start_d)
-
-    cond do
-      span < 0 -> {:ok, []}
-      span > @max_days -> {:error, {:window_too_wide, span}}
-      true -> {:ok, Enum.map(0..span, &Date.add(start_d, &1))}
-    end
-  end
-
-  defp in_window?(iso, opens_at, closes_at) do
-    case parse_dt(iso) do
-      {:ok, dt} ->
-        DateTime.compare(dt, opens_at) != :lt and DateTime.compare(dt, closes_at) != :gt
-
-      :error ->
-        false
-    end
-  end
-
-  # ESPN emits "2026-06-30T23:00Z" (no seconds) as well as full ISO8601.
-  defp parse_dt(iso) when is_binary(iso) do
-    fixed = Regex.replace(~r/T(\d{2}):(\d{2})Z$/, iso, "T\\1:\\2:00Z")
-
-    case DateTime.from_iso8601(fixed) do
-      {:ok, dt, _} -> {:ok, dt}
-      _ -> :error
-    end
-  end
-
-  defp parse_dt(_), do: :error
+  defp include(events, true), do: Enum.filter(events, & &1.final?)
+  defp include(events, false), do: events
 
   # --- boxscores ----------------------------------------------------------
 
-  defp boxscores_reachable?(events) do
+  defp boxscores_reachable?(sport, events) do
     events
     |> Enum.map(& &1.id)
-    |> Enum.all?(fn id -> match?({:ok, _}, fetch_boxscore(id)) end)
+    |> Enum.all?(fn id -> match?({:ok, _}, fetch_boxscore(sport, id)) end)
   end
 
-  defp sum_across_games(event_ids) do
+  defp sum_across_games(sport, event_ids) do
     Enum.reduce(event_ids, %{}, fn id, acc ->
-      case fetch_boxscore(id) do
+      case fetch_boxscore(sport, id) do
         {:ok, by_eid} -> merge_sum(acc, by_eid)
         # stats_final? already proved reachability; a late failure just scores 0.
         {:error, _} -> acc
@@ -156,8 +101,8 @@ defmodule HeadsUp.Settlement.Stats.WnbaEspn do
   end
 
   # %{espn_id_string => %{category => total}} for one game.
-  defp fetch_boxscore(event_id) do
-    case client().summary(event_id) do
+  defp fetch_boxscore(sport, event_id) do
+    case client().summary(sport, event_id) do
       {:ok, body} ->
         lines =
           body

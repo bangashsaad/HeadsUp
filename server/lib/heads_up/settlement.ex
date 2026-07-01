@@ -57,12 +57,14 @@ defmodule HeadsUp.Settlement do
       duel_id: duel.id
     }
 
-    with true <- provider().stats_final?(window) || {:error, :stats_not_final},
+    provider = provider(duel.sport)
+
+    with true <- provider.stats_final?(window) || {:error, :stats_not_final},
          %Draft{} = draft <- Repo.get_by(Draft, duel_id: duel.id) || {:error, :no_draft},
          [_ | _] = picks <- Drafts.replay(draft.id),
          true <- both_rostered?(picks, duel) || {:error, :incomplete_draft},
          players when players != [] <- load_players(picks) do
-      stats = provider().fetch_stats(players, window)
+      stats = provider.fetch_stats(players, window)
       outcome = Engine.settle(duel, picks, stats)
       persist(duel, outcome, players)
     else
@@ -70,6 +72,62 @@ defmodule HeadsUp.Settlement do
       [] -> {:error, :no_roster}
       false -> {:error, :stats_not_final}
       nil -> {:error, :no_draft}
+    end
+  end
+
+  @doc """
+  LIVE standings for a drafted-but-unsettled duel: both rosters scored against the
+  current (possibly in-progress) stats, who's ahead, and a count of in-window
+  games by state. Only valid while `status == "drafted"` (before/around the
+  scoring window). Returns `{:ok, live}` or `{:error, reason}` (`:not_live` once
+  the duel is settled/not drafted — the caller shows the final result instead).
+  """
+  def live_result(duel_id) do
+    case Repo.get(Duel, duel_id) do
+      nil -> {:error, :not_found}
+      %Duel{status: "drafted"} = duel -> do_live(Repo.preload(duel, [:challenger, :opponent]))
+      %Duel{} -> {:error, :not_live}
+    end
+  end
+
+  defp do_live(%Duel{} = duel) do
+    window = %Window{
+      sport: duel.sport,
+      opens_at: duel.scoring_window_start,
+      closes_at: duel.scoring_window_end,
+      duel_id: duel.id
+    }
+
+    with %Draft{} = draft <- Repo.get_by(Draft, duel_id: duel.id) || {:error, :no_draft},
+         [_ | _] = picks <- Drafts.replay(draft.id),
+         players when players != [] <- load_players(picks) do
+      provider = provider(duel.sport)
+      stats = provider.fetch_live_stats(players, window)
+      by_user = Enum.group_by(picks, & &1.user_id)
+      rules = duel.scoring_rules
+
+      challenger = Engine.score_roster(duel.challenger_id, Map.get(by_user, duel.challenger_id, []), stats, rules)
+      opponent = Engine.score_roster(duel.opponent_id, Map.get(by_user, duel.opponent_id, []), stats, rules)
+
+      leader_id =
+        cond do
+          challenger.total > opponent.total -> duel.challenger_id
+          opponent.total > challenger.total -> duel.opponent_id
+          true -> nil
+        end
+
+      {:ok,
+       %{
+         duel: duel,
+         challenger: challenger,
+         opponent: opponent,
+         leader_id: leader_id,
+         games: provider.live_games(window),
+         players_by_id: Map.new(players, &{&1.id, %{name: &1.name, team: &1.team, position: &1.position}})
+       }}
+    else
+      {:error, reason} -> {:error, reason}
+      _ -> {:error, :no_roster}
     end
   end
 
@@ -152,5 +210,10 @@ defmodule HeadsUp.Settlement do
     )
   end
 
-  defp provider, do: Application.get_env(:heads_up, :stats_provider, HeadsUp.Settlement.Stats.Mock)
+  # Per-sport stats provider: a `:stats_providers` sport=>module map wins, else
+  # the single `:stats_provider` default (the Mock in test/base config).
+  defp provider(sport) do
+    Application.get_env(:heads_up, :stats_providers, %{})
+    |> Map.get(sport) || Application.get_env(:heads_up, :stats_provider, HeadsUp.Settlement.Stats.Mock)
+  end
 end

@@ -38,6 +38,26 @@ defmodule HeadsUpWeb.DuelController do
     end
   end
 
+  # GET /api/duels/:id/live  (live standings before the duel settles)
+  def live(conn, %{"id" => id}) do
+    user = conn.assigns.current_user
+
+    case Contests.get_duel(user, id) do
+      nil ->
+        conn |> put_status(:not_found) |> json(%{error: "not found"})
+
+      %Duel{} ->
+        case Settlement.live_result(id) do
+          {:ok, live} ->
+            conn |> put_view(json: HeadsUpWeb.LiveJSON) |> render(:show, live: live, current_user_id: user.id)
+
+          # Not drafted yet / already settled → tell the client to fall back.
+          {:error, reason} ->
+            conn |> put_status(:conflict) |> json(%{error: "not live", reason: to_string(reason)})
+        end
+    end
+  end
+
   # POST /api/duels
   def create(conn, params) do
     user = conn.assigns.current_user

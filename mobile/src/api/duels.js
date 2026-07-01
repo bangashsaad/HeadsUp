@@ -6,6 +6,10 @@ export const getDuel = (token, id) => apiRequest(`/api/duels/${id}`, { token });
 
 export const getResult = (token, id) => apiRequest(`/api/duels/${id}/result`, { token });
 
+// Live standings for a drafted (unsettled) duel. Throws ApiError 409 once the
+// duel is settled / not drafted — caller falls back to the final result.
+export const getLiveResult = (token, id) => apiRequest(`/api/duels/${id}/live`, { token });
+
 export const createChallenge = (token, body) =>
   apiRequest('/api/duels', { method: 'POST', token, body });
 

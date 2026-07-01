@@ -3,11 +3,13 @@ import { StyleSheet, Text, View } from 'react-native';
 import { useThemedStyles, spacing, font } from '../theme';
 import { Chip, Button } from './ui';
 
+// WNBA + MLB are live (real ESPN rosters/stats); NBA/NFL use placeholder pools
+// until their seasons + feeds are wired, so the in-season pair leads.
 const SPORTS = [
-  { key: 'nfl', label: '🏈 Football' },
-  { key: 'nba', label: '🏀 Basketball' },
   { key: 'wnba', label: '🏀 WNBA' },
   { key: 'mlb', label: '⚾️ Baseball' },
+  { key: 'nba', label: '🏀 Basketball' },
+  { key: 'nfl', label: '🏈 Football' },
 ];
 
 const PRESETS = [
@@ -33,7 +35,7 @@ const TIME_OPTIONS = [
 
 export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, submitting }) {
   const styles = useThemedStyles(makeStyles);
-  const [sport, setSport] = useState(initial.sport || 'nfl');
+  const [sport, setSport] = useState(initial.sport || 'wnba');
   const [preset, setPreset] = useState((initial.lineup_template || '').split('_')[1] || 'standard');
   const [clockSecs, setClockSecs] = useState(initial.pick_clock_seconds || 60);
   const [timeMs, setTimeMs] = useState(TIME_OPTIONS[0].ms);

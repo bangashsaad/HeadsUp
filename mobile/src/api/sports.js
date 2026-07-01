@@ -2,10 +2,11 @@ import { apiRequest } from './client';
 
 // Fetch the draftable player pool for a sport, with optional name search and
 // position filter.
-export function listPlayers(token, { sport, q, position }) {
+export function listPlayers(token, { sport, q, position, team }) {
   let path = `/api/players?sport=${encodeURIComponent(sport)}`;
   if (q) path += `&q=${encodeURIComponent(q)}`;
   if (position) path += `&position=${encodeURIComponent(position)}`;
+  if (team) path += `&team=${encodeURIComponent(team)}`;
   return apiRequest(path, { token });
 }
 
@@ -17,4 +18,9 @@ export function getPlayerProfile(token, id) {
 // Upcoming games for a sport (schedule).
 export function listUpcomingGames(token, sport = 'wnba') {
   return apiRequest(`/api/games/upcoming?sport=${encodeURIComponent(sport)}`, { token });
+}
+
+// Live/final box score for one game, with a fantasy column per player.
+export function getBoxScore(token, sport, eventId) {
+  return apiRequest(`/api/games/${eventId}/boxscore?sport=${encodeURIComponent(sport)}`, { token });
 }

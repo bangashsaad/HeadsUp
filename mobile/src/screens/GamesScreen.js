@@ -48,9 +48,16 @@ function buildSections(games) {
   });
 }
 
+const SPORTS = [
+  { key: 'wnba', label: 'WNBA' },
+  { key: 'mlb', label: 'MLB' },
+];
+
 export default function GamesScreen({ navigation }) {
   const { token } = useAuth();
+  const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const [sport, setSport] = useState('wnba');
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -58,7 +65,7 @@ export default function GamesScreen({ navigation }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await listUpcomingGames(token, 'wnba');
+      const res = await listUpcomingGames(token, sport);
       setGames(res.games || []);
       setError(null);
     } catch (e) {
@@ -67,7 +74,7 @@ export default function GamesScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [token]);
+  }, [token, sport]);
 
   useFocusEffect(
     useCallback(() => {
@@ -75,40 +82,55 @@ export default function GamesScreen({ navigation }) {
     }, [load])
   );
 
-  if (loading) {
-    return (
-      <Screen>
-        <SkeletonList count={6} />
-      </Screen>
-    );
+  function switchSport(next) {
+    if (next === sport) return;
+    setGames([]);
+    setLoading(true);
+    setSport(next);
   }
+
+  const label = SPORTS.find((s) => s.key === sport)?.label || '';
 
   return (
     <Screen padded={false}>
-      <SectionList
-        sections={buildSections(games)}
-        keyExtractor={(item) => item.id}
-        stickySectionHeadersEnabled={false}
-        contentContainerStyle={{ padding: spacing.lg, flexGrow: 1 }}
-        showsVerticalScrollIndicator={false}
-        onRefresh={() => {
-          setRefreshing(true);
-          load();
-        }}
-        refreshing={refreshing}
-        ListHeaderComponent={
-          <Text style={styles.intro}>Upcoming WNBA games — tap one to scout both rosters.</Text>
-        }
-        ListEmptyComponent={
-          error ? (
-            <EmptyState icon="cloud-offline-outline" title="Couldn't load games" subtitle={error} />
-          ) : (
-            <EmptyState icon="calendar-outline" title="No upcoming games" subtitle="Check back when the next slate is scheduled." />
-          )
-        }
-        renderSectionHeader={({ section }) => <Text style={styles.dayHeader}>{section.title}</Text>}
-        renderItem={({ item }) => <GameRow game={item} styles={styles} onPress={() => navigation.navigate('GameDetail', { game: item })} />}
-      />
+      <View style={styles.segmentWrap}>
+        <View style={styles.segment}>
+          {SPORTS.map((s) => (
+            <Pressable key={s.key} onPress={() => switchSport(s.key)} style={[styles.segTab, sport === s.key && styles.segTabOn]}>
+              <Text style={[styles.segLabel, { color: sport === s.key ? colors.onAccent : colors.muted }]}>{s.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
+      {loading ? (
+        <View style={{ paddingHorizontal: spacing.lg }}>
+          <SkeletonList count={6} />
+        </View>
+      ) : (
+        <SectionList
+          sections={buildSections(games)}
+          keyExtractor={(item) => item.id}
+          stickySectionHeadersEnabled={false}
+          contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.sm, flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
+          onRefresh={() => {
+            setRefreshing(true);
+            load();
+          }}
+          refreshing={refreshing}
+          ListHeaderComponent={<Text style={styles.intro}>Upcoming {label} games — tap one to scout both rosters.</Text>}
+          ListEmptyComponent={
+            error ? (
+              <EmptyState icon="cloud-offline-outline" title="Couldn't load games" subtitle={error} />
+            ) : (
+              <EmptyState icon="calendar-outline" title="No upcoming games" subtitle="Check back when the next slate is scheduled." />
+            )
+          }
+          renderSectionHeader={({ section }) => <Text style={styles.dayHeader}>{section.title}</Text>}
+          renderItem={({ item }) => <GameRow game={item} styles={styles} onPress={() => navigation.navigate('GameDetail', { game: item, sport })} />}
+        />
+      )}
     </Screen>
   );
 }
@@ -145,6 +167,19 @@ function TeamLine({ side, score, styles, atHome }) {
 
 const makeStyles = (colors) =>
   StyleSheet.create({
+    segmentWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
+    segment: {
+      flexDirection: 'row',
+      gap: spacing.xs,
+      backgroundColor: colors.card,
+      borderRadius: radius.md,
+      padding: spacing.xs,
+      borderWidth: 1,
+      borderColor: colors.borderSubtle,
+    },
+    segTab: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: radius.sm },
+    segTabOn: { backgroundColor: colors.accent },
+    segLabel: { fontSize: font.body, fontWeight: '700' },
     intro: { color: colors.muted, fontSize: font.body, marginBottom: spacing.md },
     dayHeader: {
       color: colors.muted,

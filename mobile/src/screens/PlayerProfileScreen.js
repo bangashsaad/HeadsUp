@@ -78,13 +78,14 @@ export default function PlayerProfileScreen({ route }) {
         <EmptyState
           icon="stats-chart-outline"
           title="Stats coming soon"
-          subtitle="Live stats are available for WNBA players right now. Other leagues are on the way."
+          subtitle="Live stats are available for WNBA and MLB players right now. Other leagues are on the way."
         />
       </Screen>
     );
   }
 
   const s = profile.season || {};
+  const tiles = s.tiles || [];
 
   return (
     <Screen scroll>
@@ -92,14 +93,11 @@ export default function PlayerProfileScreen({ route }) {
 
       <Card style={styles.avgCard}>
         <View style={styles.avgGrid}>
-          <Stat label="FAN" value={s.fantasy} accent styles={styles} />
-          <Stat label="PTS" value={s.points} styles={styles} />
-          <Stat label="REB" value={s.rebounds} styles={styles} />
-          <Stat label="AST" value={s.assists} styles={styles} />
-          <Stat label="STL" value={s.steals} styles={styles} />
-          <Stat label="BLK" value={s.blocks} styles={styles} />
+          {tiles.map((t) => (
+            <Stat key={t.label} label={t.label} value={t.value} accent={t.label === 'FPG'} styles={styles} />
+          ))}
         </View>
-        <Text style={styles.avgNote}>Per-game averages over {s.games_played ?? 0} games this season</Text>
+        <Text style={styles.avgNote}>Season totals & averages over {s.games_played ?? 0} games</Text>
       </Card>
 
       <Text style={styles.logTitle}>Game log</Text>
@@ -119,9 +117,7 @@ export default function PlayerProfileScreen({ route }) {
                     <Badge label={g.result} tone={g.result === 'W' ? 'accent' : 'danger'} />
                   ) : null}
                 </View>
-                <Text style={styles.gameBox}>
-                  {g.points} pts · {g.rebounds} reb · {g.assists} ast · {g.steals} stl · {g.blocks} blk · {g.three_made} 3pm
-                </Text>
+                <Text style={styles.gameBox}>{g.line}</Text>
               </View>
               <View style={styles.fanWrap}>
                 <Text style={styles.fanValue}>{g.fantasy}</Text>

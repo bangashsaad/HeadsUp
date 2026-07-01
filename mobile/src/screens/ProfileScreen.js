@@ -1,6 +1,9 @@
+import { useCallback, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
+import { getMyStats } from '../api/me';
 import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
 import { Screen, Card, Avatar, Button } from '../components/ui';
 
@@ -22,8 +25,22 @@ function Row({ icon, label, sublabel, onPress, danger }) {
 }
 
 export default function ProfileScreen({ navigation }) {
-  const { user, signOut } = useAuth();
+  const { user, token, signOut } = useAuth();
+  const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
+  const [stats, setStats] = useState(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      getMyStats(token)
+        .then((s) => active && setStats(s))
+        .catch(() => {});
+      return () => {
+        active = false;
+      };
+    }, [token])
+  );
 
   function howToPlay() {
     Alert.alert(
@@ -31,6 +48,9 @@ export default function ProfileScreen({ navigation }) {
       'Challenge a friend to a 1-on-1 fantasy duel: agree on the sport, lineup and scoring, draft your roster live (snake order, ticking clock), then the winner is declared automatically once the games finish.'
     );
   }
+
+  const rec = stats?.record;
+  const h2h = stats?.head_to_head || [];
 
   return (
     <Screen scroll>
@@ -40,9 +60,57 @@ export default function ProfileScreen({ navigation }) {
         {user?.email ? <Text style={styles.email}>{user.email}</Text> : null}
       </Card>
 
+      {/* Record */}
+      <Card style={{ marginTop: spacing.lg }}>
+        <View style={styles.recHead}>
+          <Text style={styles.recTitle}>Record</Text>
+          {rec?.streak?.count > 0 ? (
+            <Text style={[styles.streakChip, { color: rec.streak.type === 'win' ? colors.accent : rec.streak.type === 'loss' ? colors.danger : colors.muted }]}>
+              {rec.streak.type === 'win' ? '🔥 ' : ''}
+              {rec.streak.type[0].toUpperCase()}
+              {rec.streak.count}
+            </Text>
+          ) : null}
+        </View>
+        <View style={styles.recGrid}>
+          <RecStat value={rec?.wins ?? 0} label="W" styles={styles} />
+          <RecStat value={rec?.losses ?? 0} label="L" styles={styles} />
+          <RecStat value={rec?.ties ?? 0} label="T" styles={styles} />
+          <RecStat value={rec ? `${Math.round((rec.win_pct || 0) * 100)}%` : '—'} label="WIN" accent styles={styles} />
+        </View>
+        {rec?.played ? (
+          <Text style={styles.recNote}>
+            {rec.points_for} pts for · {rec.points_against} against over {rec.played} duels
+          </Text>
+        ) : (
+          <Text style={styles.recNote}>No completed duels yet — go win one.</Text>
+        )}
+      </Card>
+
+      {/* Head-to-head */}
+      {h2h.length > 0 ? (
+        <>
+          <Text style={styles.sectionLabel}>Head to head</Text>
+          <Card padded={false}>
+            {h2h.map((r, i) => (
+              <View key={r.opponent.id} style={[styles.h2hRow, i < h2h.length - 1 && styles.divider]}>
+                <Avatar name={r.opponent.username} size={32} />
+                <Text style={styles.h2hName}>{r.opponent.username}</Text>
+                <Text style={styles.h2hRec}>
+                  {r.wins}-{r.losses}
+                  {r.ties ? `-${r.ties}` : ''}
+                </Text>
+              </View>
+            ))}
+          </Card>
+        </>
+      ) : null}
+
       <Card padded={false} style={{ marginTop: spacing.lg }}>
+        <Row icon="podium-outline" label="Leaderboard" sublabel="Standings among your friends" onPress={() => navigation.navigate('Leaderboard')} />
+        <View style={styles.menuDivider} />
         <Row icon="settings-outline" label="Settings" sublabel="Appearance, preferences, account" onPress={() => navigation.navigate('Settings')} />
-        <View style={styles.divider} />
+        <View style={styles.menuDivider} />
         <Row icon="help-circle-outline" label="How to play" onPress={howToPlay} />
       </Card>
 
@@ -53,22 +121,37 @@ export default function ProfileScreen({ navigation }) {
   );
 }
 
+function RecStat({ value, label, accent, styles }) {
+  return (
+    <View style={styles.recStat}>
+      <Text style={[styles.recValue, accent && styles.recAccent]}>{value}</Text>
+      <Text style={styles.recLabel}>{label}</Text>
+    </View>
+  );
+}
+
 const makeStyles = (colors) =>
   StyleSheet.create({
     headerCard: { alignItems: 'center', paddingVertical: spacing.xl },
     username: { color: colors.text, fontSize: font.title, fontWeight: '800', marginTop: spacing.md },
     email: { color: colors.muted, fontSize: font.body, marginTop: 2 },
+    recHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
+    recTitle: { color: colors.text, fontSize: font.bodyLg, fontWeight: '700' },
+    streakChip: { fontSize: font.body, fontWeight: '800' },
+    recGrid: { flexDirection: 'row', justifyContent: 'space-between' },
+    recStat: { alignItems: 'center', flex: 1 },
+    recValue: { color: colors.text, fontSize: font.title, fontWeight: '900' },
+    recAccent: { color: colors.accent },
+    recLabel: { color: colors.muted, fontSize: 10, fontWeight: '800', letterSpacing: 0.5, marginTop: 2 },
+    recNote: { color: colors.placeholder, fontSize: font.caption, textAlign: 'center', marginTop: spacing.md },
+    sectionLabel: { color: colors.muted, fontSize: font.caption, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.lg, marginBottom: spacing.sm },
+    h2hRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
+    h2hName: { color: colors.text, fontSize: font.body, fontWeight: '600', flex: 1, marginLeft: spacing.md },
+    h2hRec: { color: colors.muted, fontSize: font.body, fontWeight: '800' },
+    divider: { borderBottomColor: colors.borderSubtle, borderBottomWidth: StyleSheet.hairlineWidth },
     row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
-    rowIcon: {
-      width: 34,
-      height: 34,
-      borderRadius: 10,
-      backgroundColor: colors.accentSoft,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: spacing.md,
-    },
+    rowIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
     rowLabel: { color: colors.text, fontSize: font.bodyLg, fontWeight: '600' },
     rowSub: { color: colors.muted, fontSize: font.small, marginTop: 1 },
-    divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.borderSubtle, marginLeft: 60 },
+    menuDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.borderSubtle, marginLeft: 60 },
   });

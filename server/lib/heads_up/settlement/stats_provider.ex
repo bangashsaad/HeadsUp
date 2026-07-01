@@ -28,4 +28,18 @@ defmodule HeadsUp.Settlement.StatsProvider do
   feed (5b) defer settlement until games are final. The mock always returns true.
   """
   @callback stats_final?(Window.t()) :: boolean()
+
+  @doc """
+  Like `fetch_stats/2` but for LIVE standings before settlement: includes
+  in-progress games' stats so far (where the feed supports it). Same return
+  shape. Providers without a live feed may return the same as `fetch_stats/2`.
+  """
+  @callback fetch_live_stats([Player.t()], Window.t()) :: stats_by_player()
+
+  @doc "Count of `window` games by state, for a live header (`%{final, live, upcoming}`)."
+  @callback live_games(Window.t()) :: %{final: non_neg_integer(), live: non_neg_integer(), upcoming: non_neg_integer()}
+
+  # Live scoring is only used by the live endpoint; a provider used solely for
+  # settlement (e.g. a test stub) needn't implement these.
+  @optional_callbacks fetch_live_stats: 2, live_games: 1
 end

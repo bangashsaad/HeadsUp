@@ -80,6 +80,12 @@ config :heads_up, :scoring_window_seconds, 120
 # that tiny window and settle 0–0; to test against a real game night, point the
 # window at a past date: `HeadsUp.DevTools.settle_on_date(duel_id, ~D[2026-06-28])`
 # or `mix heads_up.settle_on_date <duel_id> 2026-06-28`.
+config :heads_up, :stats_providers, %{
+  "wnba" => HeadsUp.Settlement.Stats.WnbaEspn,
+  "mlb" => HeadsUp.Settlement.Stats.MlbEspn
+}
+
+# Fallback for any sport without a dedicated provider above.
 config :heads_up, :stats_provider, HeadsUp.Settlement.Stats.WnbaEspn
 
 # Do not include metadata nor timestamps in development logs

@@ -8,12 +8,12 @@ defmodule HeadsUp.Settlement.Stats.WnbaEspnTest do
   # Stub Client: scoreboard/summary read canned responses from the process dict
   # and record which scoreboard days were queried.
   defmodule StubClient do
-    def scoreboard(ymd) do
+    def scoreboard(_sport, ymd) do
       Process.put(:queried, [ymd | Process.get(:queried, [])])
       Process.get({:scoreboard, ymd}, {:ok, %{"events" => []}})
     end
 
-    def summary(id), do: Process.get({:summary, to_string(id)}, {:error, :unset})
+    def summary(_sport, id), do: Process.get({:summary, to_string(id)}, {:error, :unset})
   end
 
   setup do

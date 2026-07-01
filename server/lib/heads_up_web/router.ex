@@ -44,6 +44,11 @@ defmodule HeadsUpWeb.Router do
     put "/me/password", AuthController, :change_password
     delete "/logout", AuthController, :logout
 
+    # Competitive stats + home dashboard
+    get "/me/stats", StatsController, :me
+    get "/leaderboard", StatsController, :leaderboard
+    get "/home", HomeController, :index
+
     # Friends
     get "/users/search", UserController, :search
     get "/friends", FriendshipController, :index
@@ -56,12 +61,14 @@ defmodule HeadsUpWeb.Router do
     get "/players", PlayerController, :index
     get "/players/:id/profile", PlayerController, :profile
     get "/games/upcoming", GameController, :upcoming
+    get "/games/:event_id/boxscore", GameController, :boxscore
 
     # Challenges (duels)
     get "/duels", DuelController, :index
     post "/duels", DuelController, :create
     get "/duels/:id", DuelController, :show
     get "/duels/:id/result", DuelController, :result
+    get "/duels/:id/live", DuelController, :live
     post "/duels/:id/accept", DuelController, :accept
     post "/duels/:id/decline", DuelController, :decline
     post "/duels/:id/cancel", DuelController, :cancel
