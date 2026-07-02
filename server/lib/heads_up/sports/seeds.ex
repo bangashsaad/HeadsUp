@@ -251,7 +251,10 @@ defmodule HeadsUp.Sports.Seeds do
         end)
 
       %{inserted: ins, updated: upd, total: ins + upd}
-    end)
+      # Hundreds of row-by-row upserts in one transaction: instant on a local DB,
+      # but against a remote Postgres (Neon, ~25ms RTT/roundtrip + cold start) it
+      # blows the default 15s checkout — so give the whole sweep 5 minutes.
+    end, timeout: 300_000)
   end
 
   defp find_match(cand, by_eid, by_name, used) do
