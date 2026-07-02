@@ -74,6 +74,9 @@ config :heads_up, :stats_provider, HeadsUp.Settlement.Stats.Mock
 # default in `HeadsUp.Sports.Espn.Client`; the per-sport league path is appended
 # there. `req_options` is where tests inject a `Req.Test` plug.
 config :heads_up, HeadsUp.Sports.Espn, req_options: []
+
+# Push notifications via Expo's push service (disabled in test.exs).
+config :heads_up, HeadsUp.Notifications, enabled: true, req_options: []
 # How often the settlement worker sweeps for due duels.
 config :heads_up, :settlement_interval_ms, 60_000
 # Scoring window length frozen when a draft finishes (24h default).

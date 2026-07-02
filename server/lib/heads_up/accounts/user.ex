@@ -9,6 +9,8 @@ defmodule HeadsUp.Accounts.User do
     # the plain password is never saved to the database.
     field :password, :string, virtual: true, redact: true
     field :hashed_password, :string, redact: true
+    # Expo push token for this user's device (one device per user for the beta).
+    field :push_token, :string, redact: true
 
     has_many :tokens, HeadsUp.Accounts.UserToken
 
@@ -46,6 +48,13 @@ defmodule HeadsUp.Accounts.User do
     |> validate_length(:email, max: 160)
     |> unsafe_validate_unique(:email, HeadsUp.Repo)
     |> unique_constraint(:email)
+  end
+
+  @doc "Changeset for setting/clearing the device push token."
+  def push_token_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:push_token])
+    |> validate_length(:push_token, max: 200)
   end
 
   @doc """

@@ -68,6 +68,20 @@ defmodule HeadsUp.Social do
           status: "pending"
         })
         |> Repo.insert()
+        |> case do
+          {:ok, friendship} ->
+            HeadsUp.Notifications.notify_user(
+              friendship.addressee_id,
+              "Friend request 👋",
+              "#{current_user.username} wants to duel you on HeadsUp",
+              %{type: "friends"}
+            )
+
+            {:ok, friendship}
+
+          error ->
+            error
+        end
     end
   end
 

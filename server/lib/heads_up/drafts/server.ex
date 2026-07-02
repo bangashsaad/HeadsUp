@@ -379,8 +379,27 @@ defmodule HeadsUp.Drafts.Server do
       state
       |> set_active_pick(next)
       |> arm_clock()
+      |> tap_notify_turn()
       |> tap_broadcast("pick_made", %{pick_number: next - 1, user_id: uid})
     end
+  end
+
+  # Push "your pick" ONLY when the picker has no live socket in the room —
+  # players watching the draft see the turn instantly; a push would be noise.
+  # This is what makes long-clock async drafts work: pick, walk away, get pinged.
+  defp tap_notify_turn(state) do
+    uid = state.current_picker_id
+
+    if Map.get(state.connected, uid, 0) == 0 do
+      HeadsUp.Notifications.notify_user(
+        uid,
+        "You're on the clock ⏱️",
+        "It's your pick (#{state.pick_number}/#{state.total_picks}) in your live draft.",
+        %{type: "draft", duel_id: state.duel_id}
+      )
+    end
+
+    state
   end
 
   # --- pick validation ----------------------------------------------------

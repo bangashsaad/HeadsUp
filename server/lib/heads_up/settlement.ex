@@ -169,11 +169,36 @@ defmodule HeadsUp.Settlement do
     |> case do
       {:ok, %{result: result, duel: settled}} ->
         broadcast(settled, is_tie)
+        notify_settled(settled, outcome)
         {:ok, result, settled}
 
       {:error, _step, reason, _} ->
         {:error, reason}
     end
+  end
+
+  # Push the final score to both players, framed from each one's side.
+  defp notify_settled(%Duel{} = duel, outcome) do
+    c_total = outcome.challenger.total
+    o_total = outcome.opponent.total
+
+    for {user_id, mine, theirs} <- [{duel.challenger_id, c_total, o_total}, {duel.opponent_id, o_total, c_total}] do
+      {title, emoji} =
+        cond do
+          is_nil(duel.winner_id) -> {"It's a tie", "🤝"}
+          duel.winner_id == user_id -> {"You won!", "🏆"}
+          true -> {"You lost", "😤"}
+        end
+
+      HeadsUp.Notifications.notify_user(
+        user_id,
+        "#{title} #{emoji}",
+        "Final: #{mine} – #{theirs}. Tap for the full scoreboard.",
+        %{type: "result", duel_id: duel.id}
+      )
+    end
+
+    :ok
   end
 
   defp roster_breakdown(user_id, roster_result, by_id) do

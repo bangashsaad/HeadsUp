@@ -5,6 +5,10 @@ import Config
 config :heads_up, :settlement_interval_ms, 3_600_000
 config :heads_up, :stats_provider, HeadsUp.Settlement.Stats.Mock
 
+# No real pushes from tests; Notifications tests exercise deliver/4 directly
+# with a Req.Test plug.
+config :heads_up, HeadsUp.Notifications, enabled: false, req_options: []
+
 # ESPN: point both host roots at an unroutable address so any un-stubbed
 # real-feed call fails loudly instead of reaching the internet. Tests that
 # exercise the client/provider inject a `Req.Test` plug + disable retry via

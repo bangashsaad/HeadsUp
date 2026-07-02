@@ -40,6 +40,13 @@ defmodule HeadsUp.Accounts do
     end
   end
 
+  @doc "Stores (or clears, with nil) the user's device push token."
+  def update_push_token(%User{} = user, push_token) do
+    user
+    |> User.push_token_changeset(%{push_token: push_token})
+    |> Repo.update()
+  end
+
   @doc "Creates and stores an API token for the user, returning the encoded string."
   def create_user_api_token(user) do
     {encoded, user_token} = UserToken.build_api_token(user)

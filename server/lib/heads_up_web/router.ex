@@ -42,6 +42,7 @@ defmodule HeadsUpWeb.Router do
 
     get "/me", AuthController, :me
     put "/me/password", AuthController, :change_password
+    put "/me/push_token", AuthController, :push_token
     delete "/logout", AuthController, :logout
 
     # Competitive stats + home dashboard

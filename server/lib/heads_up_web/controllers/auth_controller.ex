@@ -50,4 +50,12 @@ defmodule HeadsUpWeb.AuthController do
   end
 
   def change_password(_conn, _params), do: {:error, "current_password and password are required"}
+
+  # PUT /api/me/push_token  { "push_token": "ExponentPushToken[...]" | null }
+  def push_token(conn, params) do
+    case Accounts.update_push_token(conn.assigns.current_user, params["push_token"]) do
+      {:ok, _user} -> send_resp(conn, :no_content, "")
+      {:error, %Ecto.Changeset{} = changeset} -> {:error, changeset}
+    end
+  end
 end

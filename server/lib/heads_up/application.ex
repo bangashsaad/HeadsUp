@@ -19,6 +19,8 @@ defmodule HeadsUp.Application do
       HeadsUp.Drafts.Supervisor,
       # Automatic settlement: sweeps duels whose scoring window has closed.
       HeadsUp.Settlement.Worker,
+      # Fire-and-forget push notification sends.
+      {Task.Supervisor, name: HeadsUp.Notifications.TaskSupervisor},
       # Start to serve requests, typically the last entry
       HeadsUpWeb.Endpoint
     ]

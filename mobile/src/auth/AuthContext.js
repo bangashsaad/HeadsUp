@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { apiRequest } from '../api/client';
+import { registerForPush, unregisterPush } from '../push';
 
 const TOKEN_KEY = 'auth_token';
 const AuthContext = createContext(null);
@@ -19,6 +20,7 @@ export function AuthProvider({ children }) {
           const data = await apiRequest('/api/me', { token: saved });
           setToken(saved);
           setUser(data.user);
+          registerForPush(saved);
         }
       } catch (_) {
         // token invalid/expired or server unreachable — forget it
@@ -33,6 +35,7 @@ export function AuthProvider({ children }) {
     await SecureStore.setItemAsync(TOKEN_KEY, token);
     setToken(token);
     setUser(user);
+    registerForPush(token);
   }
 
   async function signUp({ username, email, password }) {
@@ -61,7 +64,10 @@ export function AuthProvider({ children }) {
 
   async function signOut() {
     try {
-      if (token) await apiRequest('/api/logout', { method: 'DELETE', token });
+      if (token) {
+        await unregisterPush(token);
+        await apiRequest('/api/logout', { method: 'DELETE', token });
+      }
     } catch (_) {
       // ignore network errors when logging out — we clear locally regardless
     }

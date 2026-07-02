@@ -31,6 +31,7 @@ defmodule HeadsUp.Contests do
         |> Duel.create_changeset(build_attrs(challenger, attrs))
         |> Repo.insert()
         |> with_users()
+        |> notify_challenged()
     end
   end
 
@@ -101,7 +102,7 @@ defmodule HeadsUp.Contests do
         end)
         |> Repo.transaction()
         |> case do
-          {:ok, %{counter: counter}} -> with_users({:ok, counter})
+          {:ok, %{counter: counter}} -> {:ok, counter} |> with_users() |> notify_challenged()
           {:error, _step, changeset, _} -> {:error, changeset}
         end
 
@@ -234,4 +235,18 @@ defmodule HeadsUp.Contests do
   # Preload both players so the JSON view can render the duel.
   defp with_users({:ok, duel}), do: {:ok, Repo.preload(duel, [:challenger, :opponent])}
   defp with_users(other), do: other
+
+  # Push "you were challenged" to the recipient (fire-and-forget; pass-through).
+  defp notify_challenged({:ok, duel} = result) do
+    HeadsUp.Notifications.notify_user(
+      duel.opponent_id,
+      "New challenge ⚔️",
+      "#{duel.challenger.username} challenged you to a #{String.upcase(duel.sport)} duel",
+      %{type: "duel", duel_id: duel.id}
+    )
+
+    result
+  end
+
+  defp notify_challenged(other), do: other
 end
