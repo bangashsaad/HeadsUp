@@ -1,11 +1,15 @@
 import Constants from 'expo-constants';
 
 // Where's the backend?
+//  - Explicit override: start Metro with EXPO_PUBLIC_API_URL=https://... to force
+//    a target (e.g. point the dev build at production for a quick check).
 //  - DEV (connected to a Metro dev server): talk to THAT machine's local
 //    backend on :4000 — auto-detected, so a changing WiFi IP just follows along.
 //  - STANDALONE build (no Metro — e.g. a preview build friends install): use the
 //    configured production URL from app.json `extra.apiUrl` (the deployed server).
 function resolveApiUrl() {
+  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+
   const hostUri =
     Constants.expoConfig?.hostUri ||
     Constants.expoGoConfig?.debuggerHost ||
