@@ -60,8 +60,8 @@ defmodule HeadsUp.DraftsTest do
 
       assert {:ok, draft} = Drafts.get_or_create_draft_for_duel(duel)
       assert draft.status == "lobby"
-      # wnba_standard = 5 slots -> 10 total picks
-      assert draft.total_picks == 10
+      # wnba_standard = 6 slots -> 12 total picks
+      assert draft.total_picks == 12
 
       assert {:ok, again} = Drafts.get_or_create_draft_for_duel(duel)
       assert again.id == draft.id

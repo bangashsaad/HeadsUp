@@ -126,6 +126,10 @@ them (later, gated).
 ---
 
 ## Ideas parking lot (unfiltered, no commitment)
+- Positionless / UTIL-heavy lineup presets (Saad, 2026-07-01): keep classic slots
+  as the default, but offer a mode where most/all slots are UTIL — draft anyone,
+  pure best-ball vibes. (Context: we added a required C slot to wnba_standard and
+  kept UTIL; this is the "lean further into UTIL" variant as its own preset.)
 - Async "walk-away" drafts as the default for casual play (queue + long clock already exist).
 - Rivalry framing: surface head-to-head streaks harder ("you're down 3-1 to buddy").
 - A weekly friend leaderboard reset for recurring stakes.

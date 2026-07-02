@@ -27,22 +27,24 @@ defmodule HeadsUp.Drafts.LineupTest do
       assert Enum.map(Lineup.slots("wnba_quick"), & &1.label) == ~w(G F C)
 
       assert Enum.map(Lineup.slots("wnba_standard"), & &1.key) ==
-               ~w(G1 G2 F1 F2 UTIL1)
+               ~w(G1 G2 F1 F2 C1 UTIL1)
 
       # every WNBA slot's eligibility accepts the coarse codes the feed emits...
       assert Lineup.can_fill?(Lineup.slots("wnba_standard"), [], "G") == {:ok, "G1"}
       assert Lineup.can_fill?(Lineup.slots("wnba_standard"), [], "F") == {:ok, "F1"}
-      assert Lineup.can_fill?(Lineup.slots("wnba_standard"), [], "C") == {:ok, "UTIL1"}
+      assert Lineup.can_fill?(Lineup.slots("wnba_standard"), [], "C") == {:ok, "C1"}
+      # with the C slot filled, a second center still fits UTIL (no deadlock)
+      assert Lineup.can_fill?(Lineup.slots("wnba_standard"), ["C1"], "C") == {:ok, "UTIL1"}
       # ...and still accepts legacy granular codes from un-reseeded rows.
       assert Lineup.can_fill?(Lineup.slots("wnba_standard"), [], "PG") == {:ok, "G1"}
       assert Lineup.can_fill?(Lineup.slots("wnba_standard"), [], "SF") == {:ok, "F1"}
     end
 
-    test "wnba_standard can be filled by both sides of a center-scarce 1v1 (no deadlock)" do
+    test "wnba_standard fills for a center-heavy and a one-center side (no deadlock)" do
       slots = Lineup.slots("wnba_standard")
 
-      # A pool with only ONE center between the two teams — UTIL absorbs it on
-      # one side; the other side fills UTIL with a guard/forward. Neither stalls.
+      # C1 requires one true center per side; UTIL stays flexible — it absorbs a
+      # SECOND center on one side and a guard on the other. Neither stalls.
       fill = fn positions ->
         Enum.reduce(positions, {[], true}, fn pos, {filled, ok?} ->
           case Lineup.can_fill?(slots, filled, pos) do
@@ -52,8 +54,8 @@ defmodule HeadsUp.Drafts.LineupTest do
         end)
       end
 
-      {teamA, okA} = fill.(~w(G G F F C))
-      {teamB, okB} = fill.(~w(G G F F G))
+      {teamA, okA} = fill.(~w(G G F F C C))
+      {teamB, okB} = fill.(~w(G G F F C G))
       assert okA and okB
       assert Lineup.roster_complete?(slots, teamA)
       assert Lineup.roster_complete?(slots, teamB)

@@ -12,7 +12,9 @@ config :heads_up, :stats_provider, HeadsUp.Settlement.Stats.Mock
 config :heads_up, HeadsUp.Sports.Espn,
   site_host: "http://localhost:0",
   web_host: "http://localhost:0",
-  req_options: []
+  # retry: false so un-stubbed calls fail INSTANTLY (the draft server probes the
+  # scoreboard on start; retry backoff would add seconds to every draft test).
+  req_options: [retry: false]
 
 # Configure your database
 #

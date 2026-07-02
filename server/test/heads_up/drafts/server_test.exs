@@ -122,11 +122,11 @@ defmodule HeadsUp.Drafts.ServerTest do
 
     test "running the clock out for every pick completes the draft", ctx do
       final =
-        Enum.reduce(1..10, nil, fn _, _ -> expire(ctx.pid, ctx.draft.id) end)
+        Enum.reduce(1..12, nil, fn _, _ -> expire(ctx.pid, ctx.draft.id) end)
 
       assert final.phase == :complete
       assert final.current_picker_id == nil
-      assert length(final.picks) == 10
+      assert length(final.picks) == 12
       assert Repo.get(Duel, ctx.duel.id).status == "drafted"
       assert Drafts.get_draft(ctx.draft.id).status == "complete"
     end
@@ -186,8 +186,8 @@ defmodule HeadsUp.Drafts.ServerTest do
     test "replay heals a draft whose final pick persisted but completion didn't", ctx do
       # all picks persisted, but draft left "active" / duel "drafting" (the crash window)
       {:ok, _} = Drafts.start_active(ctx.draft, ctx.challenger.id)
-      order = Drafts.build_pick_order(ctx.challenger.id, ctx.opponent.id, 5)
-      players = Repo.all(from p in Player, where: p.sport == "wnba", limit: 10)
+      order = Drafts.build_pick_order(ctx.challenger.id, ctx.opponent.id, 6)
+      players = Repo.all(from p in Player, where: p.sport == "wnba", limit: 12)
 
       Enum.with_index(players, 1)
       |> Enum.each(fn {player, n} ->

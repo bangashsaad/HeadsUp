@@ -18,7 +18,7 @@ defmodule HeadsUp.Drafts.Server do
   require Logger
 
   alias HeadsUp.Drafts
-  alias HeadsUp.Drafts.{AutoPick, Lineup}
+  alias HeadsUp.Drafts.{AutoPick, Lineup, PoolFilter}
 
   @pubsub HeadsUp.PubSub
 
@@ -177,10 +177,18 @@ defmodule HeadsUp.Drafts.Server do
 
   # Only players at positions some slot can hold are draftable, so undraftable
   # seed entries (e.g. NFL kickers with no K slot) never clutter the board or
-  # leave the auto-pick with dead choices.
+  # leave the auto-pick with dead choices. Players whose game already started
+  # today are dropped too (they'd score 0 this window) — unless that would gut
+  # the board (late-night draft after a full slate), where a full pool beats an
+  # undraftable one.
   defp draftable_pool(sport, slots) do
     eligible = slots |> Enum.flat_map(& &1.eligible) |> MapSet.new()
-    sport |> Drafts.draft_pool() |> Map.filter(fn {_id, p} -> p.position in eligible end)
+    pool = sport |> Drafts.draft_pool() |> Map.filter(fn {_id, p} -> p.position in eligible end)
+
+    started = PoolFilter.teams_already_started(sport)
+    filtered = Map.filter(pool, fn {_id, p} -> not MapSet.member?(started, p.team) end)
+
+    if map_size(filtered) >= length(slots) * 4, do: filtered, else: pool
   end
 
   # --- calls --------------------------------------------------------------

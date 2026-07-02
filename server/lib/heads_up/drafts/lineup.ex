@@ -65,6 +65,7 @@ defmodule HeadsUp.Drafts.Lineup do
     %{key: "G2", label: "G", eligible: @wnba_g},
     %{key: "F1", label: "F", eligible: @wnba_f},
     %{key: "F2", label: "F", eligible: @wnba_f},
+    %{key: "C1", label: "C", eligible: @wnba_c},
     %{key: "UTIL1", label: "UTIL", eligible: @wnba_util}
   ]
 
