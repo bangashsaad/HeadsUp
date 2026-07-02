@@ -9,6 +9,22 @@ import LineupSlots from '../components/LineupSlots';
 import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
 import { Avatar, Button, Chip, SearchInput, EmptyState } from '../components/ui';
 
+// "7:00 PM ET" for a game today (ET), "Tmw 7:00 PM ET" for tomorrow — so you
+// know WHEN a player plays before you draft them. ET = UTC-4 in season.
+function nextGameLabel(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d)) return null;
+  const et = new Date(d.getTime() - 4 * 3600 * 1000);
+  const nowEt = new Date(Date.now() - 4 * 3600 * 1000);
+  const sameDay = et.getUTCDate() === nowEt.getUTCDate() && et.getUTCMonth() === nowEt.getUTCMonth();
+  let h = et.getUTCHours();
+  const m = et.getUTCMinutes();
+  const ap = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${sameDay ? '' : 'Tmw '}${h}:${String(m).padStart(2, '0')} ${ap} ET`;
+}
+
 export default function DraftRoomScreen({ route, navigation }) {
   const { id, opponentName = 'Opponent' } = route.params;
   const { token, user } = useAuth();
@@ -263,6 +279,9 @@ function DraftBoard({ state, myId, opponentName, conn, error, setError, navigati
                     <Text style={styles.playerName}>{item.name}</Text>
                     <Text style={styles.playerMeta}>
                       {item.position} · {item.team}
+                      {nextGameLabel(item.next_game_at) ? (
+                        <Text style={styles.gameTime}> · {nextGameLabel(item.next_game_at)}</Text>
+                      ) : null}
                     </Text>
                   </View>
                   <Pressable onPress={() => toggleQueue(item.id)} hitSlop={8} style={{ paddingHorizontal: 4 }}>
@@ -340,6 +359,7 @@ const makeStyles = (colors) =>
     queueHint: { color: colors.muted, fontSize: font.small, marginTop: spacing.sm, fontStyle: 'italic' },
     playerName: { color: colors.text, fontSize: font.body, fontWeight: '600' },
     playerMeta: { color: colors.muted, fontSize: font.small, marginTop: 2 },
+    gameTime: { color: colors.accent, fontSize: font.small, fontWeight: '600' },
     projWrap: { alignItems: 'center' },
     proj: { color: colors.accent, fontSize: font.bodyLg, fontWeight: '800' },
     projLabel: { color: colors.placeholder, fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
