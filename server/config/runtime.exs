@@ -33,8 +33,18 @@ if config_env() == :prod do
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
+  # The prod database is Neon, which requires TLS. Verify the server cert
+  # against the OS trust store; Neon uses a wildcard cert, so hostname
+  # matching needs the :https match_fun.
+  db_host = URI.parse(database_url).host || ""
+
   config :heads_up, HeadsUp.Repo,
-    # ssl: true,
+    ssl: [
+      verify: :verify_peer,
+      cacerts: :public_key.cacerts_get(),
+      server_name_indication: to_charlist(db_host),
+      customize_hostname_check: [match_fun: :public_key.pkix_verify_hostname_match_fun(:https)]
+    ],
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
     # For machines with several cores, consider starting multiple pools of `pool_size`
