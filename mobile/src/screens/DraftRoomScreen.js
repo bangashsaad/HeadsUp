@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
 import { connectDraft } from '../api/socket';
@@ -118,6 +118,37 @@ function Lobby({ state, myId, opponentName, conn }) {
   );
 }
 
+// A slot in the flow-layout strip; flashes in the drafter's color on fill.
+function FlashSlotCard({ slot, pick, tint, styles, colors }) {
+  const flash = useRef(new Animated.Value(0)).current;
+  const prevId = useRef(pick?.player?.id);
+
+  useEffect(() => {
+    const id = pick?.player?.id;
+    if (id && prevId.current !== id) {
+      flash.setValue(1);
+      Animated.timing(flash, { toValue: 0, duration: 900, useNativeDriver: true }).start();
+    }
+    prevId.current = id;
+  }, [pick?.player?.id, flash]);
+
+  return (
+    <View style={[styles.slotCard, pick && styles.slotCardFilled]}>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFillObject,
+          { backgroundColor: tint, borderRadius: radius.md, opacity: flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.35] }) },
+        ]}
+      />
+      <Text style={styles.slotCardLabel}>{slot.label}</Text>
+      <Text style={[styles.slotCardName, !pick && { color: colors.placeholder }]} numberOfLines={1}>
+        {pick ? shortName(pick.player.name) : '—'}
+      </Text>
+    </View>
+  );
+}
+
 function ReadyPill({ name, ready }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -231,6 +262,25 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
     prevTurn.current = isMyTurn;
   }, [isMyTurn, complete]);
 
+  // The status bar breathes in the current picker's color — a slow pulse when
+  // someone else is up, an insistent one when it's you.
+  const pulse = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (complete || !state.current_picker_id) {
+      pulse.setValue(0);
+      return;
+    }
+    const dur = isMyTurn ? 600 : 1200;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, { toValue: 1, duration: dur, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: dur, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [isMyTurn, complete, state.current_picker_id, pulse]);
+
   const lineupFull = !complete && eligible.size === 0;
 
   const positions = useMemo(() => {
@@ -272,6 +322,18 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
   return (
     <View style={styles.board}>
       <View style={[styles.statusBar, isMyTurn && !complete && styles.statusBarMine]}>
+        {!complete && state.current_picker_id ? (
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.pulseRing,
+              {
+                borderColor: colorFor(state.current_picker_id),
+                opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.15, isMyTurn ? 0.95 : 0.5] }),
+              },
+            ]}
+          />
+        ) : null}
         {complete ? (
           <Text style={styles.turnDone}>🏁 Draft complete</Text>
         ) : (
@@ -302,17 +364,16 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
             style={styles.mySlotsStrip}
             contentContainerStyle={styles.mySlotsContent}
           >
-            {state.slots.map((slot) => {
-              const pick = myPicks.find((p) => p.slot === slot.key);
-              return (
-                <View key={slot.key} style={[styles.slotCard, pick && styles.slotCardFilled]}>
-                  <Text style={styles.slotCardLabel}>{slot.label}</Text>
-                  <Text style={[styles.slotCardName, !pick && { color: colors.placeholder }]} numberOfLines={1}>
-                    {pick ? shortName(pick.player.name) : '—'}
-                  </Text>
-                </View>
-              );
-            })}
+            {state.slots.map((slot) => (
+              <FlashSlotCard
+                key={slot.key}
+                slot={slot}
+                pick={myPicks.find((p) => p.slot === slot.key)}
+                tint={colorFor(myId)}
+                styles={styles}
+                colors={colors}
+              />
+            ))}
           </ScrollView>
 
           <View style={styles.seatTabs}>
@@ -350,7 +411,7 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
               </Text>
               <Ionicons name="chevron-expand" size={14} color={colors.muted} />
             </Pressable>
-            <LineupSlots slots={state.slots} picks={myPicks} compact />
+            <LineupSlots slots={state.slots} picks={myPicks} compact tint={colorFor(myId)} />
           </View>
           <View style={styles.rosterCol}>
             <Pressable style={styles.rosterHead} onPress={() => setSheetUid(oppId)} hitSlop={6}>
@@ -360,7 +421,7 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
               </Text>
               <Ionicons name="chevron-expand" size={14} color={colors.muted} />
             </Pressable>
-            <LineupSlots slots={state.slots} picks={oppPicks} compact />
+            <LineupSlots slots={state.slots} picks={oppPicks} compact tint={colorFor(oppId)} />
           </View>
         </View>
       )}
@@ -494,6 +555,7 @@ const makeStyles = (colors) =>
       paddingVertical: spacing.sm,
     },
     statusBarMine: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
+    pulseRing: { ...StyleSheet.absoluteFillObject, borderRadius: radius.md, borderWidth: 2 },
     statusRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
     turn: { color: colors.muted, fontSize: font.bodyLg, fontWeight: '700' },
     turnMine: { color: colors.accent },
