@@ -8,9 +8,21 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/778f9a93-60b4-4fa0-a6ef-7d873f3205a6"
+    },
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f172a"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.headsupfantasy.app",
+      "associatedDomains": ["applinks:headsup-fantasy.fly.dev"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }

@@ -27,6 +27,15 @@ defmodule HeadsUpWeb.Router do
     get "/", PageController, :home
   end
 
+  # Universal links: Apple's association file + browser fallbacks for shared
+  # duel/profile links. Public, no session plumbing.
+  scope "/", HeadsUpWeb do
+    get "/.well-known/apple-app-site-association", DeepLinkController, :aasa
+    get "/apple-app-site-association", DeepLinkController, :aasa
+    get "/d/:id", DeepLinkController, :fallback
+    get "/u/:username", DeepLinkController, :fallback
+  end
+
   # Public API routes (no login required)
   scope "/api", HeadsUpWeb do
     pipe_through :api
