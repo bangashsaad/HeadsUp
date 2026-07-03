@@ -6,7 +6,10 @@ import { connectDraft } from '../api/socket';
 import { impact, notify, ImpactStyle, NotifyType } from '../haptics';
 import PickClock from '../components/PickClock';
 import LineupSlots from '../components/LineupSlots';
-import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
+import DraftTicker from '../components/DraftTicker';
+import DraftOrderDots from '../components/DraftOrderDots';
+import RosterSheet from '../components/RosterSheet';
+import { useTheme, useThemedStyles, spacing, radius, font, avatarColor } from '../theme';
 import { Avatar, Button, Chip, SearchInput, EmptyState } from '../components/ui';
 
 // "7:00 PM ET" for a game today (ET), "Tmw 7:00 PM ET" for tomorrow — so you
@@ -134,6 +137,25 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
   const myPicks = useMemo(() => state.picks.filter((p) => String(p.user_id) === String(myId)), [state.picks, myId]);
   const oppPicks = useMemo(() => state.picks.filter((p) => String(p.user_id) !== String(myId)), [state.picks, myId]);
 
+  // Full snake order, derived the same way the server builds it: odd rounds
+  // run [first, other], even rounds reverse. Known once the coin flip lands.
+  const order = useMemo(() => {
+    const first = state.first_picker_id;
+    if (!first) return [];
+    const other = Object.keys(state.ready || {}).find((u) => String(u) !== String(first)) ?? first;
+    const out = [];
+    for (let r = 1; r <= state.slots.length; r++) {
+      if (r % 2 === 1) out.push(first, other);
+      else out.push(other, first);
+    }
+    return out;
+  }, [state.first_picker_id, state.ready, state.slots.length]);
+
+  const oppTint = avatarColor(opponentName);
+  const nameFor = (uid) => (String(uid) === String(myId) ? 'You' : opponentName);
+  const colorFor = (uid) => (String(uid) === String(myId) ? colors.accent : oppTint);
+  const [sheetSide, setSheetSide] = useState(null); // 'me' | 'opp' | null
+
   const eligible = useMemo(() => {
     const filled = new Set(myPicks.map((p) => p.slot));
     const open = state.slots.filter((s) => !filled.has(s.key));
@@ -226,18 +248,31 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
         )}
       </View>
 
+      <DraftOrderDots order={order} pickNumber={state.pick_number} colorFor={colorFor} />
+      <DraftTicker picks={state.picks} nameFor={nameFor} />
+
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <ScrollView style={styles.rosters} horizontal showsHorizontalScrollIndicator={false}>
+      <View style={styles.rostersRow}>
         <View style={styles.rosterCol}>
-          <Text style={styles.rosterLabel}>Your lineup</Text>
-          <LineupSlots slots={state.slots} picks={myPicks} />
+          <Pressable style={styles.rosterHead} onPress={() => setSheetSide('me')} hitSlop={6}>
+            <Text style={styles.rosterLabel} numberOfLines={1}>
+              Your lineup
+            </Text>
+            <Ionicons name="chevron-expand" size={14} color={colors.muted} />
+          </Pressable>
+          <LineupSlots slots={state.slots} picks={myPicks} compact />
         </View>
         <View style={styles.rosterCol}>
-          <Text style={styles.rosterLabel}>{opponentName}</Text>
-          <LineupSlots slots={state.slots} picks={oppPicks} />
+          <Pressable style={styles.rosterHead} onPress={() => setSheetSide('opp')} hitSlop={6}>
+            <Text style={styles.rosterLabel} numberOfLines={1}>
+              {opponentName}
+            </Text>
+            <Ionicons name="chevron-expand" size={14} color={colors.muted} />
+          </Pressable>
+          <LineupSlots slots={state.slots} picks={oppPicks} compact />
         </View>
-      </ScrollView>
+      </View>
 
       {!complete ? (
         <>
@@ -325,6 +360,15 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
           />
         </View>
       )}
+
+      <RosterSheet
+        visible={sheetSide !== null}
+        onClose={() => setSheetSide(null)}
+        title={sheetSide === 'me' ? 'Your lineup' : `${opponentName}'s lineup`}
+        name={sheetSide === 'me' ? 'You' : opponentName}
+        slots={state.slots}
+        picks={sheetSide === 'me' ? myPicks : oppPicks}
+      />
     </View>
   );
 }
@@ -362,9 +406,10 @@ const makeStyles = (colors) =>
     turnMine: { color: colors.accent },
     turnDone: { color: colors.text, fontSize: font.subtitle, fontWeight: '800' },
     pickNo: { color: colors.muted, fontSize: font.small },
-    rosters: { marginTop: spacing.md, flexGrow: 0 },
-    rosterCol: { width: 230, marginRight: spacing.md },
-    rosterLabel: { color: colors.text, fontWeight: '700', marginBottom: spacing.sm },
+    rostersRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
+    rosterCol: { flex: 1 },
+    rosterHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4, marginBottom: spacing.sm },
+    rosterLabel: { color: colors.text, fontWeight: '700', flexShrink: 1 },
     chipRow: { marginTop: spacing.md, marginBottom: spacing.xs, flexGrow: 0 },
     chipRowContent: { gap: spacing.sm, paddingRight: spacing.sm },
     watchNote: { color: colors.muted, fontSize: font.small, marginTop: spacing.md, fontStyle: 'italic' },
