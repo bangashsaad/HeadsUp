@@ -143,6 +143,12 @@ them (later, gated).
 
 **Layout decision (2026-07-02):** hybrid — ≤2 players: side-by-side rosters (fitted, no scroll) + ticker; 3+: flow layout with rosters behind avatar sheet. Head-to-head tension is worth keeping visible in 1v1; four columns can't fit a phone.
 
+**Group invite/accept design (agreed 2026-07-02, revertable):** host-centric seats.
+- Host multi-selects up to 3 friends (friendship required with HOST only) + sets terms once. No counters in group matches (v1).
+- Each invitee accepts/declines their own seat independently; invite screen shows the other seats' statuses.
+- Declines SHRINK the match (4→3→2); below 2 total → auto-cancel. Non-responders can't wedge it: host gets "Start with current group" (drops pending invitees, needs ≥2 in) + cancel anytime.
+- Draftable when every non-declined seat accepted (∧ ≥2). Pushes: seat invite → each invitee; "everyone's in" → all; shrink notice → host. Rematch re-invites the same group (tapper becomes host).
+
 ## Ideas parking lot (unfiltered, no commitment)
 - Positionless / UTIL-heavy lineup presets (Saad, 2026-07-01): keep classic slots
   as the default, but offer a mode where most/all slots are UTIL — draft anyone,
