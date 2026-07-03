@@ -451,7 +451,7 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
             keyExtractor={(p) => String(p.id)}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
-            ListEmptyComponent={<EmptyState icon="search" title="No players match" subtitle="Adjust your search or position filter." />}
+            ListEmptyComponent={<EmptyState icon="search" title="Nobody matches" subtitle="Loosen the search or clear the position filter." />}
             renderItem={({ item }) => {
               const isQ = queued.has(item.id);
               return (

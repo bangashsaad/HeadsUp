@@ -214,12 +214,12 @@ export default function DuelsListScreen({ navigation }) {
               tab === 'active' ? (
                 <EmptyState
                   icon="flame-outline"
-                  title="No active duels"
-                  subtitle="Challenge a friend to a head-to-head draft to get started."
+                  title="Nothing on the line"
+                  subtitle="Somebody out there thinks they can beat you. Set the terms."
                   action={<Button title="New Challenge" icon="add" onPress={() => navigation.navigate('CreateChallenge')} />}
                 />
               ) : (
-                <EmptyState icon="time-outline" title="No past duels yet" subtitle="Finished duels will show up here." />
+                <EmptyState icon="time-outline" title="No history yet" subtitle="Finished duels land here — the wins, the losses, and the receipts." />
               )
             }
             renderSectionHeader={({ section }) => (section.data.length ? <Text style={styles.sectionHeader}>{section.title}</Text> : null)}

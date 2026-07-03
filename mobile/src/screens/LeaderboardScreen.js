@@ -41,7 +41,7 @@ export default function LeaderboardScreen() {
         keyExtractor={(item) => String(item.user.id)}
         contentContainerStyle={{ padding: spacing.lg }}
         ListHeaderComponent={<Text style={styles.intro}>Standings among you and your friends, by wins.</Text>}
-        ListEmptyComponent={<EmptyState icon="podium-outline" title="No standings yet" subtitle="Finish a duel or add friends to build the leaderboard." />}
+        ListEmptyComponent={<EmptyState icon="podium-outline" title="The podium is empty" subtitle="Win a duel and plant your flag at #1." />}
         renderItem={({ item }) => {
           const me = item.user.id === user?.id;
           return (

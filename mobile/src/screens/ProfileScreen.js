@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
@@ -30,6 +30,7 @@ export default function ProfileScreen({ navigation }) {
   const styles = useThemedStyles(makeStyles);
   const [stats, setStats] = useState(null);
   const [trophies, setTrophies] = useState([]);
+  const [openTrophy, setOpenTrophy] = useState(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -55,7 +56,7 @@ export default function ProfileScreen({ navigation }) {
   function howToPlay() {
     Alert.alert(
       'How to play',
-      'Challenge a friend to a 1-on-1 fantasy duel: agree on the sport, lineup and scoring, draft your roster live (snake order, ticking clock), then the winner is declared automatically once the games finish.'
+      'Challenge a friend to a 1-on-1 fantasy duel — or invite up to 3 for a group match. Agree on the sport, lineup and scoring, draft your rosters live (snake order, ticking clock), then the winner is declared automatically once the games finish. Best total takes it.'
     );
   }
 
@@ -127,11 +128,13 @@ export default function ProfileScreen({ navigation }) {
           </View>
           <View style={styles.trophyGrid}>
             {trophies.map((t) => (
-              <Trophy key={t.key} trophy={t} styles={styles} colors={colors} />
+              <Trophy key={t.key} trophy={t} styles={styles} colors={colors} onPress={() => setOpenTrophy(t)} />
             ))}
           </View>
         </>
       ) : null}
+
+      <TrophySheet trophy={openTrophy} onClose={() => setOpenTrophy(null)} styles={styles} colors={colors} />
 
       <Card padded={false} style={{ marginTop: spacing.lg }}>
         <Row icon="person-add-outline" label="Invite a friend" sublabel="Share your username to duel" onPress={invite} />
@@ -159,10 +162,10 @@ function RecStat({ value, label, accent, styles }) {
   );
 }
 
-function Trophy({ trophy, styles, colors }) {
+function Trophy({ trophy, styles, colors, onPress }) {
   const earned = trophy.earned;
   return (
-    <View style={styles.trophy}>
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.trophy, pressed && { opacity: 0.7 }]}>
       <View style={[styles.trophyIcon, { backgroundColor: earned ? colors.accentSoft : colors.card, borderColor: earned ? colors.accentBorder : colors.borderSubtle }]}>
         <Ionicons name={trophy.icon} size={24} color={earned ? colors.accent : colors.placeholder} />
       </View>
@@ -172,7 +175,43 @@ function Trophy({ trophy, styles, colors }) {
       <Text style={styles.trophySub} numberOfLines={1}>
         {earned ? '✓ Earned' : `${Math.min(trophy.value, trophy.threshold)}/${trophy.threshold}`}
       </Text>
-    </View>
+    </Pressable>
+  );
+}
+
+// Tap a trophy → what it means and how close you are.
+function TrophySheet({ trophy, onClose, styles, colors }) {
+  if (!trophy) return null;
+  const earned = trophy.earned;
+  const progress = Math.min(trophy.value / Math.max(trophy.threshold, 1), 1);
+
+  return (
+    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.sheetWrap}>
+        <Pressable style={styles.sheetBackdrop} onPress={onClose} />
+        <View style={styles.sheet}>
+          <View style={styles.sheetHandle} />
+          <View
+            style={[
+              styles.trophyIcon,
+              styles.sheetTrophyIcon,
+              { backgroundColor: earned ? colors.accentSoft : colors.card, borderColor: earned ? colors.accentBorder : colors.borderSubtle },
+            ]}
+          >
+            <Ionicons name={trophy.icon} size={34} color={earned ? colors.accent : colors.placeholder} />
+          </View>
+          <Text style={styles.sheetTitle}>{trophy.title}</Text>
+          <Text style={styles.sheetDesc}>{trophy.description}</Text>
+
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%`, backgroundColor: earned ? colors.accent : colors.muted }]} />
+          </View>
+          <Text style={[styles.sheetProgress, earned && { color: colors.accent }]}>
+            {earned ? '✓ Earned' : `${Math.min(trophy.value, trophy.threshold)} of ${trophy.threshold}`}
+          </Text>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -198,6 +237,25 @@ const makeStyles = (colors) =>
     trophyIcon: { width: 52, height: 52, borderRadius: 26, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
     trophyTitle: { color: colors.text, fontSize: 11, fontWeight: '700', marginTop: 6, textAlign: 'center' },
     trophySub: { color: colors.placeholder, fontSize: 9, fontWeight: '700', marginTop: 1 },
+    sheetWrap: { flex: 1, justifyContent: 'flex-end' },
+    sheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)' },
+    sheet: {
+      backgroundColor: colors.bg,
+      borderTopLeftRadius: radius.xl,
+      borderTopRightRadius: radius.xl,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: spacing.xl,
+      paddingBottom: spacing.xxl,
+      alignItems: 'center',
+    },
+    sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: spacing.lg },
+    sheetTrophyIcon: { width: 72, height: 72, borderRadius: 36 },
+    sheetTitle: { color: colors.text, fontSize: font.title, fontWeight: '800', marginTop: spacing.md },
+    sheetDesc: { color: colors.muted, fontSize: font.body, textAlign: 'center', marginTop: spacing.xs, lineHeight: 21 },
+    progressTrack: { alignSelf: 'stretch', height: 8, borderRadius: 4, backgroundColor: colors.bgElevated, marginTop: spacing.lg, overflow: 'hidden' },
+    progressFill: { height: 8, borderRadius: 4 },
+    sheetProgress: { color: colors.muted, fontSize: font.small, fontWeight: '700', marginTop: spacing.sm },
     h2hRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
     h2hName: { color: colors.text, fontSize: font.body, fontWeight: '600', flex: 1, marginLeft: spacing.md },
     h2hRec: { color: colors.muted, fontSize: font.body, fontWeight: '800' },

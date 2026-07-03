@@ -83,7 +83,7 @@ export default function CreateChallengeScreen({ navigation }) {
       <Text style={styles.hint}>Pick one friend for a duel — or up to {MAX_INVITEES} for a group match.</Text>
 
       {friends.length === 0 ? (
-        <EmptyState icon="people-outline" title="No friends yet" subtitle="Add a friend from the Friends tab before you can challenge them." />
+        <EmptyState icon="people-outline" title="A duel needs a rival" subtitle="Add a friend from the Friends tab first — then come back and set the terms." />
       ) : (
         friends.map((f) => {
           const active = selected.includes(f.id);
