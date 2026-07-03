@@ -126,6 +126,14 @@ them (later, gated).
 ---
 
 ## Working plan: quick wins → multiplayer duels (agreed 2026-07-02)
+> **STATUS 2026-07-03: ALL FOUR BATCHES BUILT ✅** (commits b3796c8, 24de632,
+> 6486768+135b766, 163decc, 60a6a12; backend deployed to Fly; 176 server tests
+> green). Remaining: **on-device testing** — nothing past Batch 1 is
+> device-verified, and the group flow needs 3-4 accounts. Notes vs the plan:
+> group rematch skips the friends check between co-players (they just played
+> together); a group that shrinks to 2 rematches as a classic 1v1; "below a
+> shared top" counts as a LOSS in records, not a tie; new Party Crasher trophy.
+
 **Batch 1 — quick wins (one session):**
 - Draft-complete screen: "Watch Live Matchup" + "Back to Duels" buttons under the lineups.
 - "Share matchup" (native text share) on Live Matchup + Duel Detail. (Share result already exists.)
