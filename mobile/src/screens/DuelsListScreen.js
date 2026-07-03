@@ -3,11 +3,12 @@ import { SectionList, StyleSheet, Text, View, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
-import { listDuels } from '../api/duels';
+import { listDuels, getLiveResult } from '../api/duels';
 import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
-import { Screen, Button, Badge, EmptyState, SkeletonList, FadeIn } from '../components/ui';
+import { Screen, Avatar, Button, Badge, EmptyState, SkeletonList, FadeIn } from '../components/ui';
 
 const SPORT_EMOJI = { nfl: '🏈', nba: '🏀', wnba: '🏀', mlb: '⚾️' };
+const SPORT_TINT = { wnba: '#f59e0b', mlb: '#3b82f6', nba: '#ec4899', nfl: '#8b5cf6' };
 
 // "Respond" only when it's genuinely YOUR move: a 1v1 challenge to you, or a
 // group seat you haven't answered (an invitee who accepted is just waiting).
@@ -50,11 +51,85 @@ function rowTitle(d) {
 }
 
 function rowMeta(d) {
+  const sport = SPORT_EMOJI[d.sport] || '🎯';
   if (d.group && d.status === 'pending') {
     const seated = (d.participants || []).filter((p) => p.status === 'accepted').length;
-    return `${seated}/${d.party_size} in · ${d.roster_size} rounds`;
+    return `${sport} ${seated}/${d.party_size} in · ${d.roster_size} rounds`;
   }
-  return `${d.roster_size} rounds`;
+  return `${sport} ${d.roster_size} rounds`;
+}
+
+const ordinalShort = (n) => (n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`);
+
+// The score line for an in-play duel, right in the list: "You 62.5 – 58.0
+// buddy" (or "2nd · 51.0 pts" in a group), with a red dot while games are
+// live. Polls the existing /live endpoint every 30s while the tab is open;
+// once the duel settles (409) it quietly says so.
+function LiveScoreInline({ token, duel, colors, styles }) {
+  const [live, setLive] = useState(null);
+  const [settled, setSettled] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      const tick = async () => {
+        try {
+          const res = await getLiveResult(token, duel.id);
+          if (active) setLive(res);
+        } catch (e) {
+          if (active) setSettled(true);
+        }
+      };
+      tick();
+      const iv = setInterval(tick, 30000);
+      return () => {
+        active = false;
+        clearInterval(iv);
+      };
+    }, [token, duel.id])
+  );
+
+  if (settled && !live) return <Text style={styles.meta}>Awaiting final scores</Text>;
+  if (!live) return <Text style={styles.meta}>{rowMeta(duel)}</Text>;
+
+  const isLive = (live.games?.live || 0) > 0;
+  let line = '';
+
+  if (live.challenger) {
+    const me = live.challenger.is_me ? live.challenger : live.opponent;
+    const them = live.challenger.is_me ? live.opponent : live.challenger;
+    line = `You ${(me.total ?? 0).toFixed(1)} – ${(them.total ?? 0).toFixed(1)} ${them.user.username}`;
+  } else {
+    const idx = (live.sides || []).findIndex((s) => s.is_me);
+    const mine = live.sides?.[idx];
+    line = mine ? `${ordinalShort(idx + 1)} of ${live.sides.length} · ${(mine.total ?? 0).toFixed(1)} pts` : rowMeta(duel);
+  }
+
+  return (
+    <View style={styles.liveLine}>
+      {isLive ? <View style={styles.liveDot} /> : null}
+      <Text style={[styles.meta, { marginTop: 0 }, isLive && { color: colors.text, fontWeight: '600' }]} numberOfLines={1}>
+        {line}
+      </Text>
+    </View>
+  );
+}
+
+// Who's in this duel, as overlapping faces — you vs them, or the group stack.
+function FacingAvatars({ duel, myName }) {
+  const names = duel.group
+    ? (duel.participants || []).filter((p) => p.status !== 'declined').slice(0, 4).map((p) => p.user?.username || '?')
+    : [myName || 'You', duel.opponent?.username || '?'];
+
+  return (
+    <View style={{ flexDirection: 'row', marginRight: spacing.md }}>
+      {names.map((n, i) => (
+        <View key={`${n}-${i}`} style={{ marginLeft: i === 0 ? 0 : -10, zIndex: names.length - i }}>
+          <Avatar name={n} size={30} />
+        </View>
+      ))}
+    </View>
+  );
 }
 
 const ACTIVE_STATES = ['pending', 'accepted', 'drafting', 'drafted', 'countered'];
@@ -156,12 +231,17 @@ export default function DuelsListScreen({ navigation }) {
                     onPress={() => navigation.navigate('DuelDetail', { id: item.id })}
                     style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.card }]}
                   >
-                    <View style={styles.emojiCircle}>
-                      <Text style={styles.emoji}>{item.group ? '👥' : SPORT_EMOJI[item.sport] || '🎯'}</Text>
-                    </View>
+                    <View style={[styles.sportBar, { backgroundColor: SPORT_TINT[item.sport] || colors.border }]} />
+                    <FacingAvatars duel={item} myName={user?.username} />
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.vs}>{rowTitle(item)}</Text>
-                      <Text style={styles.meta}>{rowMeta(item)}</Text>
+                      <Text style={styles.vs} numberOfLines={1}>
+                        {rowTitle(item)}
+                      </Text>
+                      {item.status === 'drafted' ? (
+                        <LiveScoreInline token={token} duel={item} colors={colors} styles={styles} />
+                      ) : (
+                        <Text style={styles.meta}>{rowMeta(item)}</Text>
+                      )}
                     </View>
                     <Badge label={badge.label} tone={badge.tone} />
                     <Ionicons name="chevron-forward" size={18} color={colors.placeholder} style={{ marginLeft: spacing.sm }} />
@@ -204,19 +284,10 @@ const makeStyles = (colors) =>
       marginBottom: spacing.xs,
     },
     row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.sm, borderRadius: radius.md },
-    emojiCircle: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: colors.card,
-      borderWidth: 1,
-      borderColor: colors.borderSubtle,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginRight: spacing.md,
-    },
-    emoji: { fontSize: 22 },
+    sportBar: { width: 3, height: 34, borderRadius: 2, marginRight: spacing.md },
     vs: { color: colors.text, fontSize: font.subtitle, fontWeight: '700' },
     meta: { color: colors.muted, fontSize: font.small, marginTop: 2 },
+    liveLine: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
+    liveDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.danger },
     error: { color: colors.danger, textAlign: 'center', marginTop: spacing.sm },
   });

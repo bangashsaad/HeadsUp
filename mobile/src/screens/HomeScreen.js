@@ -65,15 +65,18 @@ export default function HomeScreen({ navigation }) {
   }
 
   const rec = home?.record || {};
-  const actions = [
-    ...(home?.needs_response || []).map((d) => ({ d, verb: 'Respond to', tone: 'info', icon: 'mail-unread-outline' })),
-    ...(home?.draft_ready || []).map((d) => ({
-      d,
-      verb: d.status === 'drafting' ? 'Resume draft vs' : 'Draft vs',
-      tone: 'accent',
-      icon: 'flame',
-    })),
+
+  // Most urgent first: a live draft beats an unanswered challenge beats a
+  // ready draft. The top item becomes the hero; the rest stay compact.
+  const drafting = (home?.draft_ready || []).filter((d) => d.status === 'drafting');
+  const ready = (home?.draft_ready || []).filter((d) => d.status !== 'drafting');
+  const queue = [
+    ...drafting.map((d) => ({ d, kind: 'drafting', verb: 'Resume draft vs', tone: 'warning', icon: 'flame' })),
+    ...(home?.needs_response || []).map((d) => ({ d, kind: 'respond', verb: 'Respond to', tone: 'info', icon: 'mail-unread-outline' })),
+    ...ready.map((d) => ({ d, kind: 'ready', verb: 'Draft vs', tone: 'accent', icon: 'play' })),
   ];
+  const hero = queue[0];
+  const actions = queue.slice(1);
 
   return (
     <Screen padded={false}>
@@ -93,12 +96,15 @@ export default function HomeScreen({ navigation }) {
 
         {/* Action items */}
         <Text style={styles.sectionLabel}>Your move</Text>
-        {actions.length === 0 ? (
+        {!hero ? (
           <Card style={styles.calmCard}>
             <Text style={styles.calmText}>You're all caught up. Challenge a friend to get a duel going.</Text>
             <Button title="New Challenge" icon="add" onPress={() => navigation.navigate('DuelsTab', { screen: 'CreateChallenge', initial: false })} />
           </Card>
         ) : (
+          <HeroCard item={hero} onPress={() => openDuel(hero.d.id)} styles={styles} colors={colors} />
+        )}
+        {actions.length > 0 ? (
           actions.map(({ d, verb, tone, icon }) => (
             <Pressable key={`act-${d.id}`} onPress={() => openDuel(d.id)} style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.85 }]}>
               <View style={[styles.actionIcon, { backgroundColor: colors.accentSoft }]}>
@@ -116,7 +122,7 @@ export default function HomeScreen({ navigation }) {
               <Ionicons name="chevron-forward" size={18} color={colors.placeholder} style={{ marginLeft: spacing.xs }} />
             </Pressable>
           ))
-        )}
+        ) : null}
 
         {(home?.awaiting || []).length > 0 ? (
           <Text style={styles.awaiting}>
@@ -172,6 +178,57 @@ export default function HomeScreen({ navigation }) {
   );
 }
 
+// The single most urgent thing, full width and loud: a live draft to rejoin,
+// a challenge waiting on you, or a draft ready to start.
+function HeroCard({ item, onPress, styles, colors }) {
+  const { d, kind } = item;
+  const who = d.group
+    ? d.role === 'challenger'
+      ? `your ${d.party_size}-player match`
+      : `${d.opponent?.username || 'a friend'}'s ${d.party_size}-player match`
+    : d.opponent?.username || 'your opponent';
+  const terms = `${SPORT_EMOJI[d.sport] || '🎯'} ${String(d.sport || '').toUpperCase()} · ${d.roster_size} rounds`;
+
+  const cfg =
+    kind === 'drafting'
+      ? {
+          icon: 'flame',
+          title: 'Draft LIVE right now',
+          sub: d.group ? `${who} — jump back in` : `vs ${who} — jump back in`,
+          cta: 'Resume Draft',
+          badge: { label: 'LIVE', tone: 'danger', dot: true },
+        }
+      : kind === 'respond'
+        ? {
+            icon: 'mail-unread',
+            title: d.group ? `You're invited: ${who}` : `${who} challenged you`,
+            sub: terms,
+            cta: 'View Challenge',
+            badge: { label: 'Your move', tone: 'info' },
+          }
+        : {
+            icon: 'play',
+            title: d.group ? `Draft ready: ${who}` : `Draft ready vs ${who}`,
+            sub: terms,
+            cta: 'Enter Draft Room',
+            badge: { label: 'Ready', tone: 'accent' },
+          };
+
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.hero, pressed && { opacity: 0.92 }]}>
+      <View style={styles.heroTop}>
+        <View style={styles.heroIcon}>
+          <Ionicons name={cfg.icon} size={24} color={colors.accent} />
+        </View>
+        <Badge label={cfg.badge.label} tone={cfg.badge.tone} dot={cfg.badge.dot} />
+      </View>
+      <Text style={styles.heroTitle}>{cfg.title}</Text>
+      <Text style={styles.heroSub}>{cfg.sub}</Text>
+      <Button title={cfg.cta} icon={cfg.icon} onPress={onPress} style={{ marginTop: spacing.md }} />
+    </Pressable>
+  );
+}
+
 function RecordLine({ rec, styles, colors }) {
   const tone = (l) => (l === 'W' ? colors.accent : l === 'L' ? colors.danger : colors.muted);
   const streak = rec.streak && rec.streak.count > 0 ? `${rec.streak.type === 'win' ? '🔥 W' : rec.streak.type === 'loss' ? 'L' : 'T'}${rec.streak.count}` : null;
@@ -204,6 +261,25 @@ const makeStyles = (colors) =>
     sectionLabel: { color: colors.muted, fontSize: font.caption, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.lg, marginBottom: spacing.sm },
     calmCard: { gap: spacing.md },
     calmText: { color: colors.muted, fontSize: font.body, marginBottom: spacing.sm },
+    hero: {
+      backgroundColor: colors.accentSoft,
+      borderColor: colors.accentBorder,
+      borderWidth: 1,
+      borderRadius: radius.lg,
+      padding: spacing.lg,
+      marginBottom: spacing.md,
+    },
+    heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
+    heroIcon: {
+      width: 44,
+      height: 44,
+      borderRadius: 14,
+      backgroundColor: colors.card,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    heroTitle: { color: colors.text, fontSize: font.title, fontWeight: '800' },
+    heroSub: { color: colors.muted, fontSize: font.body, marginTop: 4 },
     actionCard: {
       flexDirection: 'row',
       alignItems: 'center',
