@@ -10,7 +10,7 @@ defmodule HeadsUp.Stats do
 
   alias HeadsUp.Repo
   alias HeadsUp.Accounts.User
-  alias HeadsUp.Contests.Duel
+  alias HeadsUp.Contests.{Duel, Participant}
   alias HeadsUp.Settlement.Result
   alias HeadsUp.Social
 
@@ -20,12 +20,16 @@ defmodule HeadsUp.Stats do
     duels |> rows_for(user_id, results) |> aggregate()
   end
 
-  @doc "A user's record against each opponent they've faced, most-played first."
+  @doc """
+  A user's record against each opponent they've faced, most-played first.
+  Head-to-head is a 1v1 stat — group duels don't count toward any pairing.
+  """
   def head_to_head(user_id) do
     {duels, results} = settled_with_results([user_id])
 
     duels
     |> rows_for(user_id, results)
+    |> Enum.reject(&is_nil(&1.opponent))
     |> Enum.group_by(& &1.opponent.id)
     |> Enum.map(fn {_oid, rows} ->
       rows |> aggregate() |> Map.put(:opponent, hd(rows).opponent)
@@ -52,11 +56,19 @@ defmodule HeadsUp.Stats do
 
   # --- internals ----------------------------------------------------------
 
+  # A duel counts for a user if they hold a column (1v1) or an ACCEPTED seat
+  # (group — declined invitees never played). distinct: two queried users in
+  # the same group duel must not duplicate the row.
   defp settled_with_results(user_ids) do
     duels =
       from(d in Duel,
-        where: d.status == "settled" and (d.challenger_id in ^user_ids or d.opponent_id in ^user_ids),
-        preload: [:challenger, :opponent]
+        left_join: p in Participant,
+        on: p.duel_id == d.id and p.user_id in ^user_ids and p.status == "accepted",
+        where:
+          d.status == "settled" and
+            (d.challenger_id in ^user_ids or d.opponent_id in ^user_ids or not is_nil(p.id)),
+        distinct: true,
+        preload: [:challenger, :opponent, participants: :user]
       )
       |> Repo.all()
 
@@ -76,7 +88,7 @@ defmodule HeadsUp.Stats do
       {pf, pa} = points(d, Map.get(results, d.id), user_id)
 
       %{
-        outcome: outcome(d, user_id),
+        outcome: outcome(d, Map.get(results, d.id), user_id),
         pf: pf,
         pa: pa,
         opponent: opponent_user(d, user_id),
@@ -113,15 +125,51 @@ defmodule HeadsUp.Stats do
     %{type: to_string(type), count: count}
   end
 
-  defp outcome(%Duel{winner_id: nil}, _user_id), do: :tie
-  defp outcome(%Duel{winner_id: w}, user_id) when w == user_id, do: :win
-  defp outcome(%Duel{}, _user_id), do: :loss
+  # Win = 1st place. In a group, a nil winner only means the TOP was shared —
+  # it's a tie for those at rank 1 and a loss for everyone below them.
+  defp outcome(%Duel{winner_id: w}, _r, user_id) when w == user_id, do: :win
+  defp outcome(%Duel{opponent_id: nil} = d, r, user_id) do
+    cond do
+      not is_nil(d.winner_id) -> :loss
+      my_rank(r, user_id) == 1 -> :tie
+      true -> :loss
+    end
+  end
 
+  defp outcome(%Duel{winner_id: nil}, _r, _user_id), do: :tie
+  defp outcome(%Duel{}, _r, _user_id), do: :loss
+
+  # Group points-against = the best OTHER total (the score you had to beat),
+  # so win margins mean the same thing at any table size.
   defp points(_d, nil, _user_id), do: {0.0, 0.0}
+
+  defp points(%Duel{opponent_id: nil}, r, user_id) do
+    standings = standings(r)
+    mine = Enum.find(standings, &(&1["user_id"] == user_id))
+    best_other = standings |> Enum.reject(&(&1["user_id"] == user_id)) |> Enum.map(& &1["total"]) |> Enum.max(fn -> 0.0 end)
+    {(mine && mine["total"]) || 0.0, best_other}
+  end
+
   defp points(%Duel{challenger_id: c}, r, user_id) when c == user_id, do: {r.challenger_points, r.opponent_points}
   defp points(%Duel{}, r, _user_id), do: {r.opponent_points, r.challenger_points}
 
+  defp standings(nil), do: []
+  defp standings(%Result{breakdown: b}), do: (is_map(b) && b["standings"]) || []
+
+  defp my_rank(r, user_id) do
+    case Enum.find(standings(r), &(&1["user_id"] == user_id)) do
+      %{"rank" => rank} -> rank
+      _ -> nil
+    end
+  end
+
+  defp involves?(%Duel{opponent_id: nil} = d, id),
+    do: Enum.any?(d.participants, &(&1.user_id == id and &1.status == "accepted"))
+
   defp involves?(%Duel{challenger_id: c, opponent_id: o}, id), do: c == id or o == id
+
+  # Group duels have no single opponent — H2H callers drop nil.
+  defp opponent_user(%Duel{opponent_id: nil}, _id), do: nil
 
   defp opponent_user(%Duel{challenger_id: c, challenger: ch, opponent: op}, id) do
     if c == id, do: op, else: ch

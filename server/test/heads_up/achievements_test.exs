@@ -34,7 +34,72 @@ defmodule HeadsUp.AchievementsTest do
     end
   end
 
+  test "a group win earns Party Crasher and counts as a win; rivalry ignores groups", %{a: a, b: b} do
+    c = user("c")
+    settled_group([{a, 92.5}, {b, 70.0}, {c, 55.0}], a, at: 1, top: 41.0)
+
+    a_keys = Achievements.for_user(a.id) |> Map.new(&{&1.key, &1})
+    assert a_keys["party_crasher"].earned
+    assert a_keys["first_win"].earned
+    assert a_keys["blowout"].value == 23
+    assert a_keys["sharpshooter"].value == 41
+    assert a_keys["rivalry"].value == 0
+
+    b_keys = Achievements.for_user(b.id) |> Map.new(&{&1.key, &1})
+    refute b_keys["party_crasher"].earned
+    assert b_keys["veteran"].value == 1
+  end
+
   # --- helpers ------------------------------------------------------------
+
+  # A settled 3-player group. `finishers` = [{user, total}] best-first; the
+  # winner's top drafted player scores `opts[:top]`.
+  defp settled_group(finishers, winner, opts) do
+    at = DateTime.utc_now() |> DateTime.add(Keyword.fetch!(opts, :at), :second) |> DateTime.truncate(:second)
+    top = Keyword.get(opts, :top, 0.0)
+
+    duel =
+      Repo.insert!(%Duel{
+        challenger_id: elem(hd(finishers), 0).id,
+        opponent_id: nil,
+        sport: "wnba",
+        draft_type: "snake",
+        lineup_template: "wnba_standard",
+        roster_size: 6,
+        pick_clock_seconds: 60,
+        scoring_rules: %{},
+        draft_starts_at: at,
+        status: "settled",
+        winner_id: winner && winner.id,
+        settled_at: at
+      })
+
+    for {{u, _}, seat} <- Enum.with_index(finishers) do
+      Repo.insert!(%HeadsUp.Contests.Participant{duel_id: duel.id, user_id: u.id, seat: seat, status: "accepted"})
+    end
+
+    standings =
+      finishers
+      |> Enum.with_index(1)
+      |> Enum.map(fn {{u, total}, rank} ->
+        players = if winner && u.id == winner.id, do: [%{"points" => top}, %{"points" => 8.0}], else: [%{"points" => 12.0}]
+        %{"user_id" => u.id, "total" => total, "rank" => rank, "players" => players}
+      end)
+
+    [first, second | _] = finishers
+
+    Repo.insert!(%Result{
+      duel_id: duel.id,
+      winner_id: winner && winner.id,
+      is_tie: is_nil(winner),
+      challenger_points: elem(first, 1),
+      opponent_points: elem(second, 1),
+      settled_at: at,
+      breakdown: %{"standings" => standings}
+    })
+
+    duel
+  end
 
   defp settled(c, o, winner, cp, op, opts) do
     at = DateTime.utc_now() |> DateTime.add(Keyword.fetch!(opts, :at), :second) |> DateTime.truncate(:second)

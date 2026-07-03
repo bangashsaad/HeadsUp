@@ -39,7 +39,47 @@ defmodule HeadsUp.HomeTest do
     assert length(s.recent_results) == 3
   end
 
+  test "group invites bucket by MY seat: invited → needs_response, accepted → waiting", %{a: a, b: b} do
+    c = user("c")
+    d = group_pending(b, [{a, "invited"}, {c, "invited"}])
+    d2 = group_pending(c, [{a, "accepted"}, {b, "invited"}])
+
+    s = Home.summary(a)
+
+    assert Enum.map(s.needs_response, & &1.id) == [d.id]
+    assert d2.id in Enum.map(s.waiting_on_them, & &1.id)
+
+    # the host of a pending group is waiting on them too
+    host_view = Home.summary(b)
+    assert d.id in Enum.map(host_view.waiting_on_them, & &1.id)
+    refute d.id in Enum.map(host_view.needs_response, & &1.id)
+  end
+
   # --- helpers ------------------------------------------------------------
+
+  defp group_pending(host, invitees) do
+    d =
+      Repo.insert!(%Duel{
+        challenger_id: host.id,
+        opponent_id: nil,
+        sport: "wnba",
+        draft_type: "snake",
+        lineup_template: "wnba_standard",
+        roster_size: 6,
+        pick_clock_seconds: 60,
+        scoring_rules: %{},
+        draft_starts_at: now(),
+        status: "pending"
+      })
+
+    Repo.insert!(%HeadsUp.Contests.Participant{duel_id: d.id, user_id: host.id, seat: 0, status: "accepted"})
+
+    for {{u, status}, i} <- Enum.with_index(invitees, 1) do
+      Repo.insert!(%HeadsUp.Contests.Participant{duel_id: d.id, user_id: u.id, seat: i, status: status})
+    end
+
+    d
+  end
 
   defp now, do: DateTime.utc_now() |> DateTime.truncate(:second)
 

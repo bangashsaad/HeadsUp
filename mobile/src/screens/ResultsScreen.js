@@ -230,7 +230,14 @@ export default function ResultsScreen({ route, navigation }) {
           />
         ))}
 
-        <Button title="Share result" icon="share-outline" variant="outline" onPress={shareStandings} style={{ marginTop: spacing.xl }} />
+        <Button
+          title={rematching ? 'Sending…' : 'Rematch the group'}
+          icon="refresh"
+          onPress={doRematch}
+          disabled={rematching}
+          style={{ marginTop: spacing.xl }}
+        />
+        <Button title="Share result" icon="share-outline" variant="outline" onPress={shareStandings} style={{ marginTop: spacing.sm }} />
       </Screen>
     );
   }

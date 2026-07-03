@@ -9,7 +9,15 @@ import { Screen, Button, Badge, EmptyState, SkeletonList, FadeIn } from '../comp
 
 const SPORT_EMOJI = { nfl: '🏈', nba: '🏀', wnba: '🏀', mlb: '⚾️' };
 
-function rowBadge(d) {
+// "Respond" only when it's genuinely YOUR move: a 1v1 challenge to you, or a
+// group seat you haven't answered (an invitee who accepted is just waiting).
+function needsMyResponse(d, uid) {
+  if (d.status !== 'pending') return false;
+  if (d.group) return (d.participants || []).some((p) => p.user?.id === uid && p.status === 'invited');
+  return d.role === 'opponent';
+}
+
+function rowBadge(d, uid) {
   if (d.status === 'settled') {
     if (d.my_outcome === 'win') return { label: 'Won', tone: 'accent' };
     if (d.my_outcome === 'tie') return { label: 'Tie', tone: 'neutral' };
@@ -23,7 +31,7 @@ function rowBadge(d) {
     case 'accepted':
       return { label: 'Ready', tone: 'accent' };
     case 'pending':
-      return d.role === 'opponent' ? { label: 'Respond', tone: 'info' } : { label: 'Pending', tone: 'neutral' };
+      return needsMyResponse(d, uid) ? { label: 'Respond', tone: 'info' } : { label: 'Pending', tone: 'neutral' };
     case 'declined':
       return { label: 'Declined', tone: 'danger' };
     case 'cancelled':
@@ -57,9 +65,9 @@ function partition(duels) {
   return { active, past };
 }
 
-function activeSections(active) {
-  const needsResponse = active.filter((d) => d.status === 'pending' && d.role === 'opponent');
-  const waiting = active.filter((d) => d.status === 'pending' && d.role === 'challenger');
+function activeSections(active, uid) {
+  const needsResponse = active.filter((d) => needsMyResponse(d, uid));
+  const waiting = active.filter((d) => d.status === 'pending' && !needsMyResponse(d, uid));
   const inProgress = active.filter((d) => ['accepted', 'drafting', 'drafted', 'countered'].includes(d.status));
   return [
     { title: 'Needs your response', data: needsResponse },
@@ -78,7 +86,7 @@ function pastSections(past) {
 }
 
 export default function DuelsListScreen({ navigation }) {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [duels, setDuels] = useState([]);
@@ -104,7 +112,7 @@ export default function DuelsListScreen({ navigation }) {
   );
 
   const { active, past } = partition(duels);
-  const sections = tab === 'active' ? activeSections(active) : pastSections(past);
+  const sections = tab === 'active' ? activeSections(active, user?.id) : pastSections(past);
 
   return (
     <Screen padded={false}>
@@ -141,7 +149,7 @@ export default function DuelsListScreen({ navigation }) {
             }
             renderSectionHeader={({ section }) => (section.data.length ? <Text style={styles.sectionHeader}>{section.title}</Text> : null)}
             renderItem={({ item, index }) => {
-              const badge = rowBadge(item);
+              const badge = rowBadge(item, user?.id);
               return (
                 <FadeIn index={index}>
                   <Pressable

@@ -8,7 +8,7 @@ defmodule HeadsUp.Achievements do
   import Ecto.Query, warn: false
 
   alias HeadsUp.Repo
-  alias HeadsUp.Contests.Duel
+  alias HeadsUp.Contests.{Duel, Participant}
   alias HeadsUp.Settlement.Result
 
   # icon = Ionicons name (mobile).
@@ -20,7 +20,8 @@ defmodule HeadsUp.Achievements do
     %{key: "century", title: "Century", desc: "Score 100+ in a single duel", icon: "ribbon", metric: :max_points, threshold: 100},
     %{key: "sharpshooter", title: "Sharpshooter", desc: "Draft a 50-point player", icon: "star", metric: :top_player, threshold: 50},
     %{key: "blowout", title: "Blowout", desc: "Win a duel by 30+", icon: "flash", metric: :max_margin, threshold: 30},
-    %{key: "rivalry", title: "Rivalry", desc: "Face one opponent 5 times", icon: "people", metric: :max_vs_one, threshold: 5}
+    %{key: "rivalry", title: "Rivalry", desc: "Face one opponent 5 times", icon: "people", metric: :max_vs_one, threshold: 5},
+    %{key: "party_crasher", title: "Party Crasher", desc: "Win a group duel (3+ players)", icon: "medal", metric: :group_wins, threshold: 1}
   ]
 
   @doc "The full trophy catalog for `user_id`, each with its current value + earned flag."
@@ -42,10 +43,16 @@ defmodule HeadsUp.Achievements do
     end)
   end
 
+  # Every settled contest the user PLAYED: a 1v1 column or an accepted seat.
   defp load(user_id) do
     duels =
       from(d in Duel,
-        where: d.status == "settled" and (d.challenger_id == ^user_id or d.opponent_id == ^user_id),
+        left_join: p in Participant,
+        on: p.duel_id == d.id and p.user_id == ^user_id and p.status == "accepted",
+        where:
+          d.status == "settled" and
+            (d.challenger_id == ^user_id or d.opponent_id == ^user_id or not is_nil(p.id)),
+        distinct: true,
         order_by: [asc: d.settled_at]
       )
       |> Repo.all()
@@ -61,16 +68,18 @@ defmodule HeadsUp.Achievements do
   defp metrics({duels, results}, user_id) do
     rows =
       Enum.map(duels, fn d ->
-        is_ch = d.challenger_id == user_id
+        group = is_nil(d.opponent_id)
         r = Map.get(results, d.id)
-        {pf, pa} = points(r, is_ch)
+        {pf, pa} = points(d, r, user_id)
 
         %{
           won: d.winner_id == user_id,
+          group: group,
           pf: pf,
           pa: pa,
-          opp: if(is_ch, do: d.opponent_id, else: d.challenger_id),
-          top: top_player(r, is_ch)
+          # Rivalry is a 1v1 stat — group rows carry no opponent.
+          opp: if(group, do: nil, else: if(d.challenger_id == user_id, do: d.opponent_id, else: d.challenger_id)),
+          top: top_player(d, r, user_id)
         }
       end)
 
@@ -81,18 +90,37 @@ defmodule HeadsUp.Achievements do
       max_points: rows |> Enum.map(&round(&1.pf)) |> maxi(),
       max_margin: rows |> Enum.filter(& &1.won) |> Enum.map(&round(&1.pf - &1.pa)) |> maxi(),
       top_player: rows |> Enum.map(&round(&1.top)) |> maxi(),
-      max_vs_one: rows |> Enum.frequencies_by(& &1.opp) |> Map.values() |> maxi()
+      max_vs_one: rows |> Enum.reject(&is_nil(&1.opp)) |> Enum.frequencies_by(& &1.opp) |> Map.values() |> maxi(),
+      group_wins: Enum.count(rows, &(&1.group and &1.won))
     }
   end
 
-  defp points(nil, _), do: {0.0, 0.0}
-  defp points(r, true), do: {r.challenger_points, r.opponent_points}
-  defp points(r, false), do: {r.opponent_points, r.challenger_points}
+  # Group: my total vs the best OTHER total (win margin = gap to 2nd place).
+  defp points(_d, nil, _user_id), do: {0.0, 0.0}
 
-  defp top_player(nil, _), do: 0
+  defp points(%Duel{opponent_id: nil}, r, user_id) do
+    standings = standings(r)
+    mine = Enum.find(standings, &(&1["user_id"] == user_id))
+    best_other = standings |> Enum.reject(&(&1["user_id"] == user_id)) |> Enum.map(& &1["total"]) |> Enum.max(fn -> 0.0 end)
+    {(mine && mine["total"]) || 0.0, best_other}
+  end
 
-  defp top_player(r, is_ch) do
-    side = if is_ch, do: "challenger", else: "opponent"
+  defp points(%Duel{challenger_id: c}, r, user_id) when c == user_id, do: {r.challenger_points, r.opponent_points}
+  defp points(%Duel{}, r, _user_id), do: {r.opponent_points, r.challenger_points}
+
+  defp standings(%Result{breakdown: b}), do: (is_map(b) && b["standings"]) || []
+
+  defp top_player(_d, nil, _user_id), do: 0
+
+  defp top_player(%Duel{opponent_id: nil}, r, user_id) do
+    case Enum.find(standings(r), &(&1["user_id"] == user_id)) do
+      %{"players" => players} -> players |> Enum.map(&(&1["points"] || 0)) |> maxi()
+      _ -> 0
+    end
+  end
+
+  defp top_player(%Duel{challenger_id: c}, r, user_id) do
+    side = if c == user_id, do: "challenger", else: "opponent"
 
     (get_in(r.breakdown, [side, "players"]) || [])
     |> Enum.map(&(&1["points"] || 0))

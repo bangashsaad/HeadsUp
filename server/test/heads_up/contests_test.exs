@@ -220,6 +220,41 @@ defmodule HeadsUp.ContestsTest do
 
       assert Contests.player_ids(Repo.get(Duel, duel.id)) == [a.id, b.id, c.id]
     end
+
+    test "group rematch re-invites the accepted seats, tapper becomes host", %{a: a, b: b, c: c} do
+      duel = group(a, [b, c])
+      {:ok, _} = Contests.accept_challenge(b, duel.id)
+      {:ok, _} = Contests.accept_challenge(c, duel.id)
+
+      # b and c were never friends — playing together is enough for a rematch.
+      {:ok, rematch} = Contests.rematch(b, duel.id)
+
+      assert rematch.opponent_id == nil
+      assert rematch.parent_duel_id == duel.id
+      assert [host, s1, s2] = Contests.list_participants(rematch.id)
+      assert host.user_id == b.id and host.status == "accepted"
+      assert Enum.sort([s1.user_id, s2.user_id]) == Enum.sort([a.id, c.id])
+      assert s1.status == "invited" and s2.status == "invited"
+    end
+
+    test "a group that shrank to 2 players rematches as a classic 1v1", %{a: a, b: b, c: c} do
+      duel = group(a, [b, c])
+      {:ok, _} = Contests.accept_challenge(b, duel.id)
+      {:ok, _} = Contests.decline_challenge(c, duel.id)
+
+      {:ok, rematch} = Contests.rematch(a, duel.id)
+
+      assert rematch.opponent_id == b.id
+      assert rematch.parent_duel_id == duel.id
+    end
+
+    test "a declined invitee has no group rematch to offer", %{a: a, b: b, c: c} do
+      duel = group(a, [b, c])
+      {:ok, _} = Contests.accept_challenge(b, duel.id)
+      {:ok, _} = Contests.decline_challenge(c, duel.id)
+
+      assert {:error, :not_found} = Contests.rematch(c, duel.id)
+    end
   end
 
   # --- helpers ------------------------------------------------------------

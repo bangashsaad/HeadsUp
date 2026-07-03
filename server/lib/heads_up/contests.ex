@@ -178,25 +178,19 @@ defmodule HeadsUp.Contests do
   end
 
   @doc """
-  Rematch: create a fresh pending challenge from `user` to the OTHER participant
-  of `duel_id`, cloning its terms (sport, lineup, clock, scoring). `attrs` may
-  override `"draft_starts_at"`; otherwise it defaults to ~15 min out. Links back
-  via `parent_duel_id`.
+  Rematch: clone `duel_id`'s terms into a fresh pending challenge from `user`.
+  1v1 → the other player; group → re-invites everyone who PLAYED (accepted
+  seats), with the tapper as the new host — a group that shrank to 2 players
+  rematches as a classic 1v1. `attrs` may override `"draft_starts_at"`;
+  otherwise it defaults to ~15 min out. Links back via `parent_duel_id`.
   """
   def rematch(%User{} = user, duel_id, attrs \\ %{}) do
     case get_duel(user, duel_id) do
       nil ->
         {:error, :not_found}
 
-      # Group rematch (re-invite the same seats) ships with the group UI.
-      %Duel{opponent_id: nil} ->
-        {:error, :not_found}
-
       %Duel{} = duel ->
-        other = if duel.challenger_id == user.id, do: duel.opponent_id, else: duel.challenger_id
-
-        create_challenge(user, %{
-          "opponent_id" => other,
+        terms = %{
           "sport" => duel.sport,
           "lineup_template" => duel.lineup_template,
           "draft_type" => duel.draft_type,
@@ -205,8 +199,33 @@ defmodule HeadsUp.Contests do
           "wager_cents" => duel.wager_cents,
           "draft_starts_at" => attrs["draft_starts_at"] || default_rematch_start(),
           "parent_duel_id" => duel.id
-        })
+        }
+
+        case rematch_invitees(duel, user) do
+          [] ->
+            {:error, :not_found}
+
+          [single] ->
+            create_challenge(user, Map.put(terms, "opponent_id", single))
+
+          # They all just played together — no friends check between the new
+          # host and the re-invited seats (friendship gates NEW contacts).
+          invitee_ids ->
+            insert_group(user, invitee_ids, terms)
+        end
     end
+  end
+
+  # Who gets re-invited: 1v1 → the other player; group → the accepted seats
+  # minus the tapper (who must have held an accepted seat themselves — a
+  # declined invitee can see the duel but has no rematch to offer).
+  defp rematch_invitees(%Duel{opponent_id: nil} = duel, %User{id: uid}) do
+    seated = duel.participants |> Enum.filter(&(&1.status == "accepted")) |> Enum.map(& &1.user_id)
+    if uid in seated, do: seated -- [uid], else: []
+  end
+
+  defp rematch_invitees(%Duel{} = duel, %User{id: uid}) do
+    [if(duel.challenger_id == uid, do: duel.opponent_id, else: duel.challenger_id)]
   end
 
   defp default_rematch_start do
