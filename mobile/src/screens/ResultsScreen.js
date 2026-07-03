@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { getResult, rematch } from '../api/duels';
 import { ApiError } from '../api/client';
+import ConfettiBurst from '../components/ConfettiBurst';
 import { notify, NotifyType } from '../haptics';
 import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
 import { Screen, Card, Avatar, Button, EmptyState } from '../components/ui';
@@ -96,10 +97,13 @@ export default function ResultsScreen({ route, navigation }) {
     }, [token, id])
   );
 
+  const [confetti, setConfetti] = useState(false);
+
   useEffect(() => {
     if (!result || celebrated.current) return;
     celebrated.current = true;
     Animated.spring(pop, { toValue: 1, friction: 5, tension: 80, useNativeDriver: true }).start();
+    if (result.my_outcome === 'win') setConfetti(true);
     const type =
       result.my_outcome === 'win'
         ? NotifyType.Success
@@ -153,12 +157,14 @@ export default function ResultsScreen({ route, navigation }) {
     const shown = useCountUp(value);
     return (
       <View style={styles.scoreSide}>
-        <Avatar name={name} size={48} />
+        <View style={win ? styles.champRing : null}>
+          <Avatar name={name} size={48} />
+        </View>
         <Text style={styles.scoreLabel} numberOfLines={1}>
           {name}
         </Text>
-        <Text style={[styles.scoreValue, win && { color: colors.accent }]}>{shown.toFixed(1)}</Text>
-        {win ? <Text style={styles.winnerTag}>WINNER</Text> : <Text style={styles.spacerTag} />}
+        <Text style={[styles.scoreValue, win && { color: colors.warning }]}>{shown.toFixed(1)}</Text>
+        {win ? <Text style={styles.winnerTag}>👑 WINNER</Text> : <Text style={styles.spacerTag} />}
       </View>
     );
   }
@@ -201,28 +207,45 @@ export default function ResultsScreen({ route, navigation }) {
         message: `I finished ${ordinal(mine?.rank ?? standings.length)} of ${standings.length} in our Heads Up group fantasy duel! 🏀⚾️`,
       }).catch(() => {});
 
+    function StandRow({ s, last }) {
+      const shown = useCountUp(s.total ?? 0);
+      const champ = s.rank === 1;
+      const name = s.is_me ? 'You' : s.username || 'Player';
+      return (
+        <Pressable
+          disabled={s.is_me}
+          onPress={() => navigation.navigate('UserProfile', { id: s.user_id, username: s.username })}
+          style={({ pressed }) => [
+            styles.standRow,
+            champ && styles.standRowChamp,
+            !last && styles.playerDivider,
+            pressed && { opacity: 0.7 },
+          ]}
+        >
+          <Text style={styles.standRank}>{medal(s.rank)}</Text>
+          <View style={champ ? styles.champRing : null}>
+            <Avatar name={name} size={34} />
+          </View>
+          <Text style={[styles.standName, s.is_me && { color: colors.accent }, champ && { color: colors.warning }]} numberOfLines={1}>
+            {name}
+            {champ ? ' 👑' : ''}
+          </Text>
+          <Text style={[styles.standPts, champ && styles.standPtsChamp]}>{shown.toFixed(1)}</Text>
+        </Pressable>
+      );
+    }
+
     return (
+      <View style={{ flex: 1 }}>
       <Screen scroll>
         <Animated.View style={[styles.banner, { backgroundColor: gTone.bg, borderColor: gTone.border, transform: [{ scale: pop }] }]}>
           <Text style={styles.bannerEmoji}>{b.icon}</Text>
           <Text style={[styles.bannerTitle, { color: gTone.text }]}>{b.title}</Text>
         </Animated.View>
 
-        <Card padded={false}>
+        <Card padded={false} style={{ overflow: 'hidden' }}>
           {standings.map((s, i) => (
-            <Pressable
-              key={s.user_id}
-              disabled={s.is_me}
-              onPress={() => navigation.navigate('UserProfile', { id: s.user_id, username: s.username })}
-              style={({ pressed }) => [styles.standRow, i < standings.length - 1 && styles.playerDivider, pressed && { opacity: 0.7 }]}
-            >
-              <Text style={styles.standRank}>{medal(s.rank)}</Text>
-              <Avatar name={s.is_me ? 'You' : s.username || 'Player'} size={34} />
-              <Text style={[styles.standName, s.is_me && { color: colors.accent }]} numberOfLines={1}>
-                {s.is_me ? 'You' : s.username || 'Player'}
-              </Text>
-              <Text style={[styles.standPts, s.rank === 1 && { color: colors.accent }]}>{(s.total ?? 0).toFixed(1)}</Text>
-            </Pressable>
+            <StandRow key={s.user_id} s={s} last={i === standings.length - 1} />
           ))}
         </Card>
 
@@ -244,10 +267,13 @@ export default function ResultsScreen({ route, navigation }) {
         />
         <Button title="Share result" icon="share-outline" variant="outline" onPress={shareStandings} style={{ marginTop: spacing.sm }} />
       </Screen>
+      {confetti ? <ConfettiBurst /> : null}
+      </View>
     );
   }
 
   return (
+    <View style={{ flex: 1 }}>
     <Screen scroll>
       <Animated.View style={[styles.banner, { backgroundColor: tone.bg, borderColor: tone.border, transform: [{ scale: pop }] }]}>
         <Text style={styles.bannerEmoji}>{o.icon}</Text>
@@ -274,6 +300,8 @@ export default function ResultsScreen({ route, navigation }) {
       />
       <Button title="Share result" icon="share-outline" variant="outline" onPress={shareResult} style={{ marginTop: spacing.sm }} />
     </Screen>
+    {confetti ? <ConfettiBurst /> : null}
+    </View>
   );
 }
 
@@ -287,7 +315,7 @@ const makeStyles = (colors) =>
     scoreSide: { flex: 1, alignItems: 'center' },
     scoreLabel: { color: colors.muted, fontSize: font.small, marginTop: spacing.sm, maxWidth: '90%' },
     scoreValue: { color: colors.text, fontSize: font.hero, fontWeight: '900', marginTop: 2 },
-    winnerTag: { color: colors.accent, fontSize: 10, fontWeight: '800', letterSpacing: 1, marginTop: 2 },
+    winnerTag: { color: colors.warning, fontSize: 10, fontWeight: '800', letterSpacing: 1, marginTop: 2 },
     spacerTag: { fontSize: 10, marginTop: 2, height: 13 },
     vsWrap: { paddingHorizontal: spacing.sm },
     vs: { color: colors.placeholder, fontSize: font.caption, fontWeight: '800', letterSpacing: 1 },
@@ -301,7 +329,10 @@ const makeStyles = (colors) =>
     statLine: { color: colors.muted, fontSize: font.caption, marginTop: 2 },
     points: { color: colors.accent, fontSize: font.subtitle, fontWeight: '800', width: 52, textAlign: 'right' },
     standRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 10, paddingHorizontal: spacing.lg },
+    standRowChamp: { backgroundColor: colors.warningSoft, paddingVertical: 14 },
     standRank: { fontSize: font.subtitle, width: 26, textAlign: 'center' },
     standName: { color: colors.text, fontSize: font.body, fontWeight: '700', flex: 1 },
     standPts: { color: colors.text, fontSize: font.subtitle, fontWeight: '800' },
+    standPtsChamp: { color: colors.warning, fontSize: font.title, fontWeight: '900' },
+    champRing: { borderWidth: 2, borderColor: colors.warning, borderRadius: 999, padding: 2 },
   });
