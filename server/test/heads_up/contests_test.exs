@@ -40,7 +40,73 @@ defmodule HeadsUp.ContestsTest do
     end
   end
 
+  describe "participant seats (multiplayer shadow model)" do
+    test "creating a challenge seeds host + invitee seats", %{a: a, b: b} do
+      duel = challenge(a, b)
+      [host, invitee] = Contests.list_participants(duel.id)
+
+      assert host.seat == 0 and host.user_id == a.id and host.status == "accepted"
+      assert invitee.seat == 1 and invitee.user_id == b.id and invitee.status == "invited"
+    end
+
+    test "accepting marks the invitee's seat accepted", %{a: a, b: b} do
+      duel = challenge(a, b)
+      {:ok, _} = Contests.accept_challenge(b, duel.id)
+
+      assert [%{seat: 0, status: "accepted"}, %{seat: 1, status: "accepted"}] =
+               Contests.list_participants(duel.id)
+    end
+
+    test "declining marks the invitee's seat declined", %{a: a, b: b} do
+      duel = challenge(a, b)
+      {:ok, _} = Contests.decline_challenge(b, duel.id)
+
+      assert [_host, invitee] = Contests.list_participants(duel.id)
+      assert invitee.user_id == b.id and invitee.status == "declined"
+    end
+
+    test "cancelling leaves seats untouched", %{a: a, b: b} do
+      duel = challenge(a, b)
+      {:ok, _} = Contests.cancel_challenge(a, duel.id)
+
+      assert [%{status: "accepted"}, %{status: "invited"}] = Contests.list_participants(duel.id)
+    end
+
+    test "a counter seeds fresh seats with roles swapped", %{a: a, b: b} do
+      duel = challenge(a, b)
+
+      {:ok, counter} =
+        Contests.counter_challenge(b, duel.id, %{"sport" => "wnba", "draft_starts_at" => future_iso()})
+
+      [host, invitee] = Contests.list_participants(counter.id)
+      assert host.seat == 0 and host.user_id == b.id and host.status == "accepted"
+      assert invitee.seat == 1 and invitee.user_id == a.id and invitee.status == "invited"
+    end
+
+    test "rematch seeds seats on the new duel", %{a: a, b: b} do
+      duel = settled(a, b)
+      {:ok, rematch} = Contests.rematch(b, duel.id)
+
+      [host, invitee] = Contests.list_participants(rematch.id)
+      assert host.user_id == b.id and invitee.user_id == a.id
+    end
+  end
+
   # --- helpers ------------------------------------------------------------
+
+  defp challenge(challenger, opponent, attrs \\ %{}) do
+    {:ok, duel} =
+      Contests.create_challenge(
+        challenger,
+        Map.merge(%{"opponent_id" => opponent.id, "sport" => "wnba", "draft_starts_at" => future_iso()}, attrs)
+      )
+
+    duel
+  end
+
+  defp future_iso do
+    DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.to_iso8601()
+  end
 
   defp settled(c, o) do
     now = DateTime.utc_now() |> DateTime.truncate(:second)

@@ -37,6 +37,7 @@ defmodule HeadsUp.Contests.Duel do
     belongs_to :opponent, User
     belongs_to :winner, User
     belongs_to :parent_duel, __MODULE__, foreign_key: :parent_duel_id
+    has_many :participants, HeadsUp.Contests.Participant, preload_order: [asc: :seat]
 
     timestamps(type: :utc_datetime)
   end

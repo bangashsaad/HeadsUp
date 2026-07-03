@@ -12,7 +12,7 @@ defmodule HeadsUp.Contests do
   alias HeadsUp.Repo
   alias HeadsUp.Accounts.User
   alias HeadsUp.Social
-  alias HeadsUp.Contests.{Duel, Scoring}
+  alias HeadsUp.Contests.{Duel, Participant, Scoring}
   alias HeadsUp.Drafts.Lineup
 
   @doc "Creates a challenge from `challenger` to a friend."
@@ -30,6 +30,7 @@ defmodule HeadsUp.Contests do
         %Duel{}
         |> Duel.create_changeset(build_attrs(challenger, attrs))
         |> Repo.insert()
+        |> seed_participants()
         |> with_users()
         |> notify_challenged()
     end
@@ -102,7 +103,7 @@ defmodule HeadsUp.Contests do
         end)
         |> Repo.transaction()
         |> case do
-          {:ok, %{counter: counter}} -> {:ok, counter} |> with_users() |> notify_challenged()
+          {:ok, %{counter: counter}} -> {:ok, counter} |> seed_participants() |> with_users() |> notify_challenged()
           {:error, _step, changeset, _} -> {:error, changeset}
         end
 
@@ -228,9 +229,47 @@ defmodule HeadsUp.Contests do
       duel.status != from_status -> {:error, :not_found}
       role == :opponent and duel.opponent_id != uid -> {:error, :not_found}
       role == :challenger and duel.challenger_id != uid -> {:error, :not_found}
-      true -> duel |> Duel.status_changeset(to_status) |> Repo.update() |> with_users()
+      true -> duel |> Duel.status_changeset(to_status) |> Repo.update() |> sync_seat(uid, to_status) |> with_users()
     end
   end
+
+  @doc "All seats for a duel, host first, with users preloaded."
+  def list_participants(duel_id) do
+    from(p in Participant, where: p.duel_id == ^duel_id, order_by: [asc: p.seat], preload: [:user])
+    |> Repo.all()
+  end
+
+  # Every duel gets a seat row per player: seat 0 = host (auto-accepted),
+  # invitees follow. For 1v1 this shadows challenger/opponent; the multiplayer
+  # engine reads seats as the source of truth.
+  defp seed_participants({:ok, duel} = result) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    Repo.insert_all(
+      Participant,
+      [
+        %{duel_id: duel.id, user_id: duel.challenger_id, seat: 0, status: "accepted", inserted_at: now, updated_at: now},
+        %{duel_id: duel.id, user_id: duel.opponent_id, seat: 1, status: "invited", inserted_at: now, updated_at: now}
+      ],
+      on_conflict: :nothing
+    )
+
+    result
+  end
+
+  defp seed_participants(other), do: other
+
+  # Mirror an accept/decline onto the actor's seat row (cancel leaves seats be).
+  defp sync_seat({:ok, duel} = result, uid, to_status) when to_status in ["accepted", "declined"] do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    from(p in Participant, where: p.duel_id == ^duel.id and p.user_id == ^uid)
+    |> Repo.update_all(set: [status: to_status, updated_at: now])
+
+    result
+  end
+
+  defp sync_seat(result, _uid, _to_status), do: result
 
   # Preload both players so the JSON view can render the duel.
   defp with_users({:ok, duel}), do: {:ok, Repo.preload(duel, [:challenger, :opponent])}
