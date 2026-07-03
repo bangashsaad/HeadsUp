@@ -7,6 +7,8 @@ import { ThemeProvider, useTheme } from './src/theme';
 import { PreferencesProvider } from './src/prefs';
 import AuthStack from './src/navigation/AuthStack';
 import MainTabs from './src/navigation/MainTabs';
+import PushTapRouter from './src/navigation/PushTapRouter';
+import { navigationRef } from './src/navigation/ref';
 
 function RootNavigator() {
   const { user, loading } = useAuth();
@@ -34,8 +36,9 @@ function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
       {user ? <MainTabs /> : <AuthStack />}
+      {user ? <PushTapRouter /> : null}
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />
     </NavigationContainer>
   );
