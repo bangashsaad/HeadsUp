@@ -42,8 +42,27 @@ defmodule HeadsUp.Contests.Duel do
     timestamps(type: :utc_datetime)
   end
 
-  @doc "Changeset for creating a duel (a challenge or a counter-offer)."
+  @doc "Changeset for creating a 1v1 duel (a challenge or a counter-offer)."
   def create_changeset(duel, attrs) do
+    duel
+    |> base_create_changeset(attrs)
+    |> validate_required([:opponent_id])
+    |> foreign_key_constraint(:opponent_id)
+    |> check_constraint(:opponent_id,
+      name: :challenger_not_opponent,
+      message: "you can't challenge yourself"
+    )
+  end
+
+  @doc """
+  Changeset for creating a group duel (3-4 players). No opponent_id — the
+  seats in duel_participants carry host + invitees.
+  """
+  def group_create_changeset(duel, attrs) do
+    base_create_changeset(duel, attrs)
+  end
+
+  defp base_create_changeset(duel, attrs) do
     duel
     |> cast(attrs, [
       :sport,
@@ -68,8 +87,7 @@ defmodule HeadsUp.Contests.Duel do
       :pick_clock_seconds,
       :lineup_template,
       :status,
-      :challenger_id,
-      :opponent_id
+      :challenger_id
     ])
     |> validate_inclusion(:sport, @sports)
     |> validate_inclusion(:draft_type, @draft_types)
@@ -83,11 +101,6 @@ defmodule HeadsUp.Contests.Duel do
     |> validate_scoring_rules()
     |> validate_future_draft()
     |> foreign_key_constraint(:challenger_id)
-    |> foreign_key_constraint(:opponent_id)
-    |> check_constraint(:opponent_id,
-      name: :challenger_not_opponent,
-      message: "you can't challenge yourself"
-    )
   end
 
   @doc "Changeset for moving a duel to a new status."

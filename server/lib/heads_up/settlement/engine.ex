@@ -74,23 +74,63 @@ defmodule HeadsUp.Settlement.Engine do
   """
   @spec settle(Duel.t(), [pick()], %{integer() => stat_line()}) :: settlement()
   def settle(%Duel{} = duel, draft_picks, stats_by_player_id) do
-    rules = duel.scoring_rules
+    ranked =
+      settle_ranked(
+        duel.scoring_rules,
+        [duel.challenger_id, duel.opponent_id],
+        draft_picks,
+        stats_by_player_id
+      )
+
+    find = fn uid -> ranked.standings |> Enum.find(&(&1.user_id == uid)) |> Map.delete(:rank) end
+
+    %{
+      result: ranked.result,
+      winner_id: ranked.winner_id,
+      challenger: find.(duel.challenger_id),
+      opponent: find.(duel.opponent_id)
+    }
+  end
+
+  @doc """
+  Settle an N-player contest: score every roster, rank by total (competition
+  ranking — equal totals share a rank), and declare the sole top scorer the
+  winner (`winner_id` nil when first place is shared => `:tie`).
+  """
+  @spec settle_ranked(rules(), [integer()], [pick()], %{integer() => stat_line()}) :: %{
+          result: :win | :tie,
+          winner_id: integer() | nil,
+          standings: [%{user_id: integer(), total: float(), rank: pos_integer(), players: [player_result()]}]
+        }
+  def settle_ranked(rules, player_user_ids, draft_picks, stats_by_player_id) do
     by_user = Enum.group_by(draft_picks, & &1.user_id)
 
-    challenger =
-      score_roster(duel.challenger_id, Map.get(by_user, duel.challenger_id, []), stats_by_player_id, rules)
+    standings =
+      player_user_ids
+      |> Enum.map(&score_roster(&1, Map.get(by_user, &1, []), stats_by_player_id, rules))
+      |> rank()
 
-    opponent =
-      score_roster(duel.opponent_id, Map.get(by_user, duel.opponent_id, []), stats_by_player_id, rules)
+    top_shared = Enum.count(standings, &(&1.rank == 1)) > 1
 
-    {result, winner_id} =
-      cond do
-        challenger.total > opponent.total -> {:win, duel.challenger_id}
-        opponent.total > challenger.total -> {:win, duel.opponent_id}
-        true -> {:tie, nil}
-      end
+    %{
+      result: if(top_shared, do: :tie, else: :win),
+      winner_id: if(top_shared, do: nil, else: hd(standings).user_id),
+      standings: standings
+    }
+  end
 
-    %{result: result, winner_id: winner_id, challenger: challenger, opponent: opponent}
+  # Sort by total desc and assign competition ranks (100, 90, 90, 70 -> 1, 2, 2, 4).
+  defp rank(rosters) do
+    sorted = Enum.sort_by(rosters, & &1.total, :desc)
+
+    sorted
+    |> Enum.with_index()
+    |> Enum.map_reduce(nil, fn {r, idx}, prev ->
+      rank = if prev && prev.total == r.total, do: prev.rank, else: idx + 1
+      entry = Map.put(r, :rank, rank)
+      {entry, entry}
+    end)
+    |> elem(0)
   end
 
   defp round2(n), do: Float.round(n * 1.0, 2)

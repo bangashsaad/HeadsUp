@@ -26,4 +26,11 @@ defmodule HeadsUpWeb.FallbackController do
     |> put_status(:unprocessable_entity)
     |> json(%{errors: %{detail: message}})
   end
+
+  # Named domain errors, e.g. {:error, :not_enough_players}
+  def call(conn, {:error, reason}) when is_atom(reason) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> json(%{errors: %{detail: reason |> to_string() |> String.replace("_", " ")}})
+  end
 end

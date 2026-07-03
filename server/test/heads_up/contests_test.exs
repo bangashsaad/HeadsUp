@@ -92,7 +92,150 @@ defmodule HeadsUp.ContestsTest do
     end
   end
 
+  describe "group duels (3-4 players)" do
+    setup %{a: a} do
+      c = user("c")
+      d = user("d")
+      Repo.insert!(%Friendship{requester_id: a.id, addressee_id: c.id, status: "accepted"})
+      Repo.insert!(%Friendship{requester_id: a.id, addressee_id: d.id, status: "accepted"})
+      %{c: c, d: d}
+    end
+
+    test "creating a group duel seats host + invitees, no opponent_id", %{a: a, b: b, c: c} do
+      duel = group(a, [b, c])
+
+      assert duel.status == "pending"
+      assert duel.opponent_id == nil
+
+      assert [host, s1, s2] = Contests.list_participants(duel.id)
+      assert host.user_id == a.id and host.seat == 0 and host.status == "accepted"
+      assert s1.user_id == b.id and s1.status == "invited"
+      assert s2.user_id == c.id and s2.status == "invited"
+    end
+
+    test "invitees only need to be friends with the host", %{a: a, b: b, c: c} do
+      # b and c aren't friends with each other — only with a. Still fine.
+      assert %Duel{} = group(a, [b, c])
+    end
+
+    test "a non-friend invitee is rejected", %{a: a, b: b} do
+      stranger = user("x")
+
+      assert {:error, "you can only challenge your friends"} =
+               Contests.create_challenge(a, %{
+                 "opponent_ids" => [b.id, stranger.id],
+                 "sport" => "wnba",
+                 "draft_starts_at" => future_iso()
+               })
+    end
+
+    test "the duel flips accepted once every seat is in", %{a: a, b: b, c: c} do
+      duel = group(a, [b, c])
+
+      {:ok, after_first} = Contests.accept_challenge(b, duel.id)
+      assert after_first.status == "pending"
+
+      {:ok, after_second} = Contests.accept_challenge(c, duel.id)
+      assert after_second.status == "accepted"
+      assert Enum.all?(Contests.list_participants(duel.id), &(&1.status == "accepted"))
+    end
+
+    test "a decline shrinks the match and the rest can still fill it", %{a: a, b: b, c: c, d: d} do
+      duel = group(a, [b, c, d])
+
+      {:ok, still} = Contests.decline_challenge(d, duel.id)
+      assert still.status == "pending"
+
+      {:ok, _} = Contests.accept_challenge(b, duel.id)
+      {:ok, done} = Contests.accept_challenge(c, duel.id)
+      assert done.status == "accepted"
+    end
+
+    test "a decline that resolves the last open seat also flips accepted", %{a: a, b: b, c: c} do
+      duel = group(a, [b, c])
+
+      {:ok, _} = Contests.accept_challenge(b, duel.id)
+      {:ok, done} = Contests.decline_challenge(c, duel.id)
+
+      assert done.status == "accepted"
+    end
+
+    test "declines collapsing below 2 players cancel the duel", %{a: a, b: b, c: c} do
+      duel = group(a, [b, c])
+
+      {:ok, _} = Contests.decline_challenge(b, duel.id)
+      {:ok, dead} = Contests.decline_challenge(c, duel.id)
+
+      assert dead.status == "cancelled"
+    end
+
+    test "host force-start drops pending invitees and starts with the group", %{a: a, b: b, c: c} do
+      duel = group(a, [b, c])
+      {:ok, _} = Contests.accept_challenge(b, duel.id)
+
+      {:ok, started} = Contests.start_with_group(a, duel.id)
+
+      assert started.status == "accepted"
+      statuses = Map.new(Contests.list_participants(duel.id), &{&1.user_id, &1.status})
+      assert statuses[b.id] == "accepted"
+      assert statuses[c.id] == "declined"
+    end
+
+    test "force-start needs at least 2 accepted seats", %{a: a, b: b, c: c} do
+      duel = group(a, [b, c])
+      assert {:error, :not_enough_players} = Contests.start_with_group(a, duel.id)
+    end
+
+    test "only the host can force-start", %{a: a, b: b, c: c} do
+      duel = group(a, [b, c])
+      {:ok, _} = Contests.accept_challenge(b, duel.id)
+      assert {:error, :not_found} = Contests.start_with_group(b, duel.id)
+    end
+
+    test "the host can't respond to a seat and outsiders get not_found", %{a: a, b: b, c: c} do
+      duel = group(a, [b, c])
+      assert {:error, :not_found} = Contests.accept_challenge(a, duel.id)
+      assert {:error, :not_found} = Contests.accept_challenge(user("z"), duel.id)
+    end
+
+    test "counters are 1v1-only", %{a: a, b: b, c: c} do
+      duel = group(a, [b, c])
+
+      assert {:error, :not_found} =
+               Contests.counter_challenge(b, duel.id, %{"sport" => "wnba", "draft_starts_at" => future_iso()})
+    end
+
+    test "members see the group duel in list/get, strangers don't", %{a: a, b: b, c: c} do
+      duel = group(a, [b, c])
+
+      assert Enum.any?(Contests.list_duels(b), &(&1.id == duel.id))
+      assert %Duel{} = Contests.get_duel(c, duel.id)
+      assert Contests.get_duel(user("w"), duel.id) == nil
+    end
+
+    test "player_ids lists accepted seats in seat order", %{a: a, b: b, c: c} do
+      duel = group(a, [b, c])
+      {:ok, _} = Contests.accept_challenge(c, duel.id)
+      {:ok, _} = Contests.accept_challenge(b, duel.id)
+
+      assert Contests.player_ids(Repo.get(Duel, duel.id)) == [a.id, b.id, c.id]
+    end
+  end
+
   # --- helpers ------------------------------------------------------------
+
+  defp group(host, invitees, attrs \\ %{}) do
+    {:ok, duel} =
+      Contests.create_challenge(
+        host,
+        Map.merge(
+          %{"opponent_ids" => Enum.map(invitees, & &1.id), "sport" => "wnba", "draft_starts_at" => future_iso()},
+          attrs
+        )
+      )
+
+    duel
+  end
 
   defp challenge(challenger, opponent, attrs \\ %{}) do
     {:ok, duel} =

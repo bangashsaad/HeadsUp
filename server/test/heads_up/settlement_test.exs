@@ -6,11 +6,17 @@ defmodule HeadsUp.SettlementTest.StubStats do
   @impl true
   def stats_final?(%Window{}), do: true
 
-  # Deterministic: a player named "Star ..." scores 50 points, everyone else 0.
+  # Deterministic: "Star ..." scores 50, "Mid ..." scores 30, everyone else 0.
   @impl true
   def fetch_stats(players, %Window{}) do
     Map.new(players, fn p ->
-      pts = if String.starts_with?(p.name, "Star"), do: 50, else: 0
+      pts =
+        cond do
+          String.starts_with?(p.name, "Star") -> 50
+          String.starts_with?(p.name, "Mid") -> 30
+          true -> 0
+        end
+
       {p.id, %{"point" => pts}}
     end)
   end
@@ -103,6 +109,57 @@ defmodule HeadsUp.SettlementTest do
     end
   end
 
+  describe "group settlement (ranked)" do
+    test "a 3-player duel settles into standings with a sole winner" do
+      [h, i1, i2] = [user("gsh"), user("gsi1"), user("gsi2")]
+      duel = group_drafted_duel([h, i1, i2], %{"point" => 1}, past_window())
+      {:ok, draft} = Drafts.get_or_create_draft_for_duel(duel)
+
+      insert_pick(draft, h, player("Mid Guard"), 1)
+      insert_pick(draft, i1, player("Star Forward"), 2)
+      insert_pick(draft, i2, player("Bench Center"), 3)
+
+      assert {:ok, result, settled} = Settlement.settle_duel(duel.id)
+      assert settled.winner_id == i1.id
+      refute result.is_tie
+
+      # a group's "score line" is 1st vs 2nd place
+      assert result.challenger_points == 50.0
+      assert result.opponent_points == 30.0
+
+      standings = result.breakdown["standings"]
+      assert Enum.map(standings, & &1["user_id"]) == [i1.id, h.id, i2.id]
+      assert Enum.map(standings, & &1["rank"]) == [1, 2, 3]
+      refute Map.has_key?(result.breakdown, "challenger")
+    end
+
+    test "a shared top total is a tie (winner_id nil) with shared rank" do
+      [h, i1, i2] = [user("gth"), user("gti1"), user("gti2")]
+      duel = group_drafted_duel([h, i1, i2], %{"point" => 1}, past_window())
+      {:ok, draft} = Drafts.get_or_create_draft_for_duel(duel)
+
+      insert_pick(draft, h, player("Star Twin A"), 1)
+      insert_pick(draft, i1, player("Star Twin B"), 2)
+      insert_pick(draft, i2, player("Bench Kid"), 3)
+
+      assert {:ok, result, settled} = Settlement.settle_duel(duel.id)
+      assert result.is_tie
+      assert settled.winner_id == nil
+      assert Enum.map(result.breakdown["standings"], & &1["rank"]) == [1, 1, 3]
+    end
+
+    test "a group missing one player's picks is flagged, not settled" do
+      [h, i1, i2] = [user("gmh"), user("gmi1"), user("gmi2")]
+      duel = group_drafted_duel([h, i1, i2], %{"point" => 1}, past_window())
+      {:ok, draft} = Drafts.get_or_create_draft_for_duel(duel)
+
+      insert_pick(draft, h, player("Star Only"), 1)
+      insert_pick(draft, i1, player("Bench Only"), 2)
+
+      assert {:error, :incomplete_draft} = Settlement.settle_duel(duel.id)
+    end
+  end
+
   describe "due_duels/1" do
     test "selects drafted duels whose window has closed, not future ones" do
       c = user("c5")
@@ -165,6 +222,43 @@ defmodule HeadsUp.SettlementTest do
       scoring_rules: %{},
       draft_starts_at: DateTime.utc_now() |> DateTime.add(3600) |> DateTime.truncate(:second),
       status: "pending"
+    })
+  end
+
+  defp group_drafted_duel(players, rules, window_end) do
+    past = DateTime.utc_now() |> DateTime.add(-7200) |> DateTime.truncate(:second)
+
+    duel =
+      Repo.insert!(%Duel{
+        challenger_id: hd(players).id,
+        opponent_id: nil,
+        sport: "wnba",
+        draft_type: "snake",
+        lineup_template: "wnba_standard",
+        roster_size: 6,
+        pick_clock_seconds: 60,
+        scoring_rules: rules,
+        draft_starts_at: past,
+        status: "drafted",
+        scoring_window_start: DateTime.add(window_end, -3600),
+        scoring_window_end: window_end
+      })
+
+    for {u, seat} <- Enum.with_index(players) do
+      Repo.insert!(%HeadsUp.Contests.Participant{duel_id: duel.id, user_id: u.id, seat: seat, status: "accepted"})
+    end
+
+    duel
+  end
+
+  defp insert_pick(draft, user, player, pick_number) do
+    Repo.insert!(%Pick{
+      draft_id: draft.id,
+      user_id: user.id,
+      player_id: player.id,
+      pick_number: pick_number,
+      slot: "G1",
+      auto_picked: false
     })
   end
 

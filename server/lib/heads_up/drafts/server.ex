@@ -76,6 +76,11 @@ defmodule HeadsUp.Drafts.Server do
 
     slots = Lineup.slots(duel.lineup_template)
 
+    # Who's playing, in seat order: [challenger, opponent] for 1v1, every
+    # accepted seat for a group duel. All per-user maps key off this list.
+    players = HeadsUp.Contests.draft_players(duel)
+    player_ids = Enum.map(players, & &1.id)
+
     state = %{
       draft_id: draft_id,
       duel_id: duel.id,
@@ -83,23 +88,23 @@ defmodule HeadsUp.Drafts.Server do
       lineup_template: duel.lineup_template,
       slots: slots,
       pick_clock_seconds: clock_override || duel.pick_clock_seconds,
-      challenger_id: duel.challenger_id,
-      opponent_id: duel.opponent_id,
+      players: players,
+      player_ids: player_ids,
       phase: :lobby,
-      ready: %{duel.challenger_id => false, duel.opponent_id => false},
+      ready: Map.new(player_ids, &{&1, false}),
       # liveness is a per-user socket REFCOUNT (a user may briefly hold two
       # sockets across a reconnect); grace only fires when it drops to 0.
-      connected: %{duel.challenger_id => 0, duel.opponent_id => 0},
+      connected: Map.new(player_ids, &{&1, 0}),
       first_picker_id: nil,
       pick_order: [],
       pick_number: nil,
-      total_picks: length(slots) * 2,
+      total_picks: length(slots) * length(player_ids),
       current_picker_id: nil,
-      available: draftable_pool(duel.sport, slots),
-      rosters: %{duel.challenger_id => %{}, duel.opponent_id => %{}},
+      available: draftable_pool(duel.sport, slots, length(player_ids)),
+      rosters: Map.new(player_ids, &{&1, %{}}),
       # Per-user priority queue of player_ids (client-authoritative, in-memory);
       # auto-pick prefers it. Never broadcast — it's each player's private plan.
-      queue: %{duel.challenger_id => [], duel.opponent_id => []},
+      queue: Map.new(player_ids, &{&1, []}),
       picks: [],
       timer_ref: nil,
       deadline: nil,
@@ -122,15 +127,15 @@ defmodule HeadsUp.Drafts.Server do
           state
 
         picks == [] and draft.status == "active" ->
-          # readied + coin-flipped but no picks yet: resume the first pick.
-          state |> resume_order(draft.first_picker_id) |> set_active_pick(1) |> arm_clock()
+          # readied + order drawn but no picks yet: resume the first pick.
+          state |> resume_order(draft) |> set_active_pick(1) |> arm_clock()
 
         picks == [] ->
           state
 
         true ->
           state
-          |> resume_order(draft.first_picker_id)
+          |> resume_order(draft)
           |> replay_picks(picks)
           |> finish_or_resume(draft.status)
       end
@@ -139,12 +144,22 @@ defmodule HeadsUp.Drafts.Server do
     {:noreply, state}
   end
 
-  defp resume_order(state, nil), do: state
+  # Rebuild the snake from the persisted round-1 order; legacy 2-player rows
+  # (no pick_order) derive it from first_picker_id + the other player.
+  defp resume_order(state, draft) do
+    base =
+      case draft.pick_order do
+        [_ | _] = base -> base
+        _ when not is_nil(draft.first_picker_id) -> [draft.first_picker_id | state.player_ids -- [draft.first_picker_id]]
+        _ -> nil
+      end
 
-  defp resume_order(state, first_picker_id) do
-    other = other_id(state, first_picker_id)
-    order = Drafts.build_pick_order(first_picker_id, other, length(state.slots))
-    %{state | phase: :active, first_picker_id: first_picker_id, pick_order: order}
+    if base do
+      order = Drafts.snake_order(base, length(state.slots))
+      %{state | phase: :active, first_picker_id: List.first(base), pick_order: order}
+    else
+      state
+    end
   end
 
   defp replay_picks(state, picks) do
@@ -181,7 +196,8 @@ defmodule HeadsUp.Drafts.Server do
   # or tomorrow are dropped too (they can't score this window), and everyone
   # kept is annotated with :next_game_at so the board shows WHEN they play —
   # unless filtering would gut the board (a full pool beats an undraftable one).
-  defp draftable_pool(sport, slots) do
+  # "Gut" scales with the table: N players need N rosters + slack.
+  defp draftable_pool(sport, slots, nplayers) do
     eligible = slots |> Enum.flat_map(& &1.eligible) |> MapSet.new()
     pool = sport |> Drafts.draft_pool() |> Map.filter(fn {_id, p} -> p.position in eligible end)
 
@@ -189,7 +205,7 @@ defmodule HeadsUp.Drafts.Server do
       %{ok: true, next_game_at: next} ->
         filtered = Map.filter(pool, fn {_id, p} -> Map.has_key?(next, p.team) end)
 
-        if map_size(filtered) >= length(slots) * 4 do
+        if map_size(filtered) >= length(slots) * nplayers * 2 do
           annotate(filtered, next)
         else
           annotate(pool, next)
@@ -210,9 +226,9 @@ defmodule HeadsUp.Drafts.Server do
   def handle_call(:get_state, _from, state), do: {:reply, public_state(state), state}
 
   def handle_call({:ready, uid}, _from, %{phase: :lobby} = state) do
-    state = put_in(state.ready[uid], true)
+    state = if Map.has_key?(state.ready, uid), do: put_in(state.ready[uid], true), else: state
 
-    if state.ready[state.challenger_id] and state.ready[state.opponent_id] do
+    if Enum.all?(state.player_ids, &state.ready[&1]) do
       state = start_draft(state)
       {:reply, public_state(state), state}
     else
@@ -319,15 +335,15 @@ defmodule HeadsUp.Drafts.Server do
   # --- lifecycle helpers --------------------------------------------------
 
   defp start_draft(state) do
-    first = Drafts.coin_flip(state.challenger_id, state.opponent_id, state.rng)
+    base = Drafts.randomize_order(state.player_ids, state.rng)
     draft = Drafts.get_draft(state.draft_id)
-    {:ok, _} = Drafts.start_active(draft, first)
+    {:ok, draft} = Drafts.start_active(draft, base)
 
     state
-    |> resume_order(first)
+    |> resume_order(draft)
     |> set_active_pick(1)
     |> arm_clock()
-    |> tap_broadcast("coin_flip", %{first_picker_id: first})
+    |> tap_broadcast("coin_flip", %{first_picker_id: List.first(base), order: base})
   end
 
   defp set_active_pick(state, pick_number) do
@@ -471,9 +487,13 @@ defmodule HeadsUp.Drafts.Server do
       sport: state.sport,
       lineup_template: state.lineup_template,
       phase: state.phase,
+      # Seat-ordered players so the client can render any table size.
+      players: state.players,
       ready: state.ready,
       connected: Map.new(state.connected, fn {uid, n} -> {uid, n > 0} end),
       first_picker_id: state.first_picker_id,
+      # The full snake sequence (empty until the order is drawn).
+      pick_order: state.pick_order,
       current_picker_id: state.current_picker_id,
       pick_number: state.pick_number,
       total_picks: state.total_picks,
@@ -506,7 +526,4 @@ defmodule HeadsUp.Drafts.Server do
       player: player
     }
   end
-
-  defp other_id(%{challenger_id: c, opponent_id: o}, c), do: o
-  defp other_id(%{challenger_id: c, opponent_id: o}, o), do: c
 end

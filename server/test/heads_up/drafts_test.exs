@@ -75,9 +75,10 @@ defmodule HeadsUp.DraftsTest do
       duel = accepted_duel(challenger, opponent)
       {:ok, draft} = Drafts.get_or_create_draft_for_duel(duel)
 
-      assert {:ok, active} = Drafts.start_active(draft, challenger.id)
+      assert {:ok, active} = Drafts.start_active(draft, [challenger.id, opponent.id])
       assert active.status == "active"
       assert active.first_picker_id == challenger.id
+      assert active.pick_order == [challenger.id, opponent.id]
       assert active.current_pick_number == 1
       assert Repo.get(Duel, duel.id).status == "drafting"
     end

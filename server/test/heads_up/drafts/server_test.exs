@@ -185,7 +185,7 @@ defmodule HeadsUp.Drafts.ServerTest do
   describe "completion-boundary crash recovery" do
     test "replay heals a draft whose final pick persisted but completion didn't", ctx do
       # all picks persisted, but draft left "active" / duel "drafting" (the crash window)
-      {:ok, _} = Drafts.start_active(ctx.draft, ctx.challenger.id)
+      {:ok, _} = Drafts.start_active(ctx.draft, [ctx.challenger.id, ctx.opponent.id])
       order = Drafts.build_pick_order(ctx.challenger.id, ctx.opponent.id, 6)
       players = Repo.all(from p in Player, where: p.sport == "wnba", limit: 12)
 
@@ -214,12 +214,111 @@ defmodule HeadsUp.Drafts.ServerTest do
     end
   end
 
+  describe "3-player group draft" do
+    setup do
+      [a, b, c] = [user("gpa"), user("gpb"), user("gpc")]
+      duel = group_duel([a, b, c])
+      {:ok, draft} = Drafts.get_or_create_draft_for_duel(duel)
+      %{a: a, b: b, c: c, gduel: duel, gdraft: draft}
+    end
+
+    test "sizes the draft to the table (6 slots x 3 players)", ctx do
+      assert ctx.gdraft.total_picks == 18
+    end
+
+    test "waits for ALL three ready, then snakes a->b->c->c->b->a", ctx do
+      # identity draw: always pick the first remaining -> order [a, b, c]
+      pid = start(ctx.gdraft, ctx.gduel, rng: fn _ -> 1 end)
+      assert is_pid(pid)
+
+      assert Server.ready(ctx.gdraft.id, ctx.a.id).phase == :lobby
+      assert Server.ready(ctx.gdraft.id, ctx.b.id).phase == :lobby
+      state = Server.ready(ctx.gdraft.id, ctx.c.id)
+
+      assert state.phase == :active
+      assert state.first_picker_id == ctx.a.id
+      assert Enum.map(state.players, & &1.id) == [ctx.a.id, ctx.b.id, ctx.c.id]
+      assert length(state.pick_order) == 18
+      assert Enum.take(state.pick_order, 6) == [ctx.a.id, ctx.b.id, ctx.c.id, ctx.c.id, ctx.b.id, ctx.a.id]
+
+      # walk the round-1 -> round-2 snake boundary: c picks twice in a row
+      Server.make_pick(ctx.gdraft.id, ctx.a.id, player_at("PG", 0).id)
+      Server.make_pick(ctx.gdraft.id, ctx.b.id, player_at("PG", 1).id)
+      state = Server.make_pick(ctx.gdraft.id, ctx.c.id, player_at("PG", 2).id)
+
+      assert state.pick_number == 4
+      assert state.current_picker_id == ctx.c.id
+    end
+
+    test "a crashed 3-player draft replays to the exact seat on the clock", ctx do
+      pid = start(ctx.gdraft, ctx.gduel, rng: fn _ -> 1 end)
+      Server.ready(ctx.gdraft.id, ctx.a.id)
+      Server.ready(ctx.gdraft.id, ctx.b.id)
+      Server.ready(ctx.gdraft.id, ctx.c.id)
+      Server.make_pick(ctx.gdraft.id, ctx.a.id, player_at("PG", 0).id)
+      Server.make_pick(ctx.gdraft.id, ctx.b.id, player_at("PG", 1).id)
+
+      # fresh process (simulated crash): order must come back from the DB row
+      GenServer.stop(pid)
+      wait_for_unregister(ctx.gdraft.id)
+      start(ctx.gdraft, Repo.get(Duel, ctx.gduel.id), rng: fn _ -> raise "must not redraw" end)
+      state = Server.get_state(ctx.gdraft.id)
+
+      assert state.phase == :active
+      assert state.pick_number == 3
+      assert state.current_picker_id == ctx.c.id
+      assert map_size(state.rosters[ctx.a.id]) == 1
+    end
+  end
+
   # --- helpers ------------------------------------------------------------
+
+  defp group_duel(players) do
+    future = DateTime.utc_now() |> DateTime.add(3600) |> DateTime.truncate(:second)
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    duel =
+      Repo.insert!(%Duel{
+        challenger_id: hd(players).id,
+        opponent_id: nil,
+        sport: "wnba",
+        draft_type: "snake",
+        lineup_template: "wnba_standard",
+        roster_size: 6,
+        pick_clock_seconds: 60,
+        scoring_rules: %{},
+        draft_starts_at: future,
+        status: "accepted"
+      })
+
+    for {u, seat} <- Enum.with_index(players) do
+      Repo.insert!(%HeadsUp.Contests.Participant{
+        duel_id: duel.id,
+        user_id: u.id,
+        seat: seat,
+        status: "accepted",
+        inserted_at: now,
+        updated_at: now
+      })
+    end
+
+    duel
+  end
 
   defp expire(pid, draft_id) do
     st = Server.get_state(draft_id)
     send(pid, {:clock_expired, st.pick_number})
     Server.get_state(draft_id)
+  end
+
+  # The registry unregisters a dead server a beat after it stops — spin briefly
+  # so a restarted server can claim the name.
+  defp wait_for_unregister(draft_id, tries \\ 50) do
+    case Registry.lookup(HeadsUp.Drafts.Registry, draft_id) do
+      [] -> :ok
+      _ when tries > 0 -> Process.sleep(10) && wait_for_unregister(draft_id, tries - 1)
+      _ -> raise "draft server #{draft_id} never unregistered"
+    end
   end
 
   defp user(name) do

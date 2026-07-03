@@ -84,6 +84,11 @@ defmodule HeadsUpWeb.DuelController do
     act(conn, &Contests.cancel_challenge/2, id)
   end
 
+  # POST /api/duels/:id/start — group host force-start with the current group
+  def start(conn, %{"id" => id}) do
+    act(conn, &Contests.start_with_group/2, id)
+  end
+
   # POST /api/duels/:id/counter  (body: new terms)
   def counter(conn, %{"id" => id} = params) do
     user = conn.assigns.current_user

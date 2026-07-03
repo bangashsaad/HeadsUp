@@ -23,6 +23,9 @@ defmodule HeadsUp.Drafts.Draft do
     field :clock_deadline, :utc_datetime
     field :started_at, :utc_datetime
     field :completed_at, :utc_datetime
+    # Round-1 order of the snake (user_ids). Persisted so an N-player draft can
+    # rebuild its exact sequence on crash-replay; first_picker_id == hd(order).
+    field :pick_order, {:array, :integer}
 
     belongs_to :duel, Duel
     belongs_to :first_picker, User
@@ -50,7 +53,8 @@ defmodule HeadsUp.Drafts.Draft do
       :clock_deadline,
       :started_at,
       :completed_at,
-      :first_picker_id
+      :first_picker_id,
+      :pick_order
     ])
     |> validate_inclusion(:status, @statuses)
     |> foreign_key_constraint(:first_picker_id)

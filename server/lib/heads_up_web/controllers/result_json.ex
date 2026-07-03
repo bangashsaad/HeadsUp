@@ -26,9 +26,27 @@ defmodule HeadsUpWeb.ResultJSON do
       winner_id: result.winner_id,
       my_outcome: outcome,
       settled_at: result.settled_at,
+      # Ranked standings (all contests; the only shape group duels have).
+      standings: standings(result, duel, uid),
       challenger: lineup(result.breakdown["challenger"], duel.challenger_id, uid),
       opponent: lineup(result.breakdown["opponent"], duel.opponent_id, uid)
     }
+  end
+
+  # Standings stored at settle time, joined to usernames via the duel's seats.
+  defp standings(%Result{breakdown: breakdown}, duel, uid) do
+    names =
+      case duel.participants do
+        seats when is_list(seats) -> for p <- seats, p.user, into: %{}, do: {p.user_id, p.user.username}
+        _ -> %{}
+      end
+
+    for s <- breakdown["standings"] || [] do
+      s
+      |> lineup(s["user_id"], uid)
+      |> Map.put(:rank, s["rank"])
+      |> Map.put(:username, Map.get(names, s["user_id"]))
+    end
   end
 
   defp lineup(role, user_id, uid) do

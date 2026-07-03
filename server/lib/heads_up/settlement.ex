@@ -14,6 +14,7 @@ defmodule HeadsUp.Settlement do
   import Ecto.Query, warn: false
 
   alias HeadsUp.Repo
+  alias HeadsUp.Contests
   alias HeadsUp.Contests.Duel
   alias HeadsUp.Drafts
   alias HeadsUp.Drafts.Draft
@@ -58,14 +59,15 @@ defmodule HeadsUp.Settlement do
     }
 
     provider = provider(duel.sport)
+    player_ids = Contests.player_ids(duel)
 
     with true <- provider.stats_final?(window) || {:error, :stats_not_final},
          %Draft{} = draft <- Repo.get_by(Draft, duel_id: duel.id) || {:error, :no_draft},
          [_ | _] = picks <- Drafts.replay(draft.id),
-         true <- both_rostered?(picks, duel) || {:error, :incomplete_draft},
+         true <- all_rostered?(picks, player_ids) || {:error, :incomplete_draft},
          players when players != [] <- load_players(picks) do
       stats = provider.fetch_stats(players, window)
-      outcome = Engine.settle(duel, picks, stats)
+      outcome = Engine.settle_ranked(duel.scoring_rules, player_ids, picks, stats)
       persist(duel, outcome, players)
     else
       {:error, reason} -> {:error, reason}
@@ -85,7 +87,7 @@ defmodule HeadsUp.Settlement do
   def live_result(duel_id) do
     case Repo.get(Duel, duel_id) do
       nil -> {:error, :not_found}
-      %Duel{status: "drafted"} = duel -> do_live(Repo.preload(duel, [:challenger, :opponent]))
+      %Duel{status: "drafted"} = duel -> do_live(Repo.preload(duel, [:challenger, :opponent, participants: :user]))
       %Duel{} -> {:error, :not_live}
     end
   end
@@ -106,24 +108,33 @@ defmodule HeadsUp.Settlement do
       by_user = Enum.group_by(picks, & &1.user_id)
       rules = duel.scoring_rules
 
-      challenger = Engine.score_roster(duel.challenger_id, Map.get(by_user, duel.challenger_id, []), stats, rules)
-      opponent = Engine.score_roster(duel.opponent_id, Map.get(by_user, duel.opponent_id, []), stats, rules)
+      # Every player scored, best total first (stable order for the client).
+      sides =
+        duel
+        |> Contests.player_ids()
+        |> Enum.map(&Engine.score_roster(&1, Map.get(by_user, &1, []), stats, rules))
+        |> Enum.sort_by(& &1.total, :desc)
 
       leader_id =
-        cond do
-          challenger.total > opponent.total -> duel.challenger_id
-          opponent.total > challenger.total -> duel.opponent_id
-          true -> nil
+        case sides do
+          [a] -> a.user_id
+          [a, b | _] when a.total > b.total -> a.user_id
+          _ -> nil
         end
+
+      find = fn uid -> Enum.find(sides, &(&1.user_id == uid)) end
 
       {:ok,
        %{
          duel: duel,
-         challenger: challenger,
-         opponent: opponent,
+         sides: sides,
+         # 1v1 keys kept for the existing matchup screen (nil for groups).
+         challenger: duel.opponent_id && find.(duel.challenger_id),
+         opponent: duel.opponent_id && find.(duel.opponent_id),
          leader_id: leader_id,
          games: provider.live_games(window),
-         players_by_id: Map.new(players, &{&1.id, %{name: &1.name, team: &1.team, position: &1.position}})
+         players_by_id: Map.new(players, &{&1.id, %{name: &1.name, team: &1.team, position: &1.position}}),
+         users_by_id: live_users(duel)
        }}
     else
       {:error, reason} -> {:error, reason}
@@ -131,30 +142,45 @@ defmodule HeadsUp.Settlement do
     end
   end
 
-  # A legitimate matchup needs both players to have drafted at least one player.
+  # id => user for every seat, so the JSON can label any side. Falls back to
+  # the 1v1 columns when seat rows predate the participants table.
+  defp live_users(%Duel{} = duel) do
+    seat_users = for p <- duel.participants || [], p.user, into: %{}, do: {p.user_id, p.user}
+
+    [duel.challenger, duel.opponent]
+    |> Enum.reject(&is_nil/1)
+    |> Map.new(&{&1.id, &1})
+    |> Map.merge(seat_users)
+  end
+
+  # A legitimate contest needs every player to have drafted at least one player.
   # One-sided picks (e.g. an upstream auto-pick exhaustion bug) must NOT silently
   # settle as a win — flag it for an operator instead of scoring a forfeit.
-  defp both_rostered?(picks, %Duel{challenger_id: c, opponent_id: o}) do
+  defp all_rostered?(picks, player_ids) do
     by_user = Enum.group_by(picks, & &1.user_id)
-    Map.has_key?(by_user, c) and Map.has_key?(by_user, o)
+    player_ids != [] and Enum.all?(player_ids, &Map.has_key?(by_user, &1))
   end
 
   defp persist(%Duel{} = duel, outcome, players) do
     by_id = Map.new(players, &{&1.id, &1})
     now = DateTime.utc_now() |> DateTime.truncate(:second)
     is_tie = outcome.result == :tie
+    standings = outcome.standings
 
-    breakdown = %{
-      "challenger" => roster_breakdown(duel.challenger_id, outcome.challenger, by_id),
-      "opponent" => roster_breakdown(duel.opponent_id, outcome.opponent, by_id)
-    }
+    # "standings" is the N-player truth; the challenger/opponent keys (and the
+    # two Result columns) keep the 1v1 shape every existing screen reads.
+    breakdown =
+      %{"standings" => Enum.map(standings, &standing_breakdown(&1, by_id))}
+      |> Map.merge(role_breakdown(duel, standings, by_id))
+
+    {challenger_points, opponent_points} = result_points(duel, standings)
 
     result_attrs = %{
       duel_id: duel.id,
       winner_id: outcome.winner_id,
       is_tie: is_tie,
-      challenger_points: outcome.challenger.total,
-      opponent_points: outcome.opponent.total,
+      challenger_points: challenger_points,
+      opponent_points: opponent_points,
       settled_at: now,
       breakdown: breakdown
     }
@@ -169,7 +195,7 @@ defmodule HeadsUp.Settlement do
     |> case do
       {:ok, %{result: result, duel: settled}} ->
         broadcast(settled, is_tie)
-        notify_settled(settled, outcome)
+        notify_settled(settled, standings)
         {:ok, result, settled}
 
       {:error, _step, reason, _} ->
@@ -177,28 +203,77 @@ defmodule HeadsUp.Settlement do
     end
   end
 
-  # Push the final score to both players, framed from each one's side.
-  defp notify_settled(%Duel{} = duel, outcome) do
-    c_total = outcome.challenger.total
-    o_total = outcome.opponent.total
+  defp role_breakdown(%Duel{opponent_id: nil}, _standings, _by_id), do: %{}
 
-    for {user_id, mine, theirs} <- [{duel.challenger_id, c_total, o_total}, {duel.opponent_id, o_total, c_total}] do
-      {title, emoji} =
+  defp role_breakdown(%Duel{} = duel, standings, by_id) do
+    find = fn uid -> Enum.find(standings, &(&1.user_id == uid)) end
+
+    %{
+      "challenger" => roster_breakdown(duel.challenger_id, find.(duel.challenger_id), by_id),
+      "opponent" => roster_breakdown(duel.opponent_id, find.(duel.opponent_id), by_id)
+    }
+  end
+
+  # 1v1 keeps its exact column semantics; a group stores 1st and 2nd place
+  # (the "final score line" of the contest).
+  defp result_points(%Duel{opponent_id: nil}, standings) do
+    [first | rest] = standings
+    {first.total, (List.first(rest) || first).total}
+  end
+
+  defp result_points(%Duel{} = duel, standings) do
+    find = fn uid -> Enum.find(standings, &(&1.user_id == uid)) end
+    {find.(duel.challenger_id).total, find.(duel.opponent_id).total}
+  end
+
+  # Push the final to every player, framed from each one's seat.
+  defp notify_settled(%Duel{} = duel, standings) do
+    n = length(standings)
+
+    for s <- standings do
+      {title, body} =
         cond do
-          is_nil(duel.winner_id) -> {"It's a tie", "🤝"}
-          duel.winner_id == user_id -> {"You won!", "🏆"}
-          true -> {"You lost", "😤"}
+          n == 2 ->
+            other = Enum.find(standings, &(&1.user_id != s.user_id))
+
+            title =
+              cond do
+                is_nil(duel.winner_id) -> "It's a tie 🤝"
+                duel.winner_id == s.user_id -> "You won! 🏆"
+                true -> "You lost 😤"
+              end
+
+            {title, "Final: #{s.total} – #{other.total}. Tap for the full scoreboard."}
+
+          s.rank == 1 and duel.winner_id == s.user_id ->
+            {"You won! 🏆", "1st of #{n} with #{s.total} pts. Tap for the standings."}
+
+          s.rank == 1 ->
+            {"Tied for 1st 🤝", "#{s.total} pts. Tap for the standings."}
+
+          true ->
+            {"#{ordinal(s.rank)} of #{n} #{rank_emoji(s.rank)}", "#{s.total} pts. Tap for the standings."}
         end
 
-      HeadsUp.Notifications.notify_user(
-        user_id,
-        "#{title} #{emoji}",
-        "Final: #{mine} – #{theirs}. Tap for the full scoreboard.",
-        %{type: "result", duel_id: duel.id}
-      )
+      HeadsUp.Notifications.notify_user(s.user_id, title, body, %{type: "result", duel_id: duel.id})
     end
 
     :ok
+  end
+
+  defp ordinal(1), do: "1st"
+  defp ordinal(2), do: "2nd"
+  defp ordinal(3), do: "3rd"
+  defp ordinal(n), do: "#{n}th"
+
+  defp rank_emoji(2), do: "🥈"
+  defp rank_emoji(3), do: "🥉"
+  defp rank_emoji(_), do: "😤"
+
+  defp standing_breakdown(standing, by_id) do
+    standing.user_id
+    |> roster_breakdown(standing, by_id)
+    |> Map.put("rank", standing.rank)
   end
 
   defp roster_breakdown(user_id, roster_result, by_id) do

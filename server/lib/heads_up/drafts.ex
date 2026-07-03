@@ -35,7 +35,7 @@ defmodule HeadsUp.Drafts do
         {:ok, Repo.preload(draft, :duel)}
 
       nil ->
-        total = Lineup.slot_count(duel.lineup_template) * 2
+        total = Lineup.slot_count(duel.lineup_template) * length(Contests.player_ids(duel))
 
         %Draft{}
         |> Draft.create_changeset(%{duel_id: duel.id, total_picks: total})
@@ -48,10 +48,11 @@ defmodule HeadsUp.Drafts do
   end
 
   @doc """
-  Move a lobby draft to active: record the coin-flip winner (`first_picker_id`)
-  and flip the duel accepted -> drafting, atomically.
+  Move a lobby draft to active: record the randomized round-1 order (its head
+  is the classic `first_picker_id`) and flip the duel accepted -> drafting,
+  atomically.
   """
-  def start_active(%Draft{} = draft, first_picker_id) do
+  def start_active(%Draft{} = draft, base_order) when is_list(base_order) do
     now = now()
 
     Ecto.Multi.new()
@@ -59,7 +60,8 @@ defmodule HeadsUp.Drafts do
       :draft,
       Draft.status_changeset(draft, %{
         status: "active",
-        first_picker_id: first_picker_id,
+        first_picker_id: List.first(base_order),
+        pick_order: base_order,
         started_at: now,
         current_pick_number: 1
       })
@@ -71,6 +73,7 @@ defmodule HeadsUp.Drafts do
       {:error, _step, reason, _} -> {:error, reason}
     end
   end
+
 
   @doc """
   Persist a single pick and advance the draft's `current_pick_number`, in one
@@ -164,7 +167,7 @@ defmodule HeadsUp.Drafts do
     |> Map.new(fn p -> {p.id, p} end)
   end
 
-  # --- pure snake / coin-flip helpers (no DB; injectable rng for tests) ----
+  # --- pure snake / draw helpers (no DB; injectable rng for tests) ---------
 
   @doc "Coin flip: returns the user_id who picks #1. `rng` is a 1-arity fun like `&:rand.uniform/1`."
   def coin_flip(challenger_id, opponent_id, rng \\ &:rand.uniform/1) do
@@ -172,18 +175,37 @@ defmodule HeadsUp.Drafts do
   end
 
   @doc """
-  Full snake pick sequence of user_ids for a 2-player draft. Round 1 =
-  [first, other], round 2 = [other, first], ... Length == 2 * rounds == total
-  picks; `pick_number` is a 1-based index into this list.
+  Random round-1 order for an N-player draft (the generalized coin flip):
+  a Fisher-Yates draw over `ids` with the injectable `rng`. With the classic
+  always-1 test rng the order is unchanged.
   """
-  def build_pick_order(first_picker_id, other_id, rounds) do
+  def randomize_order(ids, rng \\ &:rand.uniform/1)
+  def randomize_order([], _rng), do: []
+  # A single remaining id needs no draw — and this keeps the 2-player rng
+  # contract identical to coin_flip/3 (exactly one rng.(2) call).
+  def randomize_order([only], _rng), do: [only]
+
+  def randomize_order(ids, rng) do
+    {picked, rest} = List.pop_at(ids, rng.(length(ids)) - 1)
+    [picked | randomize_order(rest, rng)]
+  end
+
+  @doc """
+  Full snake pick sequence for any player count: odd rounds run `base_order`,
+  even rounds run it reversed. Length == rounds * players == total picks;
+  `pick_number` is a 1-based index into this list.
+  """
+  def snake_order(base_order, rounds) do
+    reversed = Enum.reverse(base_order)
+
     Enum.flat_map(1..rounds, fn round ->
-      if rem(round, 2) == 1 do
-        [first_picker_id, other_id]
-      else
-        [other_id, first_picker_id]
-      end
+      if rem(round, 2) == 1, do: base_order, else: reversed
     end)
+  end
+
+  @doc "Full snake pick sequence of user_ids for a 2-player draft (see `snake_order/2`)."
+  def build_pick_order(first_picker_id, other_id, rounds) do
+    snake_order([first_picker_id, other_id], rounds)
   end
 
   @doc "Who is on the clock for a given 1-based pick number."

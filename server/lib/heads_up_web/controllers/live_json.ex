@@ -4,6 +4,7 @@ defmodule HeadsUpWeb.LiveJSON do
 
   def show(%{live: live, current_user_id: uid}) do
     duel = live.duel
+    users = live.users_by_id
 
     %{
       duel_id: duel.id,
@@ -11,8 +12,11 @@ defmodule HeadsUpWeb.LiveJSON do
       sport: duel.sport,
       leader_id: live.leader_id,
       games: live.games,
-      challenger: side(duel.sport, duel.challenger, live.challenger, live.players_by_id, uid),
-      opponent: side(duel.sport, duel.opponent, live.opponent, live.players_by_id, uid)
+      # Every seat scored, best total first — the N-player standings strip.
+      sides: Enum.map(live.sides, &side(duel.sport, users[&1.user_id], &1, live.players_by_id, uid)),
+      # 1v1 keys for the existing matchup screen (absent for group duels).
+      challenger: live.challenger && side(duel.sport, duel.challenger, live.challenger, live.players_by_id, uid),
+      opponent: live.opponent && side(duel.sport, duel.opponent, live.opponent, live.players_by_id, uid)
     }
   end
 
