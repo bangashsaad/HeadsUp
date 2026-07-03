@@ -19,4 +19,25 @@ defmodule HeadsUpWeb.PublicUserJSON do
   def public(user) do
     %{id: user.id, username: user.username}
   end
+
+  @doc """
+  A tappable profile: who they are, your relationship to them (with the
+  friendship id for accept flows), their overall record, and your
+  head-to-head vs them (nil if you've never played).
+  """
+  def profile(%{profile: profile, record: record, vs_you: vs_you}) do
+    %{
+      profile: %{
+        user: public(profile.user),
+        relationship: profile.relationship,
+        friendship_id: profile.friendship_id,
+        record: record_slice(record),
+        vs_you: vs_you && record_slice(vs_you)
+      }
+    }
+  end
+
+  defp record_slice(r) do
+    %{wins: r.wins, losses: r.losses, ties: r.ties, played: r.played, streak: r.streak}
+  end
 end

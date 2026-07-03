@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { getLiveResult } from '../api/duels';
@@ -85,14 +85,19 @@ export default function LiveMatchupScreen({ route, navigation }) {
             {g.live > 0 ? <Badge label="LIVE" tone="danger" dot /> : null}
           </View>
           {sides.map((s, i) => (
-            <View key={s.user.id} style={[styles.standRow, i < sides.length - 1 && styles.playerDivider]}>
+            <Pressable
+              key={s.user.id}
+              disabled={s.is_me}
+              onPress={() => navigation.navigate('UserProfile', { id: s.user.id, username: s.user.username })}
+              style={({ pressed }) => [styles.standRow, i < sides.length - 1 && styles.playerDivider, pressed && { opacity: 0.7 }]}
+            >
               <Text style={[styles.standRank, i === 0 && { color: colors.accent }]}>{i + 1}</Text>
               <Avatar name={s.is_me ? 'You' : s.user.username} size={34} />
               <Text style={[styles.standName, s.is_me && { color: colors.accent }]} numberOfLines={1}>
                 {s.is_me ? 'You' : s.user.username}
               </Text>
               <Text style={[styles.standPts, i === 0 && { color: colors.accent }]}>{(s.total ?? 0).toFixed(1)}</Text>
-            </View>
+            </Pressable>
           ))}
         </Card>
         <Text style={styles.gamesLine}>{gameLine}</Text>

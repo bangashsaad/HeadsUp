@@ -7,6 +7,7 @@ import DraftRoomScreen from '../screens/DraftRoomScreen';
 import ResultsScreen from '../screens/ResultsScreen';
 import LiveMatchupScreen from '../screens/LiveMatchupScreen';
 import PlayerProfileScreen from '../screens/PlayerProfileScreen';
+import UserProfileScreen from '../screens/UserProfileScreen';
 import { useNavHeader } from '../theme';
 
 const Stack = createNativeStackNavigator();
@@ -26,6 +27,11 @@ export default function DuelsStack() {
         name="PlayerProfile"
         component={PlayerProfileScreen}
         options={({ route }) => ({ title: route.params?.name || 'Player' })}
+      />
+      <Stack.Screen
+        name="UserProfile"
+        component={UserProfileScreen}
+        options={({ route }) => ({ title: route.params?.username || 'Player' })}
       />
     </Stack.Navigator>
   );

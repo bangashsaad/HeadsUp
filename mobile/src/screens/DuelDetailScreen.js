@@ -123,13 +123,22 @@ export default function DuelDetailScreen({ route, navigation }) {
             const me = p.user?.id === user?.id;
             const name = me ? 'You' : p.user?.username || 'Player';
             return (
-              <View key={p.seat} style={[styles.seatChip, p.status === 'declined' && { opacity: 0.45 }]}>
+              <Pressable
+                key={p.seat}
+                disabled={me || !p.user}
+                onPress={() => navigation.navigate('UserProfile', { id: p.user.id, username: p.user.username })}
+                style={({ pressed }) => [
+                  styles.seatChip,
+                  p.status === 'declined' && { opacity: 0.45 },
+                  pressed && { opacity: 0.7 },
+                ]}
+              >
                 <Avatar name={name} size={40} />
                 <Text style={styles.seatName} numberOfLines={1}>
                   {name}
                 </Text>
                 <SeatStatus seat={p} colors={colors} styles={styles} />
-              </View>
+              </Pressable>
             );
           })}
         </View>
@@ -140,12 +149,15 @@ export default function DuelDetailScreen({ route, navigation }) {
             <Text style={styles.sideName}>You</Text>
           </View>
           <Text style={styles.vs}>VS</Text>
-          <View style={styles.side}>
+          <Pressable
+            style={({ pressed }) => [styles.side, pressed && { opacity: 0.7 }]}
+            onPress={() => navigation.navigate('UserProfile', { id: duel.opponent.id, username: duel.opponent.username })}
+          >
             <Avatar name={duel.opponent.username} size={56} />
             <Text style={styles.sideName} numberOfLines={1}>
               {duel.opponent.username}
             </Text>
-          </View>
+          </Pressable>
         </View>
       )}
 

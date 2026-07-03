@@ -136,7 +136,33 @@ defmodule HeadsUp.Social do
     |> Repo.all()
   end
 
+  @doc """
+  One user's public profile from the viewer's side: the user plus the
+  relationship between the two ("self" | "friends" | "request_sent" |
+  "request_received" | "none") and the friendship row id if one exists.
+  """
+  def public_profile(%User{} = viewer, user_id) do
+    case Repo.get(User, user_id) do
+      nil ->
+        {:error, :not_found}
+
+      %User{id: id} = other when id == viewer.id ->
+        {:ok, %{user: other, relationship: "self", friendship_id: nil}}
+
+      %User{} = other ->
+        {relationship, friendship_id} = viewer.id |> relationship_map([other.id]) |> Map.get(other.id, {"none", nil})
+        {:ok, %{user: other, relationship: relationship, friendship_id: friendship_id}}
+    end
+  end
+
   @doc "True if the two users are accepted friends."
+  def friends?(%User{} = user, other_id) when is_binary(other_id) do
+    case Integer.parse(other_id) do
+      {id, ""} -> friends?(user, id)
+      _ -> false
+    end
+  end
+
   def friends?(%User{id: id}, other_id) do
     from(f in Friendship,
       where:

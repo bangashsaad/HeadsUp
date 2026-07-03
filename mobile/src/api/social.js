@@ -11,6 +11,11 @@ export function listFriends(token) {
   return apiRequest('/api/friends', { token });
 }
 
+// A user's public profile: relationship to you, their record, your H2H vs them.
+export function getUserProfile(token, id) {
+  return apiRequest(`/api/users/${id}`, { token });
+}
+
 export function listRequests(token) {
   return apiRequest('/api/friends/requests', { token });
 }

@@ -9,7 +9,7 @@ import LineupSlots from '../components/LineupSlots';
 import DraftTicker from '../components/DraftTicker';
 import DraftOrderDots from '../components/DraftOrderDots';
 import RosterSheet from '../components/RosterSheet';
-import { useTheme, useThemedStyles, spacing, radius, font, avatarColor } from '../theme';
+import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
 import { Avatar, Button, Chip, SearchInput, EmptyState } from '../components/ui';
 import { shortName } from '../utils/names';
 
@@ -175,7 +175,24 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
     const p = players.find((x) => String(x.id) === String(uid));
     return p ? p.username : opponentName;
   };
-  const colorFor = (uid) => (String(uid) === String(myId) ? colors.accent : avatarColor(nameFor(uid)));
+
+  // One UNIQUE color per seat (name-hash tints can collide — two players both
+  // green was unreadable). You are always accent green; everyone else gets a
+  // distinct non-green tint in seat order. Seat tabs carry the same dot so the
+  // order strip is decodable.
+  const seatTint = useMemo(() => {
+    const tints = ['#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f97316'];
+    const map = {};
+    let i = 0;
+    const ids = players.length > 0 ? players.map((p) => p.id) : Object.keys(state.ready || {});
+    for (const id of ids) {
+      if (String(id) === String(myId)) map[String(id)] = colors.accent;
+      else map[String(id)] = tints[i++ % tints.length];
+    }
+    return map;
+  }, [players, state.ready, myId, colors.accent]);
+
+  const colorFor = (uid) => seatTint[String(uid)] || colors.muted;
   const [sheetUid, setSheetUid] = useState(null); // user id whose roster sheet is open
 
   const eligible = useMemo(() => {
@@ -309,9 +326,12 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
                   style={({ pressed }) => [styles.seatTab, onClock && styles.seatTabCurrent, pressed && { opacity: 0.85 }]}
                 >
                   <Avatar name={isMe ? 'You' : p.username} size={28} />
-                  <Text style={styles.seatTabName} numberOfLines={1}>
-                    {isMe ? 'You' : p.username}
-                  </Text>
+                  <View style={styles.seatTabNameRow}>
+                    <View style={[styles.seatTabDot, { backgroundColor: colorFor(p.id) }]} />
+                    <Text style={styles.seatTabName} numberOfLines={1}>
+                      {isMe ? 'You' : p.username}
+                    </Text>
+                  </View>
                   <Text style={styles.seatTabCount}>
                     {picksFor(p.id).length}/{state.slots.length}
                   </Text>
@@ -324,6 +344,7 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
         <View style={styles.rostersRow}>
           <View style={styles.rosterCol}>
             <Pressable style={styles.rosterHead} onPress={() => setSheetUid(myId)} hitSlop={6}>
+              <View style={[styles.seatTabDot, { backgroundColor: colorFor(myId) }]} />
               <Text style={styles.rosterLabel} numberOfLines={1}>
                 Your lineup
               </Text>
@@ -333,6 +354,7 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
           </View>
           <View style={styles.rosterCol}>
             <Pressable style={styles.rosterHead} onPress={() => setSheetUid(oppId)} hitSlop={6}>
+              <View style={[styles.seatTabDot, { backgroundColor: colorFor(oppId) }]} />
               <Text style={styles.rosterLabel} numberOfLines={1}>
                 {nameFor(oppId)}
               </Text>
@@ -479,8 +501,8 @@ const makeStyles = (colors) =>
     pickNo: { color: colors.muted, fontSize: font.small },
     rostersRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
     rosterCol: { flex: 1 },
-    rosterHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4, marginBottom: spacing.sm },
-    rosterLabel: { color: colors.text, fontWeight: '700', flexShrink: 1 },
+    rosterHead: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: spacing.sm },
+    rosterLabel: { color: colors.text, fontWeight: '700', flex: 1 },
     mySlotsStrip: { marginTop: spacing.md, flexGrow: 0 },
     mySlotsContent: { gap: spacing.sm, paddingRight: spacing.sm },
     slotCard: {
@@ -507,7 +529,9 @@ const makeStyles = (colors) =>
       paddingVertical: 6,
     },
     seatTabCurrent: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
-    seatTabName: { color: colors.text, fontSize: 11, fontWeight: '700', marginTop: 2, maxWidth: '92%' },
+    seatTabNameRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, maxWidth: '92%' },
+    seatTabDot: { width: 7, height: 7, borderRadius: 4 },
+    seatTabName: { color: colors.text, fontSize: 11, fontWeight: '700', flexShrink: 1 },
     seatTabCount: { color: colors.muted, fontSize: 10, fontWeight: '700', marginTop: 1 },
     chipRow: { marginTop: spacing.md, marginBottom: spacing.xs, flexGrow: 0 },
     chipRowContent: { gap: spacing.sm, paddingRight: spacing.sm },

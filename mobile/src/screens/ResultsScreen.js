@@ -210,14 +210,19 @@ export default function ResultsScreen({ route, navigation }) {
 
         <Card padded={false}>
           {standings.map((s, i) => (
-            <View key={s.user_id} style={[styles.standRow, i < standings.length - 1 && styles.playerDivider]}>
+            <Pressable
+              key={s.user_id}
+              disabled={s.is_me}
+              onPress={() => navigation.navigate('UserProfile', { id: s.user_id, username: s.username })}
+              style={({ pressed }) => [styles.standRow, i < standings.length - 1 && styles.playerDivider, pressed && { opacity: 0.7 }]}
+            >
               <Text style={styles.standRank}>{medal(s.rank)}</Text>
               <Avatar name={s.is_me ? 'You' : s.username || 'Player'} size={34} />
               <Text style={[styles.standName, s.is_me && { color: colors.accent }]} numberOfLines={1}>
                 {s.is_me ? 'You' : s.username || 'Player'}
               </Text>
               <Text style={[styles.standPts, s.rank === 1 && { color: colors.accent }]}>{(s.total ?? 0).toFixed(1)}</Text>
-            </View>
+            </Pressable>
           ))}
         </Card>
 
