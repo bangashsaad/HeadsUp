@@ -35,6 +35,20 @@ function rowBadge(d) {
   }
 }
 
+function rowTitle(d) {
+  if (!d.group) return `vs ${d.opponent?.username || 'Opponent'}`;
+  if (d.role === 'challenger') return `Your ${d.party_size}-player match`;
+  return `${d.opponent?.username || 'A friend'}'s ${d.party_size}-player match`;
+}
+
+function rowMeta(d) {
+  if (d.group && d.status === 'pending') {
+    const seated = (d.participants || []).filter((p) => p.status === 'accepted').length;
+    return `${seated}/${d.party_size} in · ${d.roster_size} rounds`;
+  }
+  return `${d.roster_size} rounds`;
+}
+
 const ACTIVE_STATES = ['pending', 'accepted', 'drafting', 'drafted', 'countered'];
 
 function partition(duels) {
@@ -135,11 +149,11 @@ export default function DuelsListScreen({ navigation }) {
                     style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.card }]}
                   >
                     <View style={styles.emojiCircle}>
-                      <Text style={styles.emoji}>{SPORT_EMOJI[item.sport] || '🎯'}</Text>
+                      <Text style={styles.emoji}>{item.group ? '👥' : SPORT_EMOJI[item.sport] || '🎯'}</Text>
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.vs}>vs {item.opponent.username}</Text>
-                      <Text style={styles.meta}>{item.roster_size} players</Text>
+                      <Text style={styles.vs}>{rowTitle(item)}</Text>
+                      <Text style={styles.meta}>{rowMeta(item)}</Text>
                     </View>
                     <Badge label={badge.label} tone={badge.tone} />
                     <Ionicons name="chevron-forward" size={18} color={colors.placeholder} style={{ marginLeft: spacing.sm }} />

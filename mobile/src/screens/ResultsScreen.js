@@ -14,6 +14,17 @@ const OUTCOME = {
   loss: { tone: 'danger', icon: '😤', title: 'You lost' },
 };
 
+const ordinal = (n) => (n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`);
+const medal = (rank) => (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : String(rank));
+
+function groupBanner(rank, tiedTop) {
+  if (rank === 1 && tiedTop) return { tone: 'neutral', icon: '🤝', title: 'Tied for 1st' };
+  if (rank === 1) return { tone: 'accent', icon: '🏆', title: 'Champion!' };
+  if (rank === 2) return { tone: 'neutral', icon: '🥈', title: '2nd place' };
+  if (rank === 3) return { tone: 'neutral', icon: '🥉', title: '3rd place' };
+  return { tone: 'danger', icon: '😤', title: `${ordinal(rank)} place` };
+}
+
 // Ease a number from 0 to target on mount (easeOutCubic).
 function useCountUp(target, duration = 850) {
   const [val, setVal] = useState(0);
@@ -178,6 +189,52 @@ export default function ResultsScreen({ route, navigation }) {
     );
   }
 
+  // Group duel: ranked leaderboard instead of the VS scoreboard.
+  const standings = result.standings || [];
+  if (standings.length > 2) {
+    const mine = standings.find((s) => s.is_me);
+    const b = groupBanner(mine?.rank ?? standings.length, result.is_tie);
+    const gTone = tones[b.tone];
+
+    const shareStandings = () =>
+      Share.share({
+        message: `I finished ${ordinal(mine?.rank ?? standings.length)} of ${standings.length} in our Heads Up group fantasy duel! 🏀⚾️`,
+      }).catch(() => {});
+
+    return (
+      <Screen scroll>
+        <Animated.View style={[styles.banner, { backgroundColor: gTone.bg, borderColor: gTone.border, transform: [{ scale: pop }] }]}>
+          <Text style={styles.bannerEmoji}>{b.icon}</Text>
+          <Text style={[styles.bannerTitle, { color: gTone.text }]}>{b.title}</Text>
+        </Animated.View>
+
+        <Card padded={false}>
+          {standings.map((s, i) => (
+            <View key={s.user_id} style={[styles.standRow, i < standings.length - 1 && styles.playerDivider]}>
+              <Text style={styles.standRank}>{medal(s.rank)}</Text>
+              <Avatar name={s.is_me ? 'You' : s.username || 'Player'} size={34} />
+              <Text style={[styles.standName, s.is_me && { color: colors.accent }]} numberOfLines={1}>
+                {s.is_me ? 'You' : s.username || 'Player'}
+              </Text>
+              <Text style={[styles.standPts, s.rank === 1 && { color: colors.accent }]}>{(s.total ?? 0).toFixed(1)}</Text>
+            </View>
+          ))}
+        </Card>
+
+        {standings.map((s) => (
+          <Team
+            key={s.user_id}
+            title={s.is_me ? 'Your lineup' : `${s.username || 'Player'}'s lineup`}
+            lineup={s}
+            highlight={s.rank === 1}
+          />
+        ))}
+
+        <Button title="Share result" icon="share-outline" variant="outline" onPress={shareStandings} style={{ marginTop: spacing.xl }} />
+      </Screen>
+    );
+  }
+
   return (
     <Screen scroll>
       <Animated.View style={[styles.banner, { backgroundColor: tone.bg, borderColor: tone.border, transform: [{ scale: pop }] }]}>
@@ -231,4 +288,8 @@ const makeStyles = (colors) =>
     playerName: { color: colors.text, fontSize: font.body, fontWeight: '600' },
     statLine: { color: colors.muted, fontSize: font.caption, marginTop: 2 },
     points: { color: colors.accent, fontSize: font.subtitle, fontWeight: '800', width: 52, textAlign: 'right' },
+    standRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 10, paddingHorizontal: spacing.lg },
+    standRank: { fontSize: font.subtitle, width: 26, textAlign: 'center' },
+    standName: { color: colors.text, fontSize: font.body, fontWeight: '700', flex: 1 },
+    standPts: { color: colors.text, fontSize: font.subtitle, fontWeight: '800' },
   });

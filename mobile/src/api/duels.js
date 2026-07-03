@@ -17,6 +17,10 @@ export const createChallenge = (token, body) =>
 export const respondToDuel = (token, id, action) =>
   apiRequest(`/api/duels/${id}/${action}`, { method: 'POST', token });
 
+// Group host: drop anyone still deciding and start with the current group.
+export const startWithGroup = (token, id) =>
+  apiRequest(`/api/duels/${id}/start`, { method: 'POST', token });
+
 export const counterChallenge = (token, id, body) =>
   apiRequest(`/api/duels/${id}/counter`, { method: 'POST', token, body });
 

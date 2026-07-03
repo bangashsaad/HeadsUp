@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
-import { getDuel, respondToDuel, getLiveResult } from '../api/duels';
+import { getDuel, respondToDuel, startWithGroup, getLiveResult } from '../api/duels';
 import { formatDateTime } from '../utils/datetime';
 import { useTheme, useThemedStyles, spacing, radius, font, statusTone } from '../theme';
 import { Screen, Card, Avatar, Badge, Button, SectionHeader } from '../components/ui';
@@ -25,7 +26,7 @@ const prettyKey = (k) => k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperC
 
 export default function DuelDetailScreen({ route, navigation }) {
   const { id } = route.params;
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [duel, setDuel] = useState(null);
@@ -59,6 +60,19 @@ export default function DuelDetailScreen({ route, navigation }) {
     }
   }
 
+  async function forceStart() {
+    setBusy(true);
+    setError(null);
+    try {
+      await startWithGroup(token, id);
+      await load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   function Term({ label, value, first }) {
     return (
       <View style={[styles.term, !first && styles.termDivider]}>
@@ -76,7 +90,12 @@ export default function DuelDetailScreen({ route, navigation }) {
     );
   }
 
-  const isOpponentPending = duel.role === 'opponent' && duel.status === 'pending';
+  const group = duel.group === true;
+  const seats = duel.participants || [];
+  const mySeat = seats.find((p) => p.user?.id === user?.id);
+  const seatedCount = seats.filter((p) => p.status === 'accepted').length;
+  const canRespondSeat = group && duel.status === 'pending' && mySeat?.status === 'invited';
+  const isOpponentPending = !group && duel.role === 'opponent' && duel.status === 'pending';
   const isChallengerPending = duel.role === 'challenger' && duel.status === 'pending';
   const scoring = Object.entries(duel.scoring_rules || {});
   const shareable = ['pending', 'accepted', 'drafting', 'drafted', 'settled'].includes(duel.status);
@@ -90,26 +109,45 @@ export default function DuelDetailScreen({ route, navigation }) {
           : duel.status === 'pending'
             ? 'The challenge is on the table.'
             : `We draft ${formatDateTime(duel.draft_starts_at)}.`;
-    Share.share({
-      message: `⚔️ Heads Up fantasy duel: me vs ${duel.opponent.username} — ${SPORT_LABEL[duel.sport] || duel.sport}. ${stage}`,
-    }).catch(() => {});
+    const matchup = group
+      ? `⚔️ Heads Up group duel — ${duel.party_size} players, ${SPORT_LABEL[duel.sport] || duel.sport}. ${stage}`
+      : `⚔️ Heads Up fantasy duel: me vs ${duel.opponent.username} — ${SPORT_LABEL[duel.sport] || duel.sport}. ${stage}`;
+    Share.share({ message: matchup }).catch(() => {});
   }
 
   return (
     <Screen scroll>
-      <View style={styles.header}>
-        <View style={styles.side}>
-          <Avatar name="You" size={56} />
-          <Text style={styles.sideName}>You</Text>
+      {group ? (
+        <View style={styles.seatsWrap}>
+          {seats.map((p) => {
+            const me = p.user?.id === user?.id;
+            const name = me ? 'You' : p.user?.username || 'Player';
+            return (
+              <View key={p.seat} style={[styles.seatChip, p.status === 'declined' && { opacity: 0.45 }]}>
+                <Avatar name={name} size={40} />
+                <Text style={styles.seatName} numberOfLines={1}>
+                  {name}
+                </Text>
+                <SeatStatus seat={p} colors={colors} styles={styles} />
+              </View>
+            );
+          })}
         </View>
-        <Text style={styles.vs}>VS</Text>
-        <View style={styles.side}>
-          <Avatar name={duel.opponent.username} size={56} />
-          <Text style={styles.sideName} numberOfLines={1}>
-            {duel.opponent.username}
-          </Text>
+      ) : (
+        <View style={styles.header}>
+          <View style={styles.side}>
+            <Avatar name="You" size={56} />
+            <Text style={styles.sideName}>You</Text>
+          </View>
+          <Text style={styles.vs}>VS</Text>
+          <View style={styles.side}>
+            <Avatar name={duel.opponent.username} size={56} />
+            <Text style={styles.sideName} numberOfLines={1}>
+              {duel.opponent.username}
+            </Text>
+          </View>
         </View>
-      </View>
+      )}
 
       <View style={styles.statusRow}>
         <Badge label={duel.status} tone={statusTone(duel.status)} dot />
@@ -143,8 +181,33 @@ export default function DuelDetailScreen({ route, navigation }) {
           </>
         ) : null}
 
+        {canRespondSeat ? (
+          <>
+            <Button title="Accept Your Seat" icon="checkmark-circle" onPress={() => act('accept')} disabled={busy} />
+            <Button title="Decline" variant="danger" icon="close-circle" onPress={() => act('decline')} disabled={busy} />
+            <Text style={styles.locked}>Everyone drafts their own team — best total wins.</Text>
+          </>
+        ) : null}
+
+        {group && duel.status === 'pending' && !canRespondSeat && !isChallengerPending ? (
+          <Text style={styles.locked}>⏳ Waiting on the other invites…</Text>
+        ) : null}
+
         {isChallengerPending ? (
-          <Button title="Cancel challenge" variant="danger" icon="close-circle" onPress={() => act('cancel')} disabled={busy} />
+          <>
+            {group && seatedCount >= 2 ? (
+              <Button
+                title={`Start with current group (${seatedCount} in)`}
+                icon="play"
+                onPress={forceStart}
+                disabled={busy}
+              />
+            ) : null}
+            {group && seatedCount < 2 ? (
+              <Text style={styles.locked}>⏳ You can start once at least one friend accepts.</Text>
+            ) : null}
+            <Button title="Cancel challenge" variant="danger" icon="close-circle" onPress={() => act('cancel')} disabled={busy} />
+          </>
         ) : null}
 
         {duel.status === 'accepted' || duel.status === 'drafting' ? (
@@ -199,6 +262,24 @@ export default function DuelDetailScreen({ route, navigation }) {
   );
 }
 
+function SeatStatus({ seat, colors, styles }) {
+  const cfg =
+    seat.seat === 0
+      ? { icon: 'star', color: colors.accent, label: 'Host' }
+      : seat.status === 'accepted'
+        ? { icon: 'checkmark-circle', color: colors.accent, label: 'In' }
+        : seat.status === 'declined'
+          ? { icon: 'close-circle', color: colors.danger, label: 'Out' }
+          : { icon: 'time-outline', color: colors.muted, label: 'Invited' };
+
+  return (
+    <View style={styles.seatStatusRow}>
+      <Ionicons name={cfg.icon} size={13} color={cfg.color} />
+      <Text style={[styles.seatStatus, { color: cfg.color }]}>{cfg.label}</Text>
+    </View>
+  );
+}
+
 function LiveScore({ token, id, styles, colors, onOpen }) {
   const [live, setLive] = useState(null);
   const [started, setStarted] = useState(false);
@@ -237,14 +318,39 @@ function LiveScore({ token, id, styles, colors, onOpen }) {
     );
   }
 
-  const me = live.challenger.is_me ? live.challenger : live.opponent;
-  const them = live.challenger.is_me ? live.opponent : live.challenger;
-  const meLeads = live.leader_id && me.user.id === live.leader_id;
-  const themLead = live.leader_id && them.user.id === live.leader_id;
   const g = live.games || {};
   const gameLine = [g.final ? `${g.final} final` : null, g.live ? `${g.live} live` : null, g.upcoming ? `${g.upcoming} upcoming` : null]
     .filter(Boolean)
     .join(' · ');
+
+  // Group: ranked standings strip (sides arrive best-total-first).
+  if (!live.challenger && (live.sides || []).length > 0) {
+    return (
+      <Pressable onPress={onOpen} style={({ pressed }) => pressed && { opacity: 0.85 }}>
+        <Card style={styles.liveCard}>
+          <View style={styles.liveTop}>
+            <Text style={styles.liveHead}>LIVE STANDINGS</Text>
+            {g.live > 0 ? <Badge label="LIVE" tone="danger" dot /> : null}
+          </View>
+          {live.sides.map((s, i) => (
+            <View key={s.user.id} style={styles.liveStandRow}>
+              <Text style={styles.liveRank}>{i + 1}</Text>
+              <Text style={[styles.liveStandName, s.is_me && { color: colors.accent }]} numberOfLines={1}>
+                {s.is_me ? 'You' : s.user.username}
+              </Text>
+              <Text style={[styles.liveStandPts, i === 0 && { color: colors.accent }]}>{(s.total ?? 0).toFixed(1)}</Text>
+            </View>
+          ))}
+          <Text style={styles.liveGames}>{gameLine || 'No games in the window yet'} › tap for full standings</Text>
+        </Card>
+      </Pressable>
+    );
+  }
+
+  const me = live.challenger.is_me ? live.challenger : live.opponent;
+  const them = live.challenger.is_me ? live.opponent : live.challenger;
+  const meLeads = live.leader_id && me.user.id === live.leader_id;
+  const themLead = live.leader_id && them.user.id === live.leader_id;
 
   return (
     <Pressable onPress={onOpen} style={({ pressed }) => pressed && { opacity: 0.85 }}>
@@ -315,4 +421,24 @@ const makeStyles = (colors) =>
     liveLeadingSpacer: { fontSize: 10, marginTop: 2, height: 13 },
     liveDash: { color: colors.placeholder, fontSize: font.title, fontWeight: '800', paddingHorizontal: spacing.sm },
     liveGames: { color: colors.muted, fontSize: font.caption, textAlign: 'center', marginTop: spacing.sm },
+    liveStandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5 },
+    liveRank: { color: colors.placeholder, fontSize: font.small, fontWeight: '800', width: 18 },
+    liveStandName: { color: colors.text, fontSize: font.body, fontWeight: '600', flex: 1 },
+    liveStandPts: { color: colors.text, fontSize: font.bodyLg, fontWeight: '800' },
+    seatsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md, justifyContent: 'center' },
+    seatChip: {
+      flexGrow: 1,
+      flexBasis: '30%',
+      maxWidth: '48%',
+      alignItems: 'center',
+      backgroundColor: colors.card,
+      borderColor: colors.borderSubtle,
+      borderWidth: 1,
+      borderRadius: radius.lg,
+      paddingVertical: spacing.md,
+      paddingHorizontal: spacing.sm,
+    },
+    seatName: { color: colors.text, fontWeight: '700', fontSize: font.small, marginTop: spacing.xs, maxWidth: '95%' },
+    seatStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
+    seatStatus: { fontSize: 11, fontWeight: '700' },
   });

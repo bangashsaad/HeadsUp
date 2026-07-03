@@ -11,6 +11,7 @@ import DraftOrderDots from '../components/DraftOrderDots';
 import RosterSheet from '../components/RosterSheet';
 import { useTheme, useThemedStyles, spacing, radius, font, avatarColor } from '../theme';
 import { Avatar, Button, Chip, SearchInput, EmptyState } from '../components/ui';
+import { shortName } from '../utils/names';
 
 // "7:00 PM ET" for a game today (ET), "Tmw 7:00 PM ET" for tomorrow — so you
 // know WHEN a player plays before you draft them. ET = UTC-4 in season.
@@ -86,18 +87,24 @@ export default function DraftRoomScreen({ route, navigation }) {
 
 function Lobby({ state, myId, opponentName, conn }) {
   const styles = useThemedStyles(makeStyles);
-  const iAmReady = state.ready[String(myId)];
-  const oppId = Object.keys(state.ready).find((uid) => uid !== String(myId));
-  const oppReady = state.ready[oppId];
+  const players =
+    state.players && state.players.length > 0
+      ? state.players
+      : Object.keys(state.ready || {}).map((id) => ({ id, username: opponentName }));
+  const iAmReady = state.ready[String(myId)] || state.ready[myId];
 
   return (
     <View style={styles.lobby}>
       <Text style={styles.lobbyTitle}>Draft Lobby</Text>
-      <Text style={styles.dim}>Both players must be ready to start.</Text>
+      <Text style={styles.dim}>
+        {players.length > 2 ? `All ${players.length} players must be ready to start.` : 'Both players must be ready to start.'}
+      </Text>
 
       <View style={styles.readyRow}>
-        <ReadyPill name="You" ready={iAmReady} />
-        <ReadyPill name={opponentName} ready={oppReady} />
+        {players.map((p) => {
+          const isMe = String(p.id) === String(myId);
+          return <ReadyPill key={p.id} name={isMe ? 'You' : p.username} ready={state.ready[p.id]} />;
+        })}
       </View>
 
       <Button
@@ -134,12 +141,24 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
   const complete = state.phase === 'complete';
   const isMyTurn = String(state.current_picker_id) === String(myId);
 
+  const players = state.players || [];
+  const flow = players.length > 2; // 3-4 players: flow layout (strip + seat tabs)
+
   const myPicks = useMemo(() => state.picks.filter((p) => String(p.user_id) === String(myId)), [state.picks, myId]);
   const oppPicks = useMemo(() => state.picks.filter((p) => String(p.user_id) !== String(myId)), [state.picks, myId]);
+  const picksFor = (uid) => state.picks.filter((p) => String(p.user_id) === String(uid));
 
-  // Full snake order, derived the same way the server builds it: odd rounds
-  // run [first, other], even rounds reverse. Known once the coin flip lands.
+  const oppId = useMemo(
+    () =>
+      players.find((p) => String(p.id) !== String(myId))?.id ??
+      Object.keys(state.ready || {}).find((u) => String(u) !== String(myId)),
+    [players, state.ready, myId]
+  );
+
+  // The server ships the full snake once the order is drawn; fall back to
+  // deriving the 2-player snake from first_picker_id for older payloads.
   const order = useMemo(() => {
+    if (state.pick_order && state.pick_order.length > 0) return state.pick_order;
     const first = state.first_picker_id;
     if (!first) return [];
     const other = Object.keys(state.ready || {}).find((u) => String(u) !== String(first)) ?? first;
@@ -149,12 +168,15 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
       else out.push(other, first);
     }
     return out;
-  }, [state.first_picker_id, state.ready, state.slots.length]);
+  }, [state.pick_order, state.first_picker_id, state.ready, state.slots.length]);
 
-  const oppTint = avatarColor(opponentName);
-  const nameFor = (uid) => (String(uid) === String(myId) ? 'You' : opponentName);
-  const colorFor = (uid) => (String(uid) === String(myId) ? colors.accent : oppTint);
-  const [sheetSide, setSheetSide] = useState(null); // 'me' | 'opp' | null
+  const nameFor = (uid) => {
+    if (String(uid) === String(myId)) return 'You';
+    const p = players.find((x) => String(x.id) === String(uid));
+    return p ? p.username : opponentName;
+  };
+  const colorFor = (uid) => (String(uid) === String(myId) ? colors.accent : avatarColor(nameFor(uid)));
+  const [sheetUid, setSheetUid] = useState(null); // user id whose roster sheet is open
 
   const eligible = useMemo(() => {
     const filled = new Set(myPicks.map((p) => p.slot));
@@ -237,7 +259,9 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
           <Text style={styles.turnDone}>🏁 Draft complete</Text>
         ) : (
           <>
-            <Text style={[styles.turn, isMyTurn && styles.turnMine]}>{isMyTurn ? '🟢 Your pick' : `${opponentName} is picking…`}</Text>
+            <Text style={[styles.turn, isMyTurn && styles.turnMine]}>
+              {isMyTurn ? '🟢 Your pick' : `${nameFor(state.current_picker_id)} is picking…`}
+            </Text>
             <View style={styles.statusRight}>
               <Text style={styles.pickNo}>
                 Pick {state.pick_number}/{state.total_picks}
@@ -253,30 +277,77 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <View style={styles.rostersRow}>
-        <View style={styles.rosterCol}>
-          <Pressable style={styles.rosterHead} onPress={() => setSheetSide('me')} hitSlop={6}>
-            <Text style={styles.rosterLabel} numberOfLines={1}>
-              Your lineup
-            </Text>
-            <Ionicons name="chevron-expand" size={14} color={colors.muted} />
-          </Pressable>
-          <LineupSlots slots={state.slots} picks={myPicks} compact />
+      {flow ? (
+        <>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.mySlotsStrip}
+            contentContainerStyle={styles.mySlotsContent}
+          >
+            {state.slots.map((slot) => {
+              const pick = myPicks.find((p) => p.slot === slot.key);
+              return (
+                <View key={slot.key} style={[styles.slotCard, pick && styles.slotCardFilled]}>
+                  <Text style={styles.slotCardLabel}>{slot.label}</Text>
+                  <Text style={[styles.slotCardName, !pick && { color: colors.placeholder }]} numberOfLines={1}>
+                    {pick ? shortName(pick.player.name) : '—'}
+                  </Text>
+                </View>
+              );
+            })}
+          </ScrollView>
+
+          <View style={styles.seatTabs}>
+            {players.map((p) => {
+              const isMe = String(p.id) === String(myId);
+              const onClock = !complete && String(state.current_picker_id) === String(p.id);
+              return (
+                <Pressable
+                  key={p.id}
+                  onPress={() => setSheetUid(p.id)}
+                  style={({ pressed }) => [styles.seatTab, onClock && styles.seatTabCurrent, pressed && { opacity: 0.85 }]}
+                >
+                  <Avatar name={isMe ? 'You' : p.username} size={28} />
+                  <Text style={styles.seatTabName} numberOfLines={1}>
+                    {isMe ? 'You' : p.username}
+                  </Text>
+                  <Text style={styles.seatTabCount}>
+                    {picksFor(p.id).length}/{state.slots.length}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      ) : (
+        <View style={styles.rostersRow}>
+          <View style={styles.rosterCol}>
+            <Pressable style={styles.rosterHead} onPress={() => setSheetUid(myId)} hitSlop={6}>
+              <Text style={styles.rosterLabel} numberOfLines={1}>
+                Your lineup
+              </Text>
+              <Ionicons name="chevron-expand" size={14} color={colors.muted} />
+            </Pressable>
+            <LineupSlots slots={state.slots} picks={myPicks} compact />
+          </View>
+          <View style={styles.rosterCol}>
+            <Pressable style={styles.rosterHead} onPress={() => setSheetUid(oppId)} hitSlop={6}>
+              <Text style={styles.rosterLabel} numberOfLines={1}>
+                {nameFor(oppId)}
+              </Text>
+              <Ionicons name="chevron-expand" size={14} color={colors.muted} />
+            </Pressable>
+            <LineupSlots slots={state.slots} picks={oppPicks} compact />
+          </View>
         </View>
-        <View style={styles.rosterCol}>
-          <Pressable style={styles.rosterHead} onPress={() => setSheetSide('opp')} hitSlop={6}>
-            <Text style={styles.rosterLabel} numberOfLines={1}>
-              {opponentName}
-            </Text>
-            <Ionicons name="chevron-expand" size={14} color={colors.muted} />
-          </Pressable>
-          <LineupSlots slots={state.slots} picks={oppPicks} compact />
-        </View>
-      </View>
+      )}
 
       {!complete ? (
         <>
-          {lineupFull ? <Text style={styles.watchNote}>Your lineup is full — watching {opponentName} finish.</Text> : null}
+          {lineupFull ? (
+            <Text style={styles.watchNote}>Your lineup is full — watching {flow ? 'the others' : nameFor(oppId)} finish.</Text>
+          ) : null}
 
           <SearchInput value={query} onChangeText={setQuery} placeholder="Search players or teams…" style={{ marginTop: spacing.md }} />
 
@@ -362,12 +433,12 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
       )}
 
       <RosterSheet
-        visible={sheetSide !== null}
-        onClose={() => setSheetSide(null)}
-        title={sheetSide === 'me' ? 'Your lineup' : `${opponentName}'s lineup`}
-        name={sheetSide === 'me' ? 'You' : opponentName}
+        visible={sheetUid != null}
+        onClose={() => setSheetUid(null)}
+        title={String(sheetUid) === String(myId) ? 'Your lineup' : `${nameFor(sheetUid)}'s lineup`}
+        name={nameFor(sheetUid ?? myId)}
         slots={state.slots}
-        picks={sheetSide === 'me' ? myPicks : oppPicks}
+        picks={sheetUid != null ? picksFor(sheetUid) : []}
       />
     </View>
   );
@@ -380,8 +451,8 @@ const makeStyles = (colors) =>
 
     lobby: { flex: 1, backgroundColor: colors.bg, padding: spacing.xl, justifyContent: 'center' },
     lobbyTitle: { color: colors.text, fontSize: font.titleLg, fontWeight: '800', textAlign: 'center' },
-    readyRow: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xl, marginBottom: spacing.xl },
-    pill: { flex: 1, borderRadius: radius.lg, borderWidth: 1, paddingVertical: spacing.lg, alignItems: 'center' },
+    readyRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.xl, marginBottom: spacing.xl },
+    pill: { flexGrow: 1, flexBasis: '45%', borderRadius: radius.lg, borderWidth: 1, paddingVertical: spacing.lg, alignItems: 'center' },
     pillOn: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
     pillOff: { borderColor: colors.border, backgroundColor: colors.card },
     pillName: { color: colors.text, fontWeight: '800', fontSize: font.bodyLg, marginTop: spacing.sm, maxWidth: '90%' },
@@ -410,6 +481,34 @@ const makeStyles = (colors) =>
     rosterCol: { flex: 1 },
     rosterHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4, marginBottom: spacing.sm },
     rosterLabel: { color: colors.text, fontWeight: '700', flexShrink: 1 },
+    mySlotsStrip: { marginTop: spacing.md, flexGrow: 0 },
+    mySlotsContent: { gap: spacing.sm, paddingRight: spacing.sm },
+    slotCard: {
+      width: 92,
+      backgroundColor: colors.card,
+      borderColor: colors.borderSubtle,
+      borderWidth: 1,
+      borderRadius: radius.md,
+      paddingVertical: 6,
+      paddingHorizontal: spacing.sm,
+      alignItems: 'center',
+    },
+    slotCardFilled: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
+    slotCardLabel: { color: colors.muted, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+    slotCardName: { color: colors.text, fontSize: font.caption, fontWeight: '600', marginTop: 2, maxWidth: 84 },
+    seatTabs: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+    seatTab: {
+      flex: 1,
+      alignItems: 'center',
+      backgroundColor: colors.card,
+      borderColor: colors.borderSubtle,
+      borderWidth: 1,
+      borderRadius: radius.md,
+      paddingVertical: 6,
+    },
+    seatTabCurrent: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
+    seatTabName: { color: colors.text, fontSize: 11, fontWeight: '700', marginTop: 2, maxWidth: '92%' },
+    seatTabCount: { color: colors.muted, fontSize: 10, fontWeight: '700', marginTop: 1 },
     chipRow: { marginTop: spacing.md, marginBottom: spacing.xs, flexGrow: 0 },
     chipRowContent: { gap: spacing.sm, paddingRight: spacing.sm },
     watchNote: { color: colors.muted, fontSize: font.small, marginTop: spacing.md, fontStyle: 'italic' },

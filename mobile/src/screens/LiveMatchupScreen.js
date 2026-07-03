@@ -60,15 +60,64 @@ export default function LiveMatchupScreen({ route, navigation }) {
     );
   }
 
-  const me = live.challenger.is_me ? live.challenger : live.opponent;
-  const them = live.challenger.is_me ? live.opponent : live.challenger;
-  const meLeads = live.leader_id && me.user.id === live.leader_id;
-  const themLead = live.leader_id && them.user.id === live.leader_id;
   const g = live.games || {};
   const gameLine =
     [g.final ? `${g.final} final` : null, g.live ? `${g.live} live` : null, g.upcoming ? `${g.upcoming} upcoming` : null]
       .filter(Boolean)
       .join(' · ') || 'No games in the scoring window yet';
+
+  // Group duel: ranked standings (sides arrive best-total-first).
+  if (!live.challenger && (live.sides || []).length > 0) {
+    const sides = live.sides;
+    const myPlace = sides.findIndex((s) => s.is_me) + 1;
+
+    function shareStandings() {
+      Share.share({
+        message: `My ${sides.length}-player Heads Up fantasy duel is live — I'm ${ordinal(myPlace)} of ${sides.length}! 🏀⚾️`,
+      }).catch(() => {});
+    }
+
+    return (
+      <Screen scroll>
+        <Card padded={false}>
+          <View style={styles.standHead}>
+            <Text style={styles.standTitle}>LIVE STANDINGS</Text>
+            {g.live > 0 ? <Badge label="LIVE" tone="danger" dot /> : null}
+          </View>
+          {sides.map((s, i) => (
+            <View key={s.user.id} style={[styles.standRow, i < sides.length - 1 && styles.playerDivider]}>
+              <Text style={[styles.standRank, i === 0 && { color: colors.accent }]}>{i + 1}</Text>
+              <Avatar name={s.is_me ? 'You' : s.user.username} size={34} />
+              <Text style={[styles.standName, s.is_me && { color: colors.accent }]} numberOfLines={1}>
+                {s.is_me ? 'You' : s.user.username}
+              </Text>
+              <Text style={[styles.standPts, i === 0 && { color: colors.accent }]}>{(s.total ?? 0).toFixed(1)}</Text>
+            </View>
+          ))}
+        </Card>
+        <Text style={styles.gamesLine}>{gameLine}</Text>
+
+        {sides.map((s) => (
+          <Lineup
+            key={s.user.id}
+            title={s.is_me ? 'Your lineup' : `${s.user.username}'s lineup`}
+            side={s}
+            highlight={s.is_me}
+            styles={styles}
+            colors={colors}
+          />
+        ))}
+
+        <Button title="Share matchup" icon="share-outline" variant="outline" onPress={shareStandings} style={{ marginTop: spacing.xl }} />
+        <Text style={styles.note}>Live scoring — final standings are declared automatically once the games are final.</Text>
+      </Screen>
+    );
+  }
+
+  const me = live.challenger.is_me ? live.challenger : live.opponent;
+  const them = live.challenger.is_me ? live.opponent : live.challenger;
+  const meLeads = live.leader_id && me.user.id === live.leader_id;
+  const themLead = live.leader_id && them.user.id === live.leader_id;
 
   function shareMatchup() {
     const scoreLine = `${(me.total ?? 0).toFixed(1)} to ${(them.total ?? 0).toFixed(1)}`;
@@ -97,6 +146,10 @@ export default function LiveMatchupScreen({ route, navigation }) {
       <Text style={styles.note}>Live scoring — the winner is declared automatically once the games are final.</Text>
     </Screen>
   );
+}
+
+function ordinal(n) {
+  return n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`;
 }
 
 function ScoreSide({ name, total, lead, styles, colors }) {
@@ -152,6 +205,12 @@ const makeStyles = (colors) =>
     lineupTitle: { color: colors.text, fontSize: font.bodyLg, fontWeight: '700', marginBottom: spacing.sm },
     playerRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: spacing.lg },
     playerDivider: { borderBottomColor: colors.borderSubtle, borderBottomWidth: StyleSheet.hairlineWidth },
+    standHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, paddingTop: spacing.md, paddingBottom: spacing.xs },
+    standTitle: { color: colors.muted, fontSize: font.caption, fontWeight: '800', letterSpacing: 1 },
+    standRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 10, paddingHorizontal: spacing.lg },
+    standRank: { color: colors.placeholder, fontSize: font.bodyLg, fontWeight: '900', width: 20 },
+    standName: { color: colors.text, fontSize: font.body, fontWeight: '700', flex: 1 },
+    standPts: { color: colors.text, fontSize: font.subtitle, fontWeight: '800' },
     slotChip: { backgroundColor: colors.bgElevated, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3, marginRight: spacing.md, minWidth: 46, alignItems: 'center' },
     slotText: { color: colors.muted, fontSize: 11, fontWeight: '800' },
     playerName: { color: colors.text, fontSize: font.body, fontWeight: '600' },
