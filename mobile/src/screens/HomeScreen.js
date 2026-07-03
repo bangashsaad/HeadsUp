@@ -53,7 +53,7 @@ export default function HomeScreen({ navigation }) {
   );
 
   function openDuel(id) {
-    navigation.navigate('DuelsTab', { screen: 'DuelDetail', params: { id } });
+    navigation.navigate('DuelsTab', { screen: 'DuelDetail', params: { id }, initial: false });
   }
 
   if (loading) {
@@ -96,7 +96,7 @@ export default function HomeScreen({ navigation }) {
         {actions.length === 0 ? (
           <Card style={styles.calmCard}>
             <Text style={styles.calmText}>You're all caught up. Challenge a friend to get a duel going.</Text>
-            <Button title="New Challenge" icon="add" onPress={() => navigation.navigate('DuelsTab', { screen: 'CreateChallenge' })} />
+            <Button title="New Challenge" icon="add" onPress={() => navigation.navigate('DuelsTab', { screen: 'CreateChallenge', initial: false })} />
           </Card>
         ) : (
           actions.map(({ d, verb, tone, icon }) => (
@@ -132,7 +132,7 @@ export default function HomeScreen({ navigation }) {
               {home.recent_results.map((d, i) => (
                 <Pressable
                   key={`res-${d.id}`}
-                  onPress={() => navigation.navigate('DuelsTab', { screen: 'Results', params: { id: d.id, opponentName: d.opponent.username } })}
+                  onPress={() => navigation.navigate('DuelsTab', { screen: 'Results', params: { id: d.id, opponentName: d.opponent.username }, initial: false })}
                   style={({ pressed }) => [styles.resultRow, i < home.recent_results.length - 1 && styles.divider, pressed && { backgroundColor: colors.bgElevated }]}
                 >
                   <Badge label={d.my_outcome === 'win' ? 'Won' : d.my_outcome === 'tie' ? 'Tie' : 'Lost'} tone={d.my_outcome === 'win' ? 'accent' : d.my_outcome === 'tie' ? 'neutral' : 'danger'} />

@@ -46,9 +46,11 @@ export default function PushTapRouter() {
       return;
     }
 
+    // initial: false keeps the Duels list beneath the pushed screen, so the
+    // back button always works even when the tap is what mounted the stack.
     switch (data.type) {
       case 'duel':
-        navigationRef.navigate('DuelsTab', { screen: 'DuelDetail', params: { id: data.duel_id } });
+        navigationRef.navigate('DuelsTab', { screen: 'DuelDetail', params: { id: data.duel_id }, initial: false });
         break;
 
       case 'draft':
@@ -56,6 +58,7 @@ export default function PushTapRouter() {
           navigationRef.navigate('DuelsTab', {
             screen: 'DraftRoom',
             params: { id: data.duel_id, opponentName },
+            initial: false,
           })
         );
         break;
@@ -65,6 +68,7 @@ export default function PushTapRouter() {
           navigationRef.navigate('DuelsTab', {
             screen: 'Results',
             params: { id: data.duel_id, opponentName },
+            initial: false,
           })
         );
         break;
