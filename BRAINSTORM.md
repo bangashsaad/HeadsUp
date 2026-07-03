@@ -125,6 +125,24 @@ them (later, gated).
 
 ---
 
+## Working plan: quick wins → multiplayer duels (agreed 2026-07-02)
+**Batch 1 — quick wins (one session):**
+- Draft-complete screen: "Watch Live Matchup" + "Back to Duels" buttons under the lineups.
+- "Share matchup" (native text share) on Live Matchup + Duel Detail. (Share result already exists.)
+
+**Batch 2 — draft-room upgrades (still 1v1, shippable alone):**
+- LIVE PICK TICKER (recent picks strip, e.g. "P7 · Buddy → A. Wilson") + snake-order avatar dots.
+- 1v1 keeps side-by-side rosters but FIT ON SCREEN (responsive half-width columns, no horizontal scroll).
+- Shared components built here: ticker, order dots, roster sheet (avatar tabs → full roster per player).
+
+**Batch 3 — multiplayer contests (1v1v1 up to 4), phased:**
+- A. Data model: duel_participants table (seat, accept-status), migrate existing 1v1s, behavior unchanged.
+- B. Engine: N-player snake, N-way ready check, auto-pick/pool sizing, channel auth.
+- C. Mobile: multi-select opponents (max 3), N-seat lobby, 3+ players use the FLOW layout (ticker + my-slots strip + roster sheet); results become a ranked leaderboard (1st/2nd/3rd).
+- D. Peripherals: records (win = 1st place; H2H stays 1v1-only), multi trophies, notification copy ("2nd of 4"), rematch-same-group. Counters stay 1v1-only in v1.
+
+**Layout decision (2026-07-02):** hybrid — ≤2 players: side-by-side rosters (fitted, no scroll) + ticker; 3+: flow layout with rosters behind avatar sheet. Head-to-head tension is worth keeping visible in 1v1; four columns can't fit a phone.
+
 ## Ideas parking lot (unfiltered, no commitment)
 - Positionless / UTIL-heavy lineup presets (Saad, 2026-07-01): keep classic slots
   as the default, but offer a mode where most/all slots are UTIL — draft anyone,
