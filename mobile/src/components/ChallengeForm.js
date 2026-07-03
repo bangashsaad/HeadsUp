@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useThemedStyles, spacing, font } from '../theme';
 import { Chip, Button } from './ui';
@@ -11,6 +11,14 @@ const SPORTS = [
   { key: 'nba', label: '🏀 Basketball' },
   { key: 'nfl', label: '🏈 Football' },
 ];
+
+// Off-season sports can't be picked (no games in the window = nothing to
+// score). Unknown status (endpoint unreachable) fails open — the server
+// backstops creation anyway.
+function isPlayable(sportsStatus, key) {
+  const st = sportsStatus?.find?.((s) => s.sport === key);
+  return !st || st.playable;
+}
 
 const PRESETS = [
   { key: 'quick', label: 'Quick' },
@@ -33,12 +41,24 @@ const TIME_OPTIONS = [
   { label: 'In 2 days', ms: 2 * 24 * 60 * 60 * 1000 },
 ];
 
-export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, submitting }) {
+export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, submitting, sportsStatus }) {
   const styles = useThemedStyles(makeStyles);
   const [sport, setSport] = useState(initial.sport || 'wnba');
   const [preset, setPreset] = useState((initial.lineup_template || '').split('_')[1] || 'standard');
   const [clockSecs, setClockSecs] = useState(initial.pick_clock_seconds || 60);
   const [timeMs, setTimeMs] = useState(TIME_OPTIONS[0].ms);
+
+  // If the selected sport turns out to be off-season, snap to the first
+  // playable one once status arrives.
+  useEffect(() => {
+    if (sportsStatus && !isPlayable(sportsStatus, sport)) {
+      const first = SPORTS.find((s) => isPlayable(sportsStatus, s.key));
+      if (first) setSport(first.key);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sportsStatus]);
+
+  const anyGated = SPORTS.some((s) => !isPlayable(sportsStatus, s.key));
 
   function handleSubmit() {
     onSubmit({
@@ -53,10 +73,16 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
     <View>
       <Text style={styles.label}>Sport</Text>
       <View style={styles.row}>
-        {SPORTS.map((s) => (
-          <Chip key={s.key} label={s.label} active={sport === s.key} onPress={() => setSport(s.key)} />
-        ))}
+        {SPORTS.map((s) => {
+          const ok = isPlayable(sportsStatus, s.key);
+          return (
+            <View key={s.key} style={!ok && { opacity: 0.4 }}>
+              <Chip label={ok ? s.label : `${s.label} · off-season`} active={sport === s.key} onPress={() => ok && setSport(s.key)} />
+            </View>
+          );
+        })}
       </View>
+      {anyGated ? <Text style={styles.gateNote}>Off-season sports come back when real games are on the slate.</Text> : null}
 
       <Text style={styles.label}>Lineup</Text>
       <View style={styles.row}>
@@ -91,4 +117,5 @@ const makeStyles = (colors) =>
     label: { color: colors.text, fontSize: font.body, fontWeight: '700', marginTop: spacing.lg, marginBottom: spacing.sm },
     row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
     note: { color: colors.muted, fontSize: font.small, marginTop: spacing.lg, lineHeight: 19 },
+    gateNote: { color: colors.placeholder, fontSize: font.caption, marginTop: spacing.sm },
   });

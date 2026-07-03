@@ -21,6 +21,11 @@ export function searchPlayers(token, q) {
 }
 
 // Upcoming games for a sport (schedule).
+// Which sports are playable right now (in-season window + real pool).
+export function getSportsStatus(token) {
+  return apiRequest('/api/sports/status', { token });
+}
+
 export function listUpcomingGames(token, sport = 'wnba') {
   return apiRequest(`/api/games/upcoming?sport=${encodeURIComponent(sport)}`, { token });
 }

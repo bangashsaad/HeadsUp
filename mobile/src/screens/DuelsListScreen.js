@@ -98,7 +98,8 @@ function LiveScoreInline({ token, duel, colors, styles }) {
   if (live.challenger) {
     const me = live.challenger.is_me ? live.challenger : live.opponent;
     const them = live.challenger.is_me ? live.opponent : live.challenger;
-    line = `You ${(me.total ?? 0).toFixed(1)} – ${(them.total ?? 0).toFixed(1)} ${them.user.username}`;
+    const diff = (me.total ?? 0) - (them.total ?? 0);
+    line = `${(me.total ?? 0).toFixed(1)}–${(them.total ?? 0).toFixed(1)} ${diff > 0 ? 'up' : diff < 0 ? 'down' : 'tied'}`;
   } else {
     const idx = (live.sides || []).findIndex((s) => s.is_me);
     const mine = live.sides?.[idx];
@@ -108,7 +109,10 @@ function LiveScoreInline({ token, duel, colors, styles }) {
   return (
     <View style={styles.liveLine}>
       {isLive ? <View style={styles.liveDot} /> : null}
-      <Text style={[styles.meta, { marginTop: 0 }, isLive && { color: colors.text, fontWeight: '600' }]} numberOfLines={1}>
+      <Text
+        style={[styles.meta, { marginTop: 0, flexShrink: 1 }, isLive && { color: colors.text, fontWeight: '600' }]}
+        numberOfLines={1}
+      >
         {line}
       </Text>
     </View>

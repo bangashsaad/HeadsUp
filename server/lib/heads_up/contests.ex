@@ -14,6 +14,7 @@ defmodule HeadsUp.Contests do
   alias HeadsUp.Social
   alias HeadsUp.Contests.{Duel, Participant, Scoring}
   alias HeadsUp.Drafts.Lineup
+  alias HeadsUp.Sports.Season
 
   @doc """
   Creates a challenge from `challenger` to one friend (`"opponent_id"`) or, for
@@ -37,6 +38,9 @@ defmodule HeadsUp.Contests do
           not Social.friends?(challenger, opponent_id) ->
             {:error, "you can only challenge your friends"}
 
+          not Season.in_season?(attrs["sport"]) ->
+            {:error, off_season_message(attrs["sport"])}
+
           true ->
             %Duel{}
             |> Duel.create_changeset(build_attrs(challenger, attrs))
@@ -46,6 +50,10 @@ defmodule HeadsUp.Contests do
             |> notify_challenged()
         end
     end
+  end
+
+  defp off_season_message(sport) do
+    "#{String.upcase(to_string(sport))} has no games in the next #{Season.window_days()} days — pick an in-season sport"
   end
 
   @doc """
@@ -72,6 +80,9 @@ defmodule HeadsUp.Contests do
 
       not Enum.all?(invitee_ids, &Social.friends?(challenger, &1)) ->
         {:error, "you can only challenge your friends"}
+
+      not Season.in_season?(attrs["sport"]) ->
+        {:error, off_season_message(attrs["sport"])}
 
       true ->
         insert_group(challenger, invitee_ids, attrs)

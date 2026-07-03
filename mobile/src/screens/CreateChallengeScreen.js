@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
 import { listFriends } from '../api/social';
+import { getSportsStatus } from '../api/sports';
 import { createChallenge } from '../api/duels';
 import { selection } from '../haptics';
 import ChallengeForm from '../components/ChallengeForm';
@@ -17,6 +18,7 @@ export default function CreateChallengeScreen({ navigation }) {
   const styles = useThemedStyles(makeStyles);
   const [friends, setFriends] = useState([]);
   const [selected, setSelected] = useState([]);
+  const [sportsStatus, setSportsStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -32,6 +34,10 @@ export default function CreateChallengeScreen({ navigation }) {
         setLoading(false);
       }
     })();
+    // Season gate loads separately — never blocks the form (fails open).
+    getSportsStatus(token)
+      .then((r) => setSportsStatus(r.sports))
+      .catch(() => {});
   }, [token]);
 
   function toggle(id) {
@@ -109,7 +115,12 @@ export default function CreateChallengeScreen({ navigation }) {
       ) : null}
 
       {friends.length > 0 ? (
-        <ChallengeForm onSubmit={submit} submitLabel={group ? 'Send Group Invites' : 'Send Challenge'} submitting={submitting} />
+        <ChallengeForm
+          onSubmit={submit}
+          submitLabel={group ? 'Send Group Invites' : 'Send Challenge'}
+          submitting={submitting}
+          sportsStatus={sportsStatus}
+        />
       ) : null}
     </Screen>
   );

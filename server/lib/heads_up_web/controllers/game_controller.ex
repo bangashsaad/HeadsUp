@@ -8,6 +8,12 @@ defmodule HeadsUpWeb.GameController do
   action_fallback HeadsUpWeb.FallbackController
 
   # GET /api/games/upcoming?sport=wnba
+  # GET /api/sports/status — which sports are playable right now (season
+  # window + real pool). Drives the challenge form's sport picker.
+  def season(conn, _params) do
+    json(conn, %{sports: HeadsUp.Sports.Season.statuses()})
+  end
+
   def upcoming(conn, params) do
     sport = params["sport"] || "wnba"
     {:ok, games} = Schedule.upcoming(sport)

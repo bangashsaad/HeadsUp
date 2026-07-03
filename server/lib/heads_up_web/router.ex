@@ -65,6 +65,7 @@ defmodule HeadsUpWeb.Router do
     get "/players/search", PlayerController, :search
     get "/players/:id/profile", PlayerController, :profile
     get "/games/upcoming", GameController, :upcoming
+    get "/sports/status", GameController, :season
     get "/games/:event_id/boxscore", GameController, :boxscore
 
     # Challenges (duels)
