@@ -71,6 +71,7 @@ export default function DraftRoomScreen({ route, navigation }) {
     <DraftBoard
       state={state}
       myId={myId}
+      duelId={id}
       opponentName={opponentName}
       conn={connRef.current}
       error={error}
@@ -124,7 +125,7 @@ function ReadyPill({ name, ready }) {
   );
 }
 
-function DraftBoard({ state, myId, opponentName, conn, error, setError, navigation }) {
+function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, navigation }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const complete = state.phase === 'complete';
@@ -305,9 +306,24 @@ function DraftBoard({ state, myId, opponentName, conn, error, setError, navigati
           />
         </>
       ) : (
-        <Text style={styles.completeNote}>
-          Lineups are locked. The winner is declared once the games in the scoring window finish — check back from the duel screen.
-        </Text>
+        <View>
+          <Text style={styles.completeNote}>
+            Lineups are locked. The winner is declared once the games in the scoring window finish.
+          </Text>
+          <Button
+            title="Watch Live Matchup"
+            icon="pulse"
+            onPress={() => navigation.navigate('LiveMatchup', { id: duelId, opponentName })}
+            style={{ marginTop: spacing.xl }}
+          />
+          <Button
+            title="Back to Duels"
+            icon="list"
+            variant="outline"
+            onPress={() => navigation.popToTop()}
+            style={{ marginTop: spacing.sm }}
+          />
+        </View>
       )}
     </View>
   );

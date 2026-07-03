@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { getDuel, respondToDuel, getLiveResult } from '../api/duels';
@@ -79,6 +79,21 @@ export default function DuelDetailScreen({ route, navigation }) {
   const isOpponentPending = duel.role === 'opponent' && duel.status === 'pending';
   const isChallengerPending = duel.role === 'challenger' && duel.status === 'pending';
   const scoring = Object.entries(duel.scoring_rules || {});
+  const shareable = ['pending', 'accepted', 'drafting', 'drafted', 'settled'].includes(duel.status);
+
+  function shareMatchup() {
+    const stage =
+      duel.status === 'drafted'
+        ? 'Lineups are locked — scoring is live!'
+        : duel.status === 'settled'
+          ? 'The final is in.'
+          : duel.status === 'pending'
+            ? 'The challenge is on the table.'
+            : `We draft ${formatDateTime(duel.draft_starts_at)}.`;
+    Share.share({
+      message: `⚔️ Heads Up fantasy duel: me vs ${duel.opponent.username} — ${SPORT_LABEL[duel.sport] || duel.sport}. ${stage}`,
+    }).catch(() => {});
+  }
 
   return (
     <Screen scroll>
@@ -177,6 +192,8 @@ export default function DuelDetailScreen({ route, navigation }) {
             onPress={() => navigation.navigate('Results', { id: duel.id, opponentName: duel.opponent.username })}
           />
         ) : null}
+
+        {shareable ? <Button title="Share matchup" icon="share-outline" variant="outline" onPress={shareMatchup} /> : null}
       </View>
     </Screen>
   );

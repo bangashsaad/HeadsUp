@@ -1,11 +1,11 @@
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Share, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { getLiveResult } from '../api/duels';
 import { ApiError } from '../api/client';
 import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
-import { Screen, Card, Avatar, Badge } from '../components/ui';
+import { Screen, Card, Avatar, Badge, Button } from '../components/ui';
 
 export default function LiveMatchupScreen({ route, navigation }) {
   const { id, opponentName = 'Opponent' } = route.params;
@@ -70,6 +70,14 @@ export default function LiveMatchupScreen({ route, navigation }) {
       .filter(Boolean)
       .join(' · ') || 'No games in the scoring window yet';
 
+  function shareMatchup() {
+    const scoreLine = `${(me.total ?? 0).toFixed(1)} to ${(them.total ?? 0).toFixed(1)}`;
+    const status = meLeads ? `I'm up ${scoreLine}` : themLead ? `I'm down ${scoreLine}` : `we're tied ${scoreLine}`;
+    Share.share({
+      message: `My Heads Up fantasy duel vs ${opponentName} is live — ${status}! 🏀⚾️`,
+    }).catch(() => {});
+  }
+
   return (
     <Screen scroll>
       <Card style={styles.scoreCard}>
@@ -85,6 +93,7 @@ export default function LiveMatchupScreen({ route, navigation }) {
       <Lineup title="Your lineup" side={me} highlight={meLeads} styles={styles} colors={colors} />
       <Lineup title={`${opponentName}'s lineup`} side={them} highlight={themLead} styles={styles} colors={colors} />
 
+      <Button title="Share matchup" icon="share-outline" variant="outline" onPress={shareMatchup} style={{ marginTop: spacing.xl }} />
       <Text style={styles.note}>Live scoring — the winner is declared automatically once the games are final.</Text>
     </Screen>
   );
