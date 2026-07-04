@@ -34,6 +34,8 @@ defmodule HeadsUpWeb.Router do
     get "/apple-app-site-association", DeepLinkController, :aasa
     get "/d/:id", DeepLinkController, :fallback
     get "/u/:username", DeepLinkController, :fallback
+    get "/install", DeepLinkController, :install
+    get "/install/manifest.plist", DeepLinkController, :manifest
   end
 
   # Public API routes (no login required)
