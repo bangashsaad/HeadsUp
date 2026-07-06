@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react';
-import { SectionList, StyleSheet, Text, View, Pressable } from 'react-native';
+import { ScrollView, SectionList, StyleSheet, Text, View, Pressable } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../auth/AuthContext';
-import { listUpcomingGames } from '../api/sports';
+import { listUpcomingGames, listGamesOn } from '../api/sports';
 import { useTheme, useThemedStyles, spacing, fonts, withAlpha } from '../theme';
-import { Screen, Badge, EmptyState, SkeletonList, Segmented, BlinkDot } from '../components/ui';
+import { Screen, Badge, EmptyState, SkeletonList, Segmented, BlinkDot, Chip } from '../components/ui';
 
 const WEEK = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -53,11 +53,25 @@ const SPORTS = [
   { key: 'mlb', label: 'MLB' },
 ];
 
+// The last `n` ET calendar days, most recent first, as {iso, label}.
+function pastDays(n = 7) {
+  const out = [];
+  const nowEt = new Date(Date.now() - 4 * 3600 * 1000);
+  for (let i = 1; i <= n; i++) {
+    const d = new Date(nowEt.getTime() - i * 24 * 3600 * 1000);
+    const iso = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+    const label = i === 1 ? 'Yda' : `${MON[d.getUTCMonth()]} ${d.getUTCDate()}`;
+    out.push({ iso, label });
+  }
+  return out;
+}
+
 export default function GamesScreen({ navigation }) {
   const { token } = useAuth();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [sport, setSport] = useState('wnba');
+  const [day, setDay] = useState(null); // null = the upcoming slate; 'YYYY-MM-DD' = one past day
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -65,7 +79,7 @@ export default function GamesScreen({ navigation }) {
 
   const load = useCallback(async () => {
     try {
-      const res = await listUpcomingGames(token, sport);
+      const res = day ? await listGamesOn(token, sport, day) : await listUpcomingGames(token, sport);
       setGames(res.games || []);
       setError(null);
     } catch (e) {
@@ -74,15 +88,16 @@ export default function GamesScreen({ navigation }) {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [token, sport]);
+  }, [token, sport, day]);
 
-  // Refresh on focus and keep polling — live scores move while you watch.
+  // Refresh on focus; keep polling only on the live slate — past days are done.
   useFocusEffect(
     useCallback(() => {
       load();
+      if (day) return undefined;
       const iv = setInterval(load, 30000);
       return () => clearInterval(iv);
-    }, [load])
+    }, [load, day])
   );
 
   function switchSport(next) {
@@ -90,6 +105,13 @@ export default function GamesScreen({ navigation }) {
     setGames([]);
     setLoading(true);
     setSport(next);
+  }
+
+  function switchDay(next) {
+    if (next === day) return;
+    setGames([]);
+    setLoading(true);
+    setDay(next);
   }
 
   return (
@@ -100,6 +122,18 @@ export default function GamesScreen({ navigation }) {
         onChange={switchSport}
         options={SPORTS.map((s) => ({ key: s.key, label: s.label }))}
       />
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ flexGrow: 0, marginTop: spacing.sm }}
+        contentContainerStyle={{ gap: 7, paddingHorizontal: spacing.lg }}
+      >
+        <Chip label="Upcoming" active={day === null} onPress={() => switchDay(null)} />
+        {pastDays().map((d) => (
+          <Chip key={d.iso} label={d.label} active={day === d.iso} onPress={() => switchDay(d.iso)} />
+        ))}
+      </ScrollView>
 
       {loading ? (
         <View style={{ padding: spacing.lg }}>
@@ -120,6 +154,8 @@ export default function GamesScreen({ navigation }) {
           ListEmptyComponent={
             error ? (
               <EmptyState icon="cloud-offline-outline" title="Couldn't load games" subtitle={error} />
+            ) : day ? (
+              <EmptyState icon="moon-outline" title="Quiet night" subtitle="No games on that date — pick another day." />
             ) : (
               <EmptyState icon="calendar-outline" title="No upcoming games" subtitle="Check back when the next slate is scheduled." />
             )

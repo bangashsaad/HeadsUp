@@ -18,6 +18,27 @@ defmodule HeadsUp.Sports.Schedule do
     if Client.supported?(sport), do: {:ok, fetch(sport, client, now)}, else: {:ok, []}
   end
 
+  @doc "All games on one ET calendar date — past days welcome (the receipts)."
+  def on_date(sport, %Date{} = date, opts \\ []) do
+    client = Keyword.get(opts, :client, Client)
+
+    if Client.supported?(sport) do
+      ymd = Calendar.strftime(date, "%Y%m%d")
+
+      games =
+        case client.scoreboard(sport, ymd) do
+          {:ok, body} -> body |> Map.get("events", []) |> Enum.map(&game/1)
+          {:error, _} -> []
+        end
+        |> Enum.reject(&is_nil/1)
+        |> Enum.sort_by(& &1.date)
+
+      {:ok, games}
+    else
+      {:ok, []}
+    end
+  end
+
   defp fetch(sport, client, now) do
     start = now |> DateTime.add(@et_offset_seconds, :second) |> DateTime.to_date()
 

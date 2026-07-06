@@ -20,6 +20,23 @@ defmodule HeadsUpWeb.GameController do
     render(conn, :upcoming, games: games)
   end
 
+  # GET /api/games/scoreboard?sport=wnba&date=2026-07-04 — one ET day, any day
+  # (past dates give finished games whose box scores are still browsable).
+  def scoreboard(conn, %{"date" => date_str} = params) do
+    sport = params["sport"] || "wnba"
+
+    case Date.from_iso8601(date_str) do
+      {:ok, date} ->
+        {:ok, games} = Schedule.on_date(sport, date)
+        render(conn, :upcoming, games: games)
+
+      {:error, _} ->
+        {:error, "date must be YYYY-MM-DD"}
+    end
+  end
+
+  def scoreboard(_conn, _params), do: {:error, "date is required (YYYY-MM-DD)"}
+
   # GET /api/games/:event_id/boxscore?sport=wnba  — live/final box score + fantasy
   def boxscore(conn, %{"event_id" => event_id} = params) do
     sport = params["sport"] || "wnba"

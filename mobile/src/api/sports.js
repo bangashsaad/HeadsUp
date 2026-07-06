@@ -30,6 +30,12 @@ export function listUpcomingGames(token, sport = 'wnba') {
   return apiRequest(`/api/games/upcoming?sport=${encodeURIComponent(sport)}`, { token });
 }
 
+// One ET calendar day of games — past days included (finished games keep
+// their box scores browsable).
+export function listGamesOn(token, sport = 'wnba', date) {
+  return apiRequest(`/api/games/scoreboard?sport=${encodeURIComponent(sport)}&date=${encodeURIComponent(date)}`, { token });
+}
+
 // Live/final box score for one game, with a fantasy column per player.
 export function getBoxScore(token, sport, eventId) {
   return apiRequest(`/api/games/${eventId}/boxscore?sport=${encodeURIComponent(sport)}`, { token });
