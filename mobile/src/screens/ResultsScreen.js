@@ -51,7 +51,7 @@ function topStats(statLine) {
 export default function ResultsScreen({ route, navigation }) {
   const { id, opponentName = 'Opponent' } = route.params;
   const { token } = useAuth();
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [result, setResult] = useState(null);
   const [pending, setPending] = useState(false);
@@ -208,7 +208,7 @@ export default function ResultsScreen({ route, navigation }) {
     return (
       <View style={{ flex: 1 }}>
         <Screen scroll padded={false}>
-          <LinearGradient colors={[withAlpha(colors.accent, mine?.rank === 1 ? 0.16 : 0.05), 'transparent']} style={styles.glow}>
+          <LinearGradient colors={[withAlpha(colors.accent, (scheme === 'dark' ? 1 : 0.5) * (mine?.rank === 1 ? 0.16 : 0.05)), 'transparent']} style={styles.glow}>
             <Animated.View style={{ alignItems: 'center', transform: [{ scale: pop }] }}>
               <Kicker tracking={3} color={colors.muted}>{`FINAL · ${standings.length}-WAY DUEL`}</Kicker>
               <DisplayTitle size={44} color={bannerColor} style={{ marginTop: 8 }}>
@@ -287,7 +287,7 @@ export default function ResultsScreen({ route, navigation }) {
   return (
     <View style={{ flex: 1 }}>
       <Screen scroll padded={false}>
-        <LinearGradient colors={[withAlpha(colors.accent, won ? 0.18 : 0.05), 'transparent']} style={styles.glow}>
+        <LinearGradient colors={[withAlpha(colors.accent, (scheme === 'dark' ? 1 : 0.5) * (won ? 0.18 : 0.05)), 'transparent']} style={styles.glow}>
           <Animated.View style={{ alignItems: 'center', transform: [{ scale: pop }] }}>
             <Kicker tracking={3} color={colors.muted}>{`FINAL · DUEL VS ${opponentName.toUpperCase()}`}</Kicker>
             <DisplayTitle size={50} color={resultColor} style={{ marginTop: 8 }}>
@@ -295,7 +295,7 @@ export default function ResultsScreen({ route, navigation }) {
             </DisplayTitle>
             <View style={styles.finalRow}>
               <BigScore label="YOU" value={me.total} color={won || tie ? colors.accent : colors.text} />
-              <GhostText size={19} color={withAlpha('#3A4157', 1)} strokeWidth={1}>
+              <GhostText size={19} color={colors.textFaint} strokeWidth={1}>
                 VS
               </GhostText>
               <BigScore label={opponentName.toUpperCase()} value={them.total} color={!won && !tie ? colors.purpleText : colors.text} alignEnd />

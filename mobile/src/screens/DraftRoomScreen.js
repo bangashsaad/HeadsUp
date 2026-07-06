@@ -188,7 +188,7 @@ function ReadyRoom({ state, duel, myId, opponentName, conn }) {
             </CondTitle>
             <ReadyTag on={!!iAmReady} colors={colors} />
           </View>
-          <GhostText size={34} color={withAlpha('#565D73', 0.9)} strokeWidth={1.4} style={{ marginHorizontal: 6 }}>
+          <GhostText size={34} color={withAlpha(colors.placeholder, 0.9)} strokeWidth={1.4} style={{ marginHorizontal: 6 }}>
             VS
           </GhostText>
           <View style={styles.faceCol}>

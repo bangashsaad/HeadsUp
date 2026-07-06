@@ -95,7 +95,7 @@ function LiveDuelCard({ token, duel, onOpen, colors, styles }) {
             {me.toFixed(1)}
           </CondTitle>
         </View>
-        <GhostText size={17} color={withAlpha('#3A4157', 0.9)} strokeWidth={1}>
+        <GhostText size={17} color={withAlpha(colors.textFaint, 0.9)} strokeWidth={1}>
           VS
         </GhostText>
         <View style={{ alignItems: 'flex-end' }}>

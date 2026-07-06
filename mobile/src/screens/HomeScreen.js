@@ -35,7 +35,7 @@ function fmtDate(iso) {
 
 export default function HomeScreen({ navigation }) {
   const { token, user } = useAuth();
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [home, setHome] = useState(null);
   const [games, setGames] = useState([]);
@@ -115,9 +115,10 @@ export default function HomeScreen({ navigation }) {
           <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.accent} />
         }
       >
-        {/* Brand header + season record, under a soft purple glow */}
+        {/* Brand header + season record. The purple glow is a dark-mode device —
+            on paper it reads muddy, so light mode stays clean. */}
         <LinearGradient
-          colors={[withAlpha(colors.purple, 0.18), 'transparent']}
+          colors={scheme === 'dark' ? [withAlpha(colors.purple, 0.18), 'transparent'] : ['transparent', 'transparent']}
           start={{ x: 0.15, y: 0 }}
           end={{ x: 0.55, y: 1 }}
           style={styles.headerZone}

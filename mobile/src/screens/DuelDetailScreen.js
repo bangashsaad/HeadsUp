@@ -148,7 +148,7 @@ export default function DuelDetailScreen({ route, navigation }) {
             <Avatar name="You" size={56} />
             <Text style={styles.sideName}>You</Text>
           </View>
-          <GhostText size={28} color={withAlpha('#565D73', 0.9)} strokeWidth={1.3} style={{ marginHorizontal: 4 }}>
+          <GhostText size={28} color={withAlpha(colors.placeholder, 0.9)} strokeWidth={1.3} style={{ marginHorizontal: 4 }}>
             VS
           </GhostText>
           <Pressable

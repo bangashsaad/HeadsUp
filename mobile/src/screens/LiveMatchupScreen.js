@@ -166,7 +166,7 @@ export default function LiveMatchupScreen({ route, navigation }) {
               </Kicker>
               <Text style={[styles.scoreBig, { color: myT >= opT ? colors.accent : colors.text }]}>{myT.toFixed(1)}</Text>
             </View>
-            <GhostText size={17} color={withAlpha('#3A4157', 1)} strokeWidth={1}>
+            <GhostText size={17} color={colors.textFaint} strokeWidth={1}>
               VS
             </GhostText>
             <View style={{ alignItems: 'flex-end' }}>

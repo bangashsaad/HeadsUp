@@ -1,18 +1,21 @@
 import Svg, { Text as SvgText } from 'react-native-svg';
-import { fonts } from '../../theme';
+import { fonts, useTheme, withAlpha } from '../../theme';
 
 // Outline-only display text — the big translucent "VS" / pick-number watermarks.
-// Rendered as stroked SVG text (RN has no text-stroke).
+// Rendered as stroked SVG text (RN has no text-stroke). Defaults to a faint
+// stroke of the theme's text color, so it reads in light mode too.
 export default function GhostText({
   children,
   size = 34,
-  color = 'rgba(244,245,247,0.09)',
+  color,
   strokeWidth = 1.2,
   family = fonts.display,
   width,
   height,
   style,
 }) {
+  const { colors } = useTheme();
+  const stroke = color || withAlpha(colors.text, 0.09);
   const label = String(children);
   const w = width ?? Math.ceil(size * Math.max(1, label.length) * 0.78);
   const h = height ?? Math.ceil(size * 1.25);
@@ -25,7 +28,7 @@ export default function GhostText({
         fontFamily={family}
         textAnchor="middle"
         fill="none"
-        stroke={color}
+        stroke={stroke}
         strokeWidth={strokeWidth}
       >
         {label}

@@ -36,7 +36,7 @@ const RANK_COLOR = (colors, rank) =>
 
 export default function ProfileScreen({ navigation }) {
   const { user, token, signOut } = useAuth();
-  const { colors } = useTheme();
+  const { colors, scheme } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [stats, setStats] = useState(null);
   const [trophies, setTrophies] = useState([]);
@@ -89,9 +89,9 @@ export default function ProfileScreen({ navigation }) {
   return (
     <Screen padded={false} edges={['top']}>
       <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }} showsVerticalScrollIndicator={false}>
-        {/* Identity, under a cyan glow */}
+        {/* Identity. The cyan glow is a dark-mode device; light stays clean. */}
         <LinearGradient
-          colors={[withAlpha(colors.cyan, 0.12), 'transparent']}
+          colors={scheme === 'dark' ? [withAlpha(colors.cyan, 0.12), 'transparent'] : ['transparent', 'transparent']}
           start={{ x: 0.8, y: 0 }}
           end={{ x: 0.4, y: 1 }}
           style={styles.headerZone}
