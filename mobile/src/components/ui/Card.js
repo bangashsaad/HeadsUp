@@ -9,7 +9,7 @@ export default function Card({ children, onPress, style, padded = true, elevated
       backgroundColor: elevated ? colors.cardElevated : colors.card,
       borderRadius: radius.lg,
       borderWidth: 1,
-      borderColor: colors.borderSubtle,
+      borderColor: colors.border,
       padding: padded ? spacing.lg : 0,
     },
     shadow.sm,

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Animated, ScrollView, StyleSheet, Text } from 'react-native';
-import { useThemedStyles, spacing, radius, font } from '../theme';
+import { useThemedStyles, spacing, radius, fonts } from '../theme';
 import { shortName } from '../utils/names';
 
 // Horizontal strip of recent picks, latest first: "P7 · You → A. Wilson".
@@ -64,7 +64,7 @@ const makeStyles = (colors) =>
       paddingVertical: 5,
     },
     pillLatest: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
-    pickNo: { color: colors.placeholder, fontSize: 10, fontWeight: '800' },
-    text: { color: colors.muted, fontSize: font.caption, fontWeight: '600', maxWidth: 220 },
+    pickNo: { color: colors.placeholder, fontSize: 9, fontFamily: fonts.bodyBlack },
+    text: { color: colors.muted, fontSize: 12.5, fontFamily: fonts.condBold, maxWidth: 220 },
     playerName: { color: colors.text },
   });

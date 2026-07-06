@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Dimensions, Easing, StyleSheet, View } from 'react-native';
 
-const COLORS = ['#4ade80', '#fbbf24', '#3b82f6', '#ec4899', '#8b5cf6', '#f97316', '#22d3ee'];
-const COUNT = 28;
+const COLORS = ['#C8FF2E', '#7C5CFF', '#22E5FF', '#FF4D8D', '#FFB021', '#F4F5F7'];
+const COUNT = 42;
 
 // A one-shot confetti rain for the winner moment. Pure Animated (no deps, runs
 // in Expo Go): strips and dots fall from above the screen with drift and spin,

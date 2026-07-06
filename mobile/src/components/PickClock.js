@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { useTheme } from '../theme';
+import { useTheme, fonts } from '../theme';
 
 // Live countdown derived from the server's absolute `deadline` and `serverNow`
 // (both ISO8601). We align the deadline to the local clock once (skew), then
 // tick locally — and drain a circular ring that goes red in the final seconds.
-const SIZE = 46;
-const STROKE = 4;
+const SIZE = 56;
+const STROKE = 5;
 const R = (SIZE - STROKE) / 2;
 const CIRC = 2 * Math.PI * R;
 
@@ -58,7 +58,7 @@ export default function PickClock({ deadline, serverNow }) {
           transform={`rotate(-90 ${SIZE / 2} ${SIZE / 2})`}
         />
       </Svg>
-      <Text style={{ color: low ? colors.danger : colors.text, fontSize: secs >= 60 ? 13 : 15, fontWeight: '800', fontVariant: ['tabular-nums'] }}>
+      <Text style={{ color: ringColor, fontSize: secs >= 60 ? 15 : 20, fontFamily: fonts.hero, fontVariant: ['tabular-nums'] }}>
         {label}
       </Text>
     </View>

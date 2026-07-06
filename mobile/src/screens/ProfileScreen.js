@@ -1,13 +1,15 @@
 import { useCallback, useState } from 'react';
-import { Alert, Modal, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../auth/AuthContext';
-import { getMyStats, getAchievements } from '../api/me';
-import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
-import { Screen, Card, Avatar, Button } from '../components/ui';
+import { getMyStats, getAchievements, getLeaderboard } from '../api/me';
+import { listRequests } from '../api/social';
+import { useTheme, useThemedStyles, spacing, radius, font, fonts, withAlpha } from '../theme';
+import { Screen, Card, Avatar, Button, StatTile, SectionHeader, CondTitle, Kicker } from '../components/ui';
 
-function Row({ icon, label, sublabel, onPress, danger }) {
+function Row({ icon, label, sublabel, onPress, danger, count }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   return (
@@ -19,10 +21,18 @@ function Row({ icon, label, sublabel, onPress, danger }) {
         <Text style={[styles.rowLabel, danger && { color: colors.danger }]}>{label}</Text>
         {sublabel ? <Text style={styles.rowSub}>{sublabel}</Text> : null}
       </View>
+      {count > 0 ? (
+        <View style={styles.rowCount}>
+          <Text style={styles.rowCountText}>{count}</Text>
+        </View>
+      ) : null}
       <Ionicons name="chevron-forward" size={18} color={colors.placeholder} />
     </Pressable>
   );
 }
+
+const RANK_COLOR = (colors, rank) =>
+  rank === 1 ? colors.gold : rank === 2 ? colors.silver : rank === 3 ? colors.bronze : colors.placeholder;
 
 export default function ProfileScreen({ navigation }) {
   const { user, token, signOut } = useAuth();
@@ -30,6 +40,8 @@ export default function ProfileScreen({ navigation }) {
   const styles = useThemedStyles(makeStyles);
   const [stats, setStats] = useState(null);
   const [trophies, setTrophies] = useState([]);
+  const [crew, setCrew] = useState([]);
+  const [requestCount, setRequestCount] = useState(0);
   const [openTrophy, setOpenTrophy] = useState(null);
 
   useFocusEffect(
@@ -40,6 +52,12 @@ export default function ProfileScreen({ navigation }) {
         .catch(() => {});
       getAchievements(token)
         .then((r) => active && setTrophies(r.achievements || []))
+        .catch(() => {});
+      getLeaderboard(token)
+        .then((r) => active && setCrew(r.leaderboard || []))
+        .catch(() => {});
+      listRequests(token)
+        .then((r) => active && setRequestCount((r.requests || []).length))
         .catch(() => {});
       return () => {
         active = false;
@@ -62,120 +80,155 @@ export default function ProfileScreen({ navigation }) {
 
   const rec = stats?.record;
   const h2h = stats?.head_to_head || [];
+  const h2hById = new Map(h2h.map((r) => [String(r.opponent.id), r]));
+  const winPct = rec ? Math.round((rec.win_pct || 0) * (rec.win_pct <= 1 ? 100 : 1)) : null;
+  const ptDiff = rec ? Math.round(((rec.points_for || 0) - (rec.points_against || 0)) * 10) / 10 : 0;
+  const myRank = crew.find((r) => String(r.user?.id) === String(user?.id))?.rank;
+  const earned = trophies.filter((t) => t.earned).length;
 
   return (
-    <Screen scroll>
-      <Card style={styles.headerCard}>
-        <Avatar name={user?.username || '?'} size={72} />
-        <Text style={styles.username}>{user?.username}</Text>
-        {user?.email ? <Text style={styles.email}>{user.email}</Text> : null}
-      </Card>
+    <Screen padded={false} edges={['top']}>
+      <ScrollView contentContainerStyle={{ paddingBottom: spacing.xxl }} showsVerticalScrollIndicator={false}>
+        {/* Identity, under a cyan glow */}
+        <LinearGradient
+          colors={[withAlpha(colors.cyan, 0.12), 'transparent']}
+          start={{ x: 0.8, y: 0 }}
+          end={{ x: 0.4, y: 1 }}
+          style={styles.headerZone}
+        >
+          <View style={styles.idRow}>
+            <Avatar name={user?.username || '?'} size={62} />
+            <View style={{ flex: 1 }}>
+              <CondTitle size={26} numberOfLines={1} style={{ paddingRight: 4 }}>
+                {(user?.username || '?').toUpperCase()}
+              </CondTitle>
+              <View style={styles.chipRow}>
+                {rec?.streak?.count > 0 ? (
+                  <View style={styles.idChip}>
+                    <Text
+                      style={[
+                        styles.idChipText,
+                        { color: rec.streak.type === 'win' ? colors.gold : rec.streak.type === 'loss' ? colors.danger : colors.muted },
+                      ]}
+                    >
+                      {rec.streak.type === 'win' ? `🔥 W${rec.streak.count} STREAK` : `${rec.streak.type[0].toUpperCase()}${rec.streak.count} STREAK`}
+                    </Text>
+                  </View>
+                ) : null}
+                {myRank ? (
+                  <View style={styles.idChip}>
+                    <Text style={[styles.idChipText, { color: colors.muted }]}>#{myRank} OF CREW</Text>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          </View>
 
-      {/* Record */}
-      <Card style={{ marginTop: spacing.lg }}>
-        <View style={styles.recHead}>
-          <Text style={styles.recTitle}>Record</Text>
-          {rec?.streak?.count > 0 ? (
-            <Text style={[styles.streakChip, { color: rec.streak.type === 'win' ? colors.accent : rec.streak.type === 'loss' ? colors.danger : colors.muted }]}>
-              {rec.streak.type === 'win' ? '🔥 ' : ''}
-              {rec.streak.type[0].toUpperCase()}
-              {rec.streak.count}
-            </Text>
+          <View style={styles.statGrid}>
+            <StatTile value={rec?.wins ?? 0} label="Wins" color={colors.accent} />
+            <StatTile value={rec?.losses ?? 0} label="Losses" color={colors.danger} />
+            <StatTile value={winPct != null ? `${winPct}%` : '—'} label="Win rate" />
+            <StatTile value={`${ptDiff >= 0 ? '+' : ''}${ptDiff}`} label="Pt diff" />
+          </View>
+        </LinearGradient>
+
+        <View style={{ paddingHorizontal: spacing.lg }}>
+          {/* Trophy case */}
+          {trophies.length > 0 ? (
+            <SectionHeader hint={`${earned} / ${trophies.length}`}>Trophy case</SectionHeader>
           ) : null}
         </View>
-        <View style={styles.recGrid}>
-          <RecStat value={rec?.wins ?? 0} label="W" styles={styles} />
-          <RecStat value={rec?.losses ?? 0} label="L" styles={styles} />
-          <RecStat value={rec?.ties ?? 0} label="T" styles={styles} />
-          <RecStat value={rec ? `${Math.round((rec.win_pct || 0) * 100)}%` : '—'} label="WIN" accent styles={styles} />
-        </View>
-        {rec?.played ? (
-          <Text style={styles.recNote}>
-            {rec.points_for} pts for · {rec.points_against} against over {rec.played} duels
-          </Text>
-        ) : (
-          <Text style={styles.recNote}>No completed duels yet — go win one.</Text>
-        )}
-      </Card>
-
-      {/* Head-to-head */}
-      {h2h.length > 0 ? (
-        <>
-          <Text style={styles.sectionLabel}>Head to head</Text>
-          <Card padded={false}>
-            {h2h.map((r, i) => (
-              <View key={r.opponent.id} style={[styles.h2hRow, i < h2h.length - 1 && styles.divider]}>
-                <Avatar name={r.opponent.username} size={32} />
-                <Text style={styles.h2hName}>{r.opponent.username}</Text>
-                <Text style={styles.h2hRec}>
-                  {r.wins}-{r.losses}
-                  {r.ties ? `-${r.ties}` : ''}
-                </Text>
-              </View>
-            ))}
-          </Card>
-        </>
-      ) : null}
-
-      {/* Trophies */}
-      {trophies.length > 0 ? (
-        <>
-          <View style={styles.trophyHead}>
-            <Text style={styles.sectionLabel}>Trophies</Text>
-            <Text style={styles.trophyCount}>
-              {trophies.filter((t) => t.earned).length}/{trophies.length}
-            </Text>
-          </View>
-          <View style={styles.trophyGrid}>
+        {trophies.length > 0 ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trophyRow}>
             {trophies.map((t) => (
-              <Trophy key={t.key} trophy={t} styles={styles} colors={colors} onPress={() => setOpenTrophy(t)} />
+              <Pressable
+                key={t.key}
+                onPress={() => setOpenTrophy(t)}
+                style={({ pressed }) => [styles.trophyTile, t.earned ? styles.trophyTileOn : styles.trophyTileOff, pressed && { opacity: 0.8 }]}
+              >
+                <Ionicons name={t.icon} size={21} color={t.earned ? colors.accent : colors.placeholder} />
+                <Text style={[styles.trophyTitle, !t.earned && { color: colors.muted }]} numberOfLines={1}>
+                  {t.title}
+                </Text>
+                <Text style={styles.trophySub} numberOfLines={1}>
+                  {t.earned ? '✓ EARNED' : `${Math.min(t.value, t.threshold)}/${t.threshold}`}
+                </Text>
+              </Pressable>
             ))}
+          </ScrollView>
+        ) : null}
+
+        <View style={{ paddingHorizontal: spacing.lg }}>
+          {/* The crew */}
+          <SectionHeader hint={requestCount > 0 ? `${requestCount} REQUEST${requestCount > 1 ? 'S' : ''}` : undefined}>
+            The crew
+          </SectionHeader>
+          {crew.length === 0 ? (
+            <Card>
+              <Text style={styles.emptyCrew}>No crew yet. Add friends and the standings show up here.</Text>
+              <Button title="Add friends" size="sm" full={false} style={{ marginTop: spacing.md, alignSelf: 'flex-start' }} onPress={() => navigation.navigate('Search')} />
+            </Card>
+          ) : (
+            <View style={{ gap: 7 }}>
+              {crew.map((r) => {
+                const isMe = String(r.user?.id) === String(user?.id);
+                const vs = h2hById.get(String(r.user?.id));
+                return (
+                  <Pressable
+                    key={r.user?.id ?? r.rank}
+                    disabled={isMe}
+                    onPress={() => navigation.navigate('UserProfile', { id: r.user.id, username: r.user.username })}
+                    style={({ pressed }) => [styles.crewRow, isMe && styles.crewRowMe, pressed && { opacity: 0.8 }]}
+                  >
+                    <CondTitle size={15} color={RANK_COLOR(colors, r.rank)} style={{ width: 20 }}>
+                      {r.rank}
+                    </CondTitle>
+                    <Avatar name={isMe ? user?.username : r.user?.username} size={30} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.crewName, isMe && { color: colors.accent }]} numberOfLines={1}>
+                        {isMe ? `${user?.username} · you` : r.user?.username}
+                      </Text>
+                      <Text style={styles.crewSub} numberOfLines={1}>
+                        {isMe
+                          ? myRank === 1
+                            ? 'Top of the crew — defend it'
+                            : 'Climb the board — win a duel'
+                          : vs
+                            ? `Your record vs: ${vs.wins}–${vs.losses}${vs.ties ? `–${vs.ties}` : ''}`
+                            : 'No duels yet — call them out'}
+                      </Text>
+                    </View>
+                    <Text style={styles.crewRec}>
+                      {r.wins}–{r.losses}
+                      {r.ties ? `–${r.ties}` : ''}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Menu */}
+          <Card padded={false} style={{ marginTop: spacing.lg }}>
+            <Row icon="people-outline" label="Manage the crew" sublabel="Friends, search, invites" onPress={() => navigation.navigate('Friends')} />
+            <View style={styles.menuDivider} />
+            <Row icon="mail-unread-outline" label="Friend requests" count={requestCount} onPress={() => navigation.navigate('Requests')} />
+            <View style={styles.menuDivider} />
+            <Row icon="person-add-outline" label="Invite a friend" sublabel="Share your username to duel" onPress={invite} />
+            <View style={styles.menuDivider} />
+            <Row icon="settings-outline" label="Settings" sublabel="Appearance, preferences, account" onPress={() => navigation.navigate('Settings')} />
+            <View style={styles.menuDivider} />
+            <Row icon="help-circle-outline" label="How to play" onPress={howToPlay} />
+          </Card>
+
+          <View style={{ marginTop: spacing.xl }}>
+            <Button title="Log out" variant="danger" icon="log-out-outline" onPress={signOut} />
           </View>
-        </>
-      ) : null}
+        </View>
+      </ScrollView>
 
       <TrophySheet trophy={openTrophy} onClose={() => setOpenTrophy(null)} styles={styles} colors={colors} />
-
-      <Card padded={false} style={{ marginTop: spacing.lg }}>
-        <Row icon="person-add-outline" label="Invite a friend" sublabel="Share your username to duel" onPress={invite} />
-        <View style={styles.menuDivider} />
-        <Row icon="podium-outline" label="Leaderboard" sublabel="Standings among your friends" onPress={() => navigation.navigate('Leaderboard')} />
-        <View style={styles.menuDivider} />
-        <Row icon="settings-outline" label="Settings" sublabel="Appearance, preferences, account" onPress={() => navigation.navigate('Settings')} />
-        <View style={styles.menuDivider} />
-        <Row icon="help-circle-outline" label="How to play" onPress={howToPlay} />
-      </Card>
-
-      <View style={{ marginTop: spacing.xl }}>
-        <Button title="Log Out" variant="danger" icon="log-out-outline" onPress={signOut} />
-      </View>
     </Screen>
-  );
-}
-
-function RecStat({ value, label, accent, styles }) {
-  return (
-    <View style={styles.recStat}>
-      <Text style={[styles.recValue, accent && styles.recAccent]}>{value}</Text>
-      <Text style={styles.recLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function Trophy({ trophy, styles, colors, onPress }) {
-  const earned = trophy.earned;
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.trophy, pressed && { opacity: 0.7 }]}>
-      <View style={[styles.trophyIcon, { backgroundColor: earned ? colors.accentSoft : colors.card, borderColor: earned ? colors.accentBorder : colors.borderSubtle }]}>
-        <Ionicons name={trophy.icon} size={24} color={earned ? colors.accent : colors.placeholder} />
-      </View>
-      <Text style={[styles.trophyTitle, !earned && { color: colors.muted }]} numberOfLines={1}>
-        {trophy.title}
-      </Text>
-      <Text style={styles.trophySub} numberOfLines={1}>
-        {earned ? '✓ Earned' : `${Math.min(trophy.value, trophy.threshold)}/${trophy.threshold}`}
-      </Text>
-    </Pressable>
   );
 }
 
@@ -193,22 +246,23 @@ function TrophySheet({ trophy, onClose, styles, colors }) {
           <View style={styles.sheetHandle} />
           <View
             style={[
-              styles.trophyIcon,
               styles.sheetTrophyIcon,
-              { backgroundColor: earned ? colors.accentSoft : colors.card, borderColor: earned ? colors.accentBorder : colors.borderSubtle },
+              { backgroundColor: earned ? colors.accentSoft : colors.card, borderColor: earned ? colors.accentBorder : colors.border },
             ]}
           >
             <Ionicons name={trophy.icon} size={34} color={earned ? colors.accent : colors.placeholder} />
           </View>
-          <Text style={styles.sheetTitle}>{trophy.title}</Text>
+          <CondTitle size={24} style={{ marginTop: spacing.md }}>
+            {trophy.title.toUpperCase()}
+          </CondTitle>
           <Text style={styles.sheetDesc}>{trophy.description}</Text>
 
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${Math.round(progress * 100)}%`, backgroundColor: earned ? colors.accent : colors.muted }]} />
           </View>
-          <Text style={[styles.sheetProgress, earned && { color: colors.accent }]}>
+          <Kicker size={11} tracking={1} color={earned ? colors.accent : colors.muted} style={{ marginTop: spacing.sm }}>
             {earned ? '✓ Earned' : `${Math.min(trophy.value, trophy.threshold)} of ${trophy.threshold}`}
-          </Text>
+          </Kicker>
         </View>
       </View>
     </Modal>
@@ -217,26 +271,64 @@ function TrophySheet({ trophy, onClose, styles, colors }) {
 
 const makeStyles = (colors) =>
   StyleSheet.create({
-    headerCard: { alignItems: 'center', paddingVertical: spacing.xl },
-    username: { color: colors.text, fontSize: font.title, fontWeight: '800', marginTop: spacing.md },
-    email: { color: colors.muted, fontSize: font.body, marginTop: 2 },
-    recHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md },
-    recTitle: { color: colors.text, fontSize: font.bodyLg, fontWeight: '700' },
-    streakChip: { fontSize: font.body, fontWeight: '800' },
-    recGrid: { flexDirection: 'row', justifyContent: 'space-between' },
-    recStat: { alignItems: 'center', flex: 1 },
-    recValue: { color: colors.text, fontSize: font.title, fontWeight: '900' },
-    recAccent: { color: colors.accent },
-    recLabel: { color: colors.muted, fontSize: 10, fontWeight: '800', letterSpacing: 0.5, marginTop: 2 },
-    recNote: { color: colors.placeholder, fontSize: font.caption, textAlign: 'center', marginTop: spacing.md },
-    sectionLabel: { color: colors.muted, fontSize: font.caption, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.lg, marginBottom: spacing.sm },
-    trophyHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
-    trophyCount: { color: colors.accent, fontSize: font.small, fontWeight: '800' },
-    trophyGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-    trophy: { width: '25%', alignItems: 'center', paddingVertical: spacing.sm },
-    trophyIcon: { width: 52, height: 52, borderRadius: 26, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-    trophyTitle: { color: colors.text, fontSize: 11, fontWeight: '700', marginTop: 6, textAlign: 'center' },
-    trophySub: { color: colors.placeholder, fontSize: 9, fontWeight: '700', marginTop: 1 },
+    headerZone: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+    idRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+    chipRow: { flexDirection: 'row', gap: 6, marginTop: 6 },
+    idChip: {
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 999,
+      paddingVertical: 3,
+      paddingHorizontal: 9,
+    },
+    idChipText: { fontSize: 9.5, fontFamily: fonts.bodyBlack, letterSpacing: 1 },
+    statGrid: { flexDirection: 'row', gap: 8, marginTop: spacing.lg },
+    trophyRow: { gap: 8, paddingHorizontal: spacing.lg },
+    trophyTile: {
+      width: 86,
+      borderRadius: 12,
+      borderWidth: 1,
+      paddingVertical: 10,
+      alignItems: 'center',
+      gap: 5,
+    },
+    trophyTileOn: { borderColor: withAlpha(colors.accent, 0.4), backgroundColor: withAlpha(colors.accent, 0.08) },
+    trophyTileOff: { borderColor: colors.border, backgroundColor: colors.card, opacity: 0.55 },
+    trophyTitle: { color: colors.text, fontSize: 9, fontFamily: fonts.bodyExtra, maxWidth: 78, textAlign: 'center' },
+    trophySub: { color: colors.placeholder, fontSize: 8, fontFamily: fonts.bodyBlack, letterSpacing: 0.5 },
+    emptyCrew: { color: colors.muted, fontSize: font.small, lineHeight: 19, fontFamily: fonts.body },
+    crewRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 12,
+    },
+    crewRowMe: { backgroundColor: withAlpha(colors.accent, 0.06), borderColor: withAlpha(colors.accent, 0.45) },
+    crewName: { color: colors.text, fontSize: 13, fontFamily: fonts.bodyBold },
+    crewSub: { color: colors.muted, fontSize: 10, marginTop: 1, fontFamily: fonts.body },
+    crewRec: { color: colors.text, fontFamily: fonts.heroUpright, fontSize: 15 },
+    row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
+    rowIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
+    rowLabel: { color: colors.text, fontSize: font.bodyLg, fontFamily: fonts.bodySemi },
+    rowSub: { color: colors.muted, fontSize: font.small, marginTop: 1, fontFamily: fonts.body },
+    rowCount: {
+      minWidth: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: colors.danger,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 5,
+      marginRight: 6,
+    },
+    rowCountText: { color: '#fff', fontSize: 11, fontFamily: fonts.bodyExtra },
+    menuDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.borderSubtle, marginLeft: 60 },
     sheetWrap: { flex: 1, justifyContent: 'flex-end' },
     sheetBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)' },
     sheet: {
@@ -250,19 +342,8 @@ const makeStyles = (colors) =>
       alignItems: 'center',
     },
     sheetHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginBottom: spacing.lg },
-    sheetTrophyIcon: { width: 72, height: 72, borderRadius: 36 },
-    sheetTitle: { color: colors.text, fontSize: font.title, fontWeight: '800', marginTop: spacing.md },
-    sheetDesc: { color: colors.muted, fontSize: font.body, textAlign: 'center', marginTop: spacing.xs, lineHeight: 21 },
+    sheetTrophyIcon: { width: 72, height: 72, borderRadius: 22, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+    sheetDesc: { color: colors.muted, fontSize: font.body, textAlign: 'center', marginTop: spacing.xs, lineHeight: 21, fontFamily: fonts.body },
     progressTrack: { alignSelf: 'stretch', height: 8, borderRadius: 4, backgroundColor: colors.bgElevated, marginTop: spacing.lg, overflow: 'hidden' },
     progressFill: { height: 8, borderRadius: 4 },
-    sheetProgress: { color: colors.muted, fontSize: font.small, fontWeight: '700', marginTop: spacing.sm },
-    h2hRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
-    h2hName: { color: colors.text, fontSize: font.body, fontWeight: '600', flex: 1, marginLeft: spacing.md },
-    h2hRec: { color: colors.muted, fontSize: font.body, fontWeight: '800' },
-    divider: { borderBottomColor: colors.borderSubtle, borderBottomWidth: StyleSheet.hairlineWidth },
-    row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
-    rowIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
-    rowLabel: { color: colors.text, fontSize: font.bodyLg, fontWeight: '600' },
-    rowSub: { color: colors.muted, fontSize: font.small, marginTop: 1 },
-    menuDivider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.borderSubtle, marginLeft: 60 },
   });

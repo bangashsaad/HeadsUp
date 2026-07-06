@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { getPlayerProfile } from '../api/sports';
-import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
+import { useTheme, useThemedStyles, spacing, radius, font, fonts } from '../theme';
 import { Screen, Card, Avatar, Badge, EmptyState, SkeletonList } from '../components/ui';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -143,12 +143,12 @@ function Stat({ label, value, accent, styles }) {
 const makeStyles = (colors) =>
   StyleSheet.create({
     header: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg },
-    name: { color: colors.text, fontSize: font.title, fontWeight: '800' },
+    name: { color: colors.text, fontSize: 26, fontFamily: fonts.hero, paddingRight: 4 },
     sub: { color: colors.muted, fontSize: font.body, marginTop: 2 },
     avgCard: { marginBottom: spacing.lg },
     avgGrid: { flexDirection: 'row', justifyContent: 'space-between' },
     stat: { alignItems: 'center', flex: 1 },
-    statValue: { color: colors.text, fontSize: font.title, fontWeight: '800' },
+    statValue: { color: colors.text, fontSize: 24, fontFamily: fonts.hero },
     statAccent: { color: colors.accent },
     statLabel: { color: colors.muted, fontSize: 10, fontWeight: '700', letterSpacing: 0.5, marginTop: 2 },
     avgNote: { color: colors.placeholder, fontSize: font.caption, textAlign: 'center', marginTop: spacing.md },
@@ -160,6 +160,6 @@ const makeStyles = (colors) =>
     gameMatch: { color: colors.text, fontSize: font.body, fontWeight: '600' },
     gameBox: { color: colors.muted, fontSize: font.caption, marginTop: 4 },
     fanWrap: { alignItems: 'center', marginLeft: spacing.md },
-    fanValue: { color: colors.accent, fontSize: font.subtitle, fontWeight: '800' },
+    fanValue: { color: colors.accent, fontSize: 19, fontFamily: fonts.hero },
     fanLabel: { color: colors.placeholder, fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
   });

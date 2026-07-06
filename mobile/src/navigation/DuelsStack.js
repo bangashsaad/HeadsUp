@@ -16,11 +16,11 @@ export default function DuelsStack() {
   const header = useNavHeader();
   return (
     <Stack.Navigator screenOptions={header}>
-      <Stack.Screen name="DuelsList" component={DuelsListScreen} options={{ title: 'Duels' }} />
+      <Stack.Screen name="DuelsList" component={DuelsListScreen} options={{ headerShown: false }} />
       <Stack.Screen name="CreateChallenge" component={CreateChallengeScreen} options={{ title: 'New Challenge' }} />
       <Stack.Screen name="DuelDetail" component={DuelDetailScreen} options={{ title: 'Challenge' }} />
       <Stack.Screen name="Counter" component={CounterScreen} options={{ title: 'Counter Offer' }} />
-      <Stack.Screen name="DraftRoom" component={DraftRoomScreen} options={{ title: 'Live Draft' }} />
+      <Stack.Screen name="DraftRoom" component={DraftRoomScreen} options={{ title: 'Draft Room' }} />
       <Stack.Screen name="Results" component={ResultsScreen} options={{ title: 'Result' }} />
       <Stack.Screen name="LiveMatchup" component={LiveMatchupScreen} options={{ title: 'Live Matchup' }} />
       <Stack.Screen

@@ -1,12 +1,14 @@
 import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, Pressable, RefreshControl } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../auth/AuthContext';
 import { getHome } from '../api/me';
 import { listUpcomingGames } from '../api/sports';
-import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
-import { Screen, Card, Avatar, Badge, Button, SkeletonList } from '../components/ui';
+import { setDraftLive } from '../state/attention';
+import { useTheme, useThemedStyles, spacing, fonts, withAlpha } from '../theme';
+import { Screen, Avatar, Button, Badge, SkeletonList, SectionHeader, Marquee, GhostText, Pulse, Kicker, CondTitle, BlinkDot } from '../components/ui';
+import WordMark from '../components/WordMark';
 
 const SPORT_EMOJI = { nfl: '🏈', nba: '🏀', wnba: '🏀', mlb: '⚾️' };
 
@@ -16,6 +18,19 @@ function todays(games) {
   const key = (d) => `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
   const todayKey = key(now);
   return (games || []).filter((g) => key(new Date(new Date(g.date).getTime() - 4 * 3600 * 1000)) === todayKey);
+}
+
+function tipTime(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
 export default function HomeScreen({ navigation }) {
@@ -33,6 +48,7 @@ export default function HomeScreen({ navigation }) {
     try {
       const h = await getHome(token);
       setHome(h);
+      setDraftLive((h?.draft_ready || []).some((d) => d.status === 'drafting'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -52,254 +68,452 @@ export default function HomeScreen({ navigation }) {
     }, [load])
   );
 
-  function openDuel(id) {
-    navigation.navigate('DuelsTab', { screen: 'DuelDetail', params: { id }, initial: false });
+  function openDetail(d) {
+    navigation.navigate('DuelsTab', { screen: 'DuelDetail', params: { id: d.id }, initial: false });
+  }
+  function openDraft(d) {
+    navigation.navigate('DuelsTab', {
+      screen: 'DraftRoom',
+      params: { id: d.id, opponentName: d.opponent?.username },
+      initial: false,
+    });
   }
 
   if (loading) {
     return (
-      <Screen>
+      <Screen edges={['top']}>
         <SkeletonList count={6} />
       </Screen>
     );
   }
 
   const rec = home?.record || {};
+  const played = (rec.wins ?? 0) + (rec.losses ?? 0) + (rec.ties ?? 0);
+  const winPct = rec.win_pct != null ? Math.round(rec.win_pct <= 1 ? rec.win_pct * 100 : rec.win_pct) : null;
+  const ptDiff = (rec.points_for ?? 0) - (rec.points_against ?? 0);
+  const form = (rec.recent || []).slice(-5);
 
   // Most urgent first: a live draft beats an unanswered challenge beats a
   // ready draft. The top item becomes the hero; the rest stay compact.
   const drafting = (home?.draft_ready || []).filter((d) => d.status === 'drafting');
   const ready = (home?.draft_ready || []).filter((d) => d.status !== 'drafting');
   const queue = [
-    ...drafting.map((d) => ({ d, kind: 'drafting', verb: 'Resume draft vs', tone: 'warning', icon: 'flame' })),
-    ...(home?.needs_response || []).map((d) => ({ d, kind: 'respond', verb: 'Respond to', tone: 'info', icon: 'mail-unread-outline' })),
-    ...ready.map((d) => ({ d, kind: 'ready', verb: 'Draft vs', tone: 'accent', icon: 'play' })),
+    ...drafting.map((d) => ({ d, kind: 'drafting' })),
+    ...(home?.needs_response || []).map((d) => ({ d, kind: 'respond' })),
+    ...ready.map((d) => ({ d, kind: 'ready' })),
   ];
   const hero = queue[0];
-  const actions = queue.slice(1);
+  const rest = queue.slice(1);
+  const receipts = (home?.recent_results || []).slice(0, 3);
 
   return (
-    <Screen padded={false}>
+    <Screen padded={false} edges={['top']}>
       <ScrollView
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xxl }}
+        contentContainerStyle={{ paddingBottom: spacing.xxl }}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.accent} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.accent} />
+        }
       >
-        {/* Greeting + record */}
-        <View style={styles.greetRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.hi}>Hey {user?.username} 👋</Text>
-            <RecordLine rec={rec} styles={styles} colors={colors} />
+        {/* Brand header + season record, under a soft purple glow */}
+        <LinearGradient
+          colors={[withAlpha(colors.purple, 0.18), 'transparent']}
+          start={{ x: 0.15, y: 0 }}
+          end={{ x: 0.55, y: 1 }}
+          style={styles.headerZone}
+        >
+          <View style={styles.brandRow}>
+            <WordMark size={21} />
+            <View style={styles.brandRight}>
+              {rec.streak?.count > 0 ? (
+                <View style={styles.streakChip}>
+                  <Text
+                    style={[
+                      styles.streakText,
+                      { color: rec.streak.type === 'win' ? colors.gold : rec.streak.type === 'loss' ? colors.danger : colors.muted },
+                    ]}
+                  >
+                    {rec.streak.type === 'win' ? `🔥 W${rec.streak.count}` : rec.streak.type === 'loss' ? `L${rec.streak.count}` : `T${rec.streak.count}`}
+                  </Text>
+                </View>
+              ) : null}
+              <Pressable onPress={() => navigation.navigate('YouTab')} hitSlop={6}>
+                <Avatar name={user?.username || '?'} size={38} />
+              </Pressable>
+            </View>
           </View>
-          <Avatar name={user?.username || '?'} size={48} />
+
+          <View style={styles.recordRow}>
+            <View>
+              <Kicker size={9.5} tracking={2}>
+                Season record
+              </Kicker>
+              <Text style={styles.recordBig}>
+                {rec.wins ?? 0}
+                <Text style={{ color: colors.placeholder }}>–</Text>
+                {rec.losses ?? 0}
+                {rec.ties ? <Text style={{ color: colors.placeholder, fontSize: 30 }}>–{rec.ties}</Text> : null}
+              </Text>
+            </View>
+            <View style={styles.formCol}>
+              <View style={{ flexDirection: 'row', gap: 4 }}>
+                {form.length === 0 ? (
+                  <Text style={styles.formEmpty}>NO DUELS YET</Text>
+                ) : (
+                  form.map((l, i) => (
+                    <View
+                      key={i}
+                      style={[
+                        styles.formChip,
+                        l === 'W' && { backgroundColor: withAlpha(colors.accent, 0.25), borderColor: colors.accent },
+                        l === 'L' && { backgroundColor: withAlpha(colors.danger, 0.18), borderColor: colors.danger },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.formChipText,
+                          { color: l === 'W' ? colors.accent : l === 'L' ? colors.danger : colors.muted },
+                        ]}
+                      >
+                        {l}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </View>
+              <Text style={styles.recordSub}>
+                {played > 0
+                  ? `${winPct ?? 0}% WIN · ${ptDiff >= 0 ? '+' : ''}${Math.round(ptDiff * 10) / 10} PT DIFF`
+                  : 'FIRST DUEL PENDING'}
+              </Text>
+            </View>
+          </View>
+        </LinearGradient>
+
+        <View style={{ paddingHorizontal: spacing.lg }}>
+          <SectionHeader hint={queue.length > 0 ? `${queue.length} PENDING` : 'ALL QUIET'}>Your move</SectionHeader>
         </View>
 
-        {/* Action items */}
-        <Text style={styles.sectionLabel}>Your move</Text>
-        {!hero ? (
-          <Card style={styles.calmCard}>
-            <Text style={styles.calmText}>You're all caught up. Challenge a friend to get a duel going.</Text>
-            <Button title="New Challenge" icon="add" onPress={() => navigation.navigate('DuelsTab', { screen: 'CreateChallenge', initial: false })} />
-          </Card>
-        ) : (
-          <HeroCard item={hero} onPress={() => openDuel(hero.d.id)} styles={styles} colors={colors} />
-        )}
-        {actions.length > 0 ? (
-          actions.map(({ d, verb, tone, icon }) => (
-            <Pressable key={`act-${d.id}`} onPress={() => openDuel(d.id)} style={({ pressed }) => [styles.actionCard, pressed && { opacity: 0.85 }]}>
-              <View style={[styles.actionIcon, { backgroundColor: colors.accentSoft }]}>
-                <Ionicons name={icon} size={20} color={colors.accent} />
+        <View style={{ paddingHorizontal: spacing.lg, gap: 10 }}>
+          {hero ? (
+            <HeroCard item={hero} onDetail={openDetail} onDraft={openDraft} styles={styles} colors={colors} />
+          ) : (
+            <View style={styles.heroCard}>
+              <View style={styles.ghostWrap} pointerEvents="none">
+                <GhostText size={82} color={withAlpha(colors.text, 0.08)} strokeWidth={1}>
+                  VS
+                </GhostText>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.actionTitle}>
-                  {verb} {d.opponent.username}
-                </Text>
-                <Text style={styles.actionSub}>
-                  {SPORT_EMOJI[d.sport] || '🎯'} {d.roster_size} players
-                </Text>
-              </View>
-              <Badge label={d.status === 'drafting' ? 'Live' : d.status === 'pending' ? 'Respond' : 'Ready'} tone={tone} />
-              <Ionicons name="chevron-forward" size={18} color={colors.placeholder} style={{ marginLeft: spacing.xs }} />
-            </Pressable>
-          ))
-        ) : null}
+              <CondTitle size={28} style={{ marginTop: spacing.xs, paddingRight: 6 }}>
+                ALL QUIET. TOO QUIET.
+              </CondTitle>
+              <Text style={styles.heroSub}>Somebody out there thinks they can beat you. Set the terms.</Text>
+              <Button
+                title="New challenge"
+                style={{ marginTop: spacing.md }}
+                onPress={() => navigation.navigate('DuelsTab', { screen: 'CreateChallenge', initial: false })}
+              />
+            </View>
+          )}
 
-        {(home?.awaiting || []).length > 0 ? (
-          <Text style={styles.awaiting}>
-            ⏳ {home.awaiting.length} duel{home.awaiting.length > 1 ? 's' : ''} awaiting final scores
-          </Text>
-        ) : null}
-
-        {/* Recent results */}
-        {(home?.recent_results || []).length > 0 ? (
-          <>
-            <Text style={styles.sectionLabel}>Latest results</Text>
-            <Card padded={false}>
-              {home.recent_results.map((d, i) => (
-                <Pressable
-                  key={`res-${d.id}`}
-                  onPress={() => navigation.navigate('DuelsTab', { screen: 'Results', params: { id: d.id, opponentName: d.opponent.username }, initial: false })}
-                  style={({ pressed }) => [styles.resultRow, i < home.recent_results.length - 1 && styles.divider, pressed && { backgroundColor: colors.bgElevated }]}
-                >
-                  <Badge label={d.my_outcome === 'win' ? 'Won' : d.my_outcome === 'tie' ? 'Tie' : 'Lost'} tone={d.my_outcome === 'win' ? 'accent' : d.my_outcome === 'tie' ? 'neutral' : 'danger'} />
-                  <Text style={styles.resultText}>vs {d.opponent.username}</Text>
-                  <Ionicons name="chevron-forward" size={16} color={colors.placeholder} />
-                </Pressable>
+          {rest.length > 0 ? (
+            <View style={styles.miniGrid}>
+              {rest.map((item) => (
+                <MiniCard
+                  key={`mini-${item.d.id}`}
+                  item={item}
+                  onPress={() => (item.kind === 'respond' ? openDetail(item.d) : openDraft(item.d))}
+                  styles={styles}
+                  colors={colors}
+                />
               ))}
-            </Card>
-          </>
+            </View>
+          ) : null}
+
+          {(home?.awaiting || []).length > 0 ? (
+            <Text style={styles.awaiting}>
+              ⏳ {home.awaiting.length} duel{home.awaiting.length > 1 ? 's' : ''} in play — scores landing on the LIVE tab
+            </Text>
+          ) : null}
+        </View>
+
+        {/* Scores marquee, full bleed */}
+        {games.length > 0 ? (
+          <View style={styles.tickerStrip}>
+            <Marquee speed={34}>
+              {games.slice(0, 10).map((g) => (
+                <View key={g.id} style={styles.tickerItem}>
+                  {g.state === 'in' ? (
+                    <>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <BlinkDot color={colors.danger} size={5} />
+                        <Text style={[styles.tickerTag, { color: colors.danger }]}>LIVE</Text>
+                      </View>
+                      <Text style={styles.tickerMain}>
+                        {g.away.abbrev} {g.away.score ?? ''} — {g.home.abbrev} {g.home.score ?? ''}
+                      </Text>
+                    </>
+                  ) : g.state === 'post' ? (
+                    <>
+                      <Text style={[styles.tickerTag, { color: colors.placeholder }]}>FINAL</Text>
+                      <Text style={styles.tickerMain}>
+                        {g.away.abbrev} {g.away.score ?? ''} — {g.home.abbrev} {g.home.score ?? ''}
+                      </Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={[styles.tickerTag, { color: colors.accent }]}>{tipTime(g.date)}</Text>
+                      <Text style={styles.tickerMain}>
+                        {g.away.abbrev} @ {g.home.abbrev}
+                      </Text>
+                    </>
+                  )}
+                </View>
+              ))}
+            </Marquee>
+          </View>
         ) : null}
 
-        {/* Tonight's games */}
-        <View style={styles.gamesHead}>
-          <Text style={[styles.sectionLabel, { marginBottom: 0 }]}>Today's games</Text>
-          <Pressable onPress={() => navigation.navigate('GamesTab')} hitSlop={8}>
-            <Text style={styles.seeAll}>See all</Text>
-          </Pressable>
-        </View>
-        {games.length === 0 ? (
-          <Card>
-            <Text style={styles.calmText}>No games on the slate today. Check the Games tab for what's coming up.</Text>
-          </Card>
-        ) : (
-          <Card padded={false}>
-            {games.slice(0, 6).map((g, i) => (
-              <View key={g.id} style={[styles.gameRow, i < Math.min(games.length, 6) - 1 && styles.divider]}>
-                <Text style={styles.gameTeams}>
-                  {g.away.abbrev} @ {g.home.abbrev}
-                </Text>
-                <Text style={styles.gameStatus}>{g.status}</Text>
-              </View>
-            ))}
-          </Card>
-        )}
+        {/* Receipts */}
+        {receipts.length > 0 ? (
+          <View style={{ paddingHorizontal: spacing.lg }}>
+            <SectionHeader hint={`LAST ${receipts.length}`}>The receipts</SectionHeader>
+            <View style={{ gap: 8 }}>
+              {receipts.map((d) => {
+                const won = d.my_outcome === 'win';
+                const tie = d.my_outcome === 'tie';
+                const tint = won ? colors.accent : tie ? colors.muted : colors.danger;
+                return (
+                  <Pressable
+                    key={`res-${d.id}`}
+                    onPress={() =>
+                      navigation.navigate('DuelsTab', {
+                        screen: 'Results',
+                        params: { id: d.id, opponentName: d.opponent?.username },
+                        initial: false,
+                      })
+                    }
+                    style={({ pressed }) => [styles.receiptRow, { borderLeftColor: tint }, pressed && { opacity: 0.85 }]}
+                  >
+                    <CondTitle size={17} color={tint} style={{ width: 26 }}>
+                      {won ? 'W' : tie ? 'T' : 'L'}
+                    </CondTitle>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.receiptTitle}>vs {d.opponent?.username || 'opponent'}</Text>
+                      <Text style={styles.receiptSub}>
+                        {SPORT_EMOJI[d.sport] || '🎯'} {String(d.sport || '').toUpperCase()}
+                        {d.settled_at ? ` · ${fmtDate(d.settled_at)}` : ''}
+                      </Text>
+                    </View>
+                    <Text style={styles.receiptView}>VIEW</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        ) : null}
       </ScrollView>
     </Screen>
   );
 }
 
-// The single most urgent thing, full width and loud: a live draft to rejoin,
-// a challenge waiting on you, or a draft ready to start.
-function HeroCard({ item, onPress, styles, colors }) {
+// The single most urgent thing, full width and loud.
+function HeroCard({ item, onDetail, onDraft, styles, colors }) {
   const { d, kind } = item;
-  const who = d.group
-    ? d.role === 'challenger'
-      ? `your ${d.party_size}-player match`
-      : `${d.opponent?.username || 'a friend'}'s ${d.party_size}-player match`
-    : d.opponent?.username || 'your opponent';
-  const terms = `${SPORT_EMOJI[d.sport] || '🎯'} ${String(d.sport || '').toUpperCase()} · ${d.roster_size} rounds`;
+  const opp = (d.opponent?.username || 'your rival').toUpperCase();
+  const sportLabel = `${String(d.sport || '').toUpperCase()} · ${d.roster_size} SLOTS`;
 
   const cfg =
     kind === 'drafting'
       ? {
-          icon: 'flame',
-          title: 'Draft LIVE right now',
-          sub: d.group ? `${who} — jump back in` : `vs ${who} — jump back in`,
-          cta: 'Resume Draft',
-          badge: { label: 'LIVE', tone: 'danger', dot: true },
+          grad: [withAlpha(colors.danger, 0.12), colors.card, withAlpha(colors.purple, 0.12)],
+          border: colors.dangerBorder,
+          chip: <Badge label="Draft live" tone="danger" blink />,
+          title: 'BACK ON THE CLOCK.',
+          sub: d.group ? `${d.party_size}-way snake draft — jump in` : `vs ${d.opponent?.username || '?'} · snake draft — jump in`,
+          cta: 'ENTER ROOM →',
+          pulse: true,
+          go: () => onDraft(d),
         }
       : kind === 'respond'
         ? {
-            icon: 'mail-unread',
-            title: d.group ? `You're invited: ${who}` : `${who} challenged you`,
-            sub: terms,
-            cta: 'View Challenge',
-            badge: { label: 'Your move', tone: 'info' },
+            grad: [withAlpha(colors.purple, 0.16), colors.card, colors.card],
+            border: colors.purpleBorder,
+            chip: <Badge label="Challenge" tone="info" blink />,
+            title: d.group ? `${opp}'S ${d.party_size}-WAY THROWDOWN.` : `${opp} CALLED YOU OUT.`,
+            sub: `${SPORT_EMOJI[d.sport] || '🎯'} ${String(d.sport || '').toUpperCase()} · ${d.roster_size} rounds · set your answer`,
+            cta: 'RESPOND →',
+            pulse: false,
+            go: () => onDetail(d),
           }
         : {
-            icon: 'play',
-            title: d.group ? `Draft ready: ${who}` : `Draft ready vs ${who}`,
-            sub: terms,
-            cta: 'Enter Draft Room',
-            badge: { label: 'Ready', tone: 'accent' },
+            grad: [withAlpha(colors.accent, 0.14), colors.card, withAlpha(colors.purple, 0.10)],
+            border: colors.accentBorder,
+            chip: <Badge label="Ready" tone="accent" />,
+            title: `DRAFT VS ${opp} ANYTIME.`,
+            sub: `${SPORT_EMOJI[d.sport] || '🎯'} ${String(d.sport || '').toUpperCase()} · ${d.roster_size} rounds · the room is open`,
+            cta: 'TO THE ROOM →',
+            pulse: true,
+            go: () => onDraft(d),
           };
 
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.hero, pressed && { opacity: 0.92 }]}>
-      <View style={styles.heroTop}>
-        <View style={styles.heroIcon}>
-          <Ionicons name={cfg.icon} size={24} color={colors.accent} />
+    <Pressable onPress={cfg.go} style={({ pressed }) => [pressed && { transform: [{ scale: 0.98 }] }]}>
+      <LinearGradient colors={cfg.grad} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[styles.heroCard, { borderColor: cfg.border }]}>
+        <View style={styles.ghostWrap} pointerEvents="none">
+          <GhostText size={82} color={withAlpha(colors.text, 0.09)} strokeWidth={1}>
+            VS
+          </GhostText>
         </View>
-        <Badge label={cfg.badge.label} tone={cfg.badge.tone} dot={cfg.badge.dot} />
-      </View>
-      <Text style={styles.heroTitle}>{cfg.title}</Text>
-      <Text style={styles.heroSub}>{cfg.sub}</Text>
-      <Button title={cfg.cta} icon={cfg.icon} onPress={onPress} style={{ marginTop: spacing.md }} />
+        <View style={styles.heroTop}>
+          {cfg.chip}
+          <Kicker size={10} tracking={1} color={colors.muted}>
+            {sportLabel}
+          </Kicker>
+        </View>
+        <CondTitle size={30} style={{ marginTop: spacing.md, lineHeight: 32, paddingRight: 6 }}>
+          {cfg.title}
+        </CondTitle>
+        <View style={styles.heroBottom}>
+          <Text style={[styles.heroSub, { flex: 1, marginTop: 0 }]} numberOfLines={2}>
+            {cfg.sub}
+          </Text>
+          <Pulse color={withAlpha(colors.accent, 0.35)} disabled={!cfg.pulse}>
+            <View style={styles.heroCta}>
+              <Text style={styles.heroCtaText}>{cfg.cta}</Text>
+            </View>
+          </Pulse>
+        </View>
+      </LinearGradient>
     </Pressable>
   );
 }
 
-function RecordLine({ rec, styles, colors }) {
-  const tone = (l) => (l === 'W' ? colors.accent : l === 'L' ? colors.danger : colors.muted);
-  const streak = rec.streak && rec.streak.count > 0 ? `${rec.streak.type === 'win' ? '🔥 W' : rec.streak.type === 'loss' ? 'L' : 'T'}${rec.streak.count}` : null;
+// Compact follow-ups under the hero, two per row.
+function MiniCard({ item, onPress, styles, colors }) {
+  const { d, kind } = item;
+  const opp = d.opponent?.username || '?';
+  const cfg =
+    kind === 'drafting'
+      ? { label: 'LIVE', color: colors.danger, title: `Draft vs ${opp}\nis live`, meta: 'jump back in' }
+      : kind === 'respond'
+        ? {
+            label: 'CHALLENGE',
+            color: colors.purpleText,
+            title: d.group ? `${opp}'s ${d.party_size}-way\nthrowdown` : `${opp} called\nyou out`,
+            meta: `${SPORT_EMOJI[d.sport] || '🎯'} ${String(d.sport || '').toUpperCase()} · ${d.roster_size} rounds · tap to respond`,
+          }
+        : {
+            label: 'READY',
+            color: colors.accent,
+            title: `Draft vs ${opp}\nanytime`,
+            meta: `${SPORT_EMOJI[d.sport] || '🎯'} ${String(d.sport || '').toUpperCase()} · ${d.roster_size} rounds`,
+          };
+
   return (
-    <View style={styles.recRow}>
-      <Text style={styles.recText}>
-        {rec.wins ?? 0}-{rec.losses ?? 0}
-        {rec.ties ? `-${rec.ties}` : ''}
-      </Text>
-      {streak ? <Text style={styles.streak}>{streak}</Text> : null}
-      <View style={{ flexDirection: 'row', marginLeft: spacing.sm }}>
-        {(rec.recent || []).map((l, i) => (
-          <Text key={i} style={[styles.formDot, { color: tone(l) }]}>
-            {l}
-          </Text>
-        ))}
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.miniCard, pressed && { transform: [{ scale: 0.97 }] }]}>
+      <View style={styles.miniTop}>
+        <Text style={[styles.miniLabel, { color: cfg.color }]}>{cfg.label}</Text>
+        <BlinkDot color={cfg.color} size={7} blink={kind !== 'ready'} />
       </View>
-    </View>
+      <Text style={styles.miniTitle} numberOfLines={2}>
+        {cfg.title}
+      </Text>
+      <Text style={styles.miniMeta} numberOfLines={1}>
+        {cfg.meta}
+      </Text>
+    </Pressable>
   );
 }
 
 const makeStyles = (colors) =>
   StyleSheet.create({
-    greetRow: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg },
-    hi: { color: colors.text, fontSize: font.title, fontWeight: '800' },
-    recRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-    recText: { color: colors.muted, fontSize: font.body, fontWeight: '700' },
-    streak: { color: colors.accent, fontSize: font.body, fontWeight: '800', marginLeft: spacing.sm },
-    formDot: { fontSize: font.small, fontWeight: '900', marginLeft: 3 },
-    sectionLabel: { color: colors.muted, fontSize: font.caption, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.lg, marginBottom: spacing.sm },
-    calmCard: { gap: spacing.md },
-    calmText: { color: colors.muted, fontSize: font.body, marginBottom: spacing.sm },
-    hero: {
-      backgroundColor: colors.accentSoft,
-      borderColor: colors.accentBorder,
+    headerZone: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xs },
+    brandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    brandRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    streakChip: {
+      backgroundColor: colors.card,
       borderWidth: 1,
-      borderRadius: radius.lg,
-      padding: spacing.lg,
-      marginBottom: spacing.md,
+      borderColor: colors.border,
+      borderRadius: 999,
+      paddingVertical: 5,
+      paddingHorizontal: 10,
     },
-    heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md },
-    heroIcon: {
-      width: 44,
-      height: 44,
-      borderRadius: 14,
+    streakText: { fontFamily: fonts.hero, fontSize: 15 },
+    recordRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 14, marginTop: spacing.lg },
+    recordBig: { fontFamily: fonts.hero, fontSize: 52, lineHeight: 52, color: colors.text, paddingRight: 6 },
+    formCol: { paddingBottom: 8, gap: 6 },
+    formChip: {
+      width: 16,
+      height: 16,
+      borderRadius: 5,
+      borderWidth: 1,
+      borderColor: colors.border,
       backgroundColor: colors.card,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    heroTitle: { color: colors.text, fontSize: font.title, fontWeight: '800' },
-    heroSub: { color: colors.muted, fontSize: font.body, marginTop: 4 },
-    actionCard: {
+    formChipText: { fontSize: 9, fontFamily: fonts.bodyBlack },
+    formEmpty: { fontSize: 10, fontFamily: fonts.bodyExtra, color: colors.placeholder, letterSpacing: 1 },
+    recordSub: { fontSize: 10, fontFamily: fonts.bodyBold, color: colors.muted, letterSpacing: 0.3 },
+    heroCard: {
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+      padding: spacing.lg,
+      overflow: 'hidden',
+    },
+    ghostWrap: { position: 'absolute', right: -6, top: -16 },
+    heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    heroSub: { color: colors.muted, fontSize: 12, fontFamily: fonts.bodySemi, marginTop: 6, lineHeight: 17 },
+    heroBottom: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.md },
+    heroCta: {
+      backgroundColor: colors.accent,
+      borderRadius: 999,
+      paddingVertical: 9,
+      paddingHorizontal: 16,
+    },
+    heroCtaText: { color: colors.onAccent, fontFamily: fonts.hero, fontSize: 15, letterSpacing: 0.5 },
+    miniGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    miniCard: {
+      flexBasis: '47%',
+      flexGrow: 1,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+      padding: 13,
+    },
+    miniTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    miniLabel: { fontSize: 10, fontFamily: fonts.bodyBlack, letterSpacing: 1.2 },
+    miniTitle: { fontFamily: fonts.condBold, fontSize: 19, lineHeight: 20, color: colors.text, marginTop: 7 },
+    miniMeta: { fontSize: 11, color: colors.muted, marginTop: 6, fontFamily: fonts.bodySemi },
+    awaiting: { color: colors.placeholder, fontSize: 12, textAlign: 'center', marginTop: 4, fontFamily: fonts.bodySemi },
+    tickerStrip: {
+      marginTop: spacing.lg,
+      borderTopWidth: 1,
+      borderBottomWidth: 1,
+      borderColor: colors.borderSubtle,
+      backgroundColor: colors.bgElevated,
+      paddingVertical: 9,
+    },
+    tickerItem: { flexDirection: 'row', alignItems: 'center', gap: 8, marginRight: 26 },
+    tickerTag: { fontFamily: fonts.condBold, fontSize: 14 },
+    tickerMain: { fontFamily: fonts.condBold, fontSize: 14, color: colors.text },
+    receiptRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      gap: 11,
       backgroundColor: colors.card,
       borderWidth: 1,
-      borderColor: colors.borderSubtle,
-      borderRadius: radius.md,
-      padding: spacing.md,
-      marginBottom: spacing.sm,
+      borderColor: colors.border,
+      borderLeftWidth: 3,
+      borderRadius: 12,
+      paddingVertical: 11,
+      paddingHorizontal: 13,
     },
-    actionIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
-    actionTitle: { color: colors.text, fontSize: font.subtitle, fontWeight: '700' },
-    actionSub: { color: colors.muted, fontSize: font.small, marginTop: 2 },
-    awaiting: { color: colors.muted, fontSize: font.small, marginTop: spacing.sm, textAlign: 'center' },
-    resultRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
-    resultText: { color: colors.text, fontSize: font.body, fontWeight: '600', flex: 1 },
-    divider: { borderBottomColor: colors.borderSubtle, borderBottomWidth: StyleSheet.hairlineWidth },
-    gamesHead: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
-    seeAll: { color: colors.accent, fontSize: font.small, fontWeight: '700' },
-    gameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.md, paddingHorizontal: spacing.lg },
-    gameTeams: { color: colors.text, fontSize: font.body, fontWeight: '700' },
-    gameStatus: { color: colors.muted, fontSize: font.small },
+    receiptTitle: { fontSize: 13.5, fontFamily: fonts.bodyBold, color: colors.text },
+    receiptSub: { fontSize: 11, color: colors.muted, marginTop: 1, fontFamily: fonts.body },
+    receiptView: { fontSize: 10, fontFamily: fonts.bodyExtra, color: colors.placeholder, letterSpacing: 1 },
   });

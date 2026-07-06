@@ -3,7 +3,7 @@ import { FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-nat
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
 import { searchPlayers } from '../api/sports';
-import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
+import { useTheme, useThemedStyles, spacing, radius, font, fonts } from '../theme';
 import { Screen, Avatar, Badge, EmptyState, SearchInput, SkeletonList } from '../components/ui';
 
 const SPORT = { wnba: { label: 'WNBA', tone: 'info' }, mlb: { label: 'MLB', tone: 'warning' }, nba: { label: 'NBA', tone: 'info' }, nfl: { label: 'NFL', tone: 'neutral' } };
@@ -104,6 +104,6 @@ const makeStyles = (colors) =>
     metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 3 },
     meta: { color: colors.muted, fontSize: font.small },
     fpgWrap: { alignItems: 'center', minWidth: 40 },
-    fpg: { color: colors.accent, fontSize: font.bodyLg, fontWeight: '800' },
+    fpg: { color: colors.accent, fontSize: 19, fontFamily: fonts.hero },
     fpgLabel: { color: colors.placeholder, fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
   });

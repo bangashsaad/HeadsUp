@@ -3,15 +3,18 @@ import { ActivityIndicator, Animated, Easing, FlatList, Pressable, ScrollView, S
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
 import { connectDraft } from '../api/socket';
+import { getDuel } from '../api/duels';
 import { impact, notify, ImpactStyle, NotifyType } from '../haptics';
 import PickClock from '../components/PickClock';
 import LineupSlots from '../components/LineupSlots';
 import DraftTicker from '../components/DraftTicker';
 import DraftOrderDots from '../components/DraftOrderDots';
 import RosterSheet from '../components/RosterSheet';
-import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
-import { Avatar, Button, Chip, SearchInput, EmptyState } from '../components/ui';
+import { useTheme, useThemedStyles, spacing, radius, font, fonts, withAlpha } from '../theme';
+import { Avatar, Button, Chip, SearchInput, EmptyState, GhostText, Pulse, Kicker, CondTitle, DisplayTitle } from '../components/ui';
 import { shortName } from '../utils/names';
+
+const SPORT_EMOJI = { nfl: '🏈', nba: '🏀', wnba: '🏀', mlb: '⚾️' };
 
 // "7:00 PM ET" for a game today (ET), "Tmw 7:00 PM ET" for tomorrow — so you
 // know WHEN a player plays before you draft them. ET = UTC-4 in season.
@@ -29,6 +32,13 @@ function nextGameLabel(iso) {
   return `${sameDay ? '' : 'Tmw '}${h}:${String(m).padStart(2, '0')} ${ap} ET`;
 }
 
+function fmtClock(secs) {
+  if (!secs) return null;
+  if (secs < 120) return `${secs}S CLOCK`;
+  if (secs < 7200) return `${Math.round(secs / 60)}M CLOCK`;
+  return `${Math.round(secs / 3600)}H CLOCK`;
+}
+
 export default function DraftRoomScreen({ route, navigation }) {
   const { id, opponentName = 'Opponent' } = route.params;
   const { token, user } = useAuth();
@@ -37,8 +47,13 @@ export default function DraftRoomScreen({ route, navigation }) {
   const styles = useThemedStyles(makeStyles);
 
   const [state, setState] = useState(null);
+  const [duel, setDuel] = useState(null); // terms for the ready room chips
   const [error, setError] = useState(null);
   const connRef = useRef(null);
+
+  // The coin moment: shown once, live, when the lobby tips into drafting.
+  const [flipping, setFlipping] = useState(false);
+  const prevPhase = useRef(null);
 
   useEffect(() => {
     const conn = connectDraft(id, token, {
@@ -49,6 +64,24 @@ export default function DraftRoomScreen({ route, navigation }) {
     connRef.current = conn;
     return () => conn.leave();
   }, [id, token]);
+
+  useEffect(() => {
+    getDuel(token, id)
+      .then((res) => setDuel(res?.duel || null))
+      .catch(() => {});
+  }, [token, id]);
+
+  useEffect(() => {
+    const ph = state?.phase;
+    if (!ph) return;
+    const prev = prevPhase.current;
+    prevPhase.current = ph;
+    if (prev === 'lobby' && ph !== 'lobby' && ph !== 'cancelled') {
+      setFlipping(true);
+      const t = setTimeout(() => setFlipping(false), 1600);
+      return () => clearTimeout(t);
+    }
+  }, [state?.phase]);
 
   if (!state) {
     return (
@@ -67,102 +100,162 @@ export default function DraftRoomScreen({ route, navigation }) {
     );
   }
 
-  if (state.phase === 'lobby') {
-    return <Lobby state={state} myId={myId} opponentName={opponentName} conn={connRef.current} />;
-  }
+  const body =
+    state.phase === 'lobby' ? (
+      <ReadyRoom state={state} duel={duel} myId={myId} opponentName={opponentName} conn={connRef.current} />
+    ) : (
+      <DraftBoard
+        state={state}
+        myId={myId}
+        duelId={id}
+        opponentName={opponentName}
+        conn={connRef.current}
+        error={error}
+        setError={setError}
+        navigation={navigation}
+      />
+    );
 
   return (
-    <DraftBoard
-      state={state}
-      myId={myId}
-      duelId={id}
-      opponentName={opponentName}
-      conn={connRef.current}
-      error={error}
-      setError={setError}
-      navigation={navigation}
-    />
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      {body}
+      {flipping ? <FlipOverlay /> : null}
+    </View>
   );
 }
 
-function Lobby({ state, myId, opponentName, conn }) {
+// Spinning coin between "everyone's ready" and "pick 1 is on the clock".
+function FlipOverlay() {
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const spin = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(spin, { toValue: 1, duration: 1300, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [spin]);
+
+  return (
+    <View style={styles.flipWrap}>
+      <Animated.View
+        style={[
+          styles.coin,
+          { transform: [{ rotateY: spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '1440deg'] }) }] },
+        ]}
+      >
+        <View style={styles.coinInner}>
+          <Text style={{ fontFamily: fonts.display, fontSize: 26, color: colors.accent }}>H</Text>
+        </View>
+      </Animated.View>
+      <CondTitle size={22} color={colors.muted} style={{ letterSpacing: 2, marginTop: 22 }}>
+        FLIPPING…
+      </CondTitle>
+      <Text style={styles.dim}>First pick goes to the coin</Text>
+    </View>
+  );
+}
+
+// The pre-draft room: faces, terms, one big pulsing READY.
+function ReadyRoom({ state, duel, myId, opponentName, conn }) {
+  const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const players =
     state.players && state.players.length > 0
       ? state.players
       : Object.keys(state.ready || {}).map((id) => ({ id, username: opponentName }));
   const iAmReady = state.ready[String(myId)] || state.ready[myId];
+  const two = players.length <= 2;
+  const opp = players.find((p) => String(p.id) !== String(myId));
+
+  const chips = [
+    duel ? `${SPORT_EMOJI[duel.sport] || '🎯'} ${String(duel.sport || '').toUpperCase()}` : null,
+    (state.slots || []).map((s) => s.label).join('·'),
+    duel ? fmtClock(duel.pick_clock_seconds) : null,
+    duel?.group ? `${players.length}-WAY` : 'SNAKE',
+  ].filter(Boolean);
 
   return (
     <View style={styles.lobby}>
-      <Text style={styles.lobbyTitle}>Draft Lobby</Text>
-      <Text style={styles.dim}>
-        {players.length > 2 ? `All ${players.length} players must be ready to start.` : 'Both players must be ready to start.'}
-      </Text>
+      <Kicker tracking={3} style={{ textAlign: 'center' }}>
+        Draft room
+      </Kicker>
 
-      <View style={styles.readyRow}>
-        {players.map((p) => {
-          const isMe = String(p.id) === String(myId);
-          return <ReadyPill key={p.id} name={isMe ? 'You' : p.username} ready={state.ready[p.id]} />;
-        })}
+      {two ? (
+        <View style={styles.faceOff}>
+          <View style={styles.faceCol}>
+            <Avatar name={user2name(players, myId, opponentName).me} size={64} />
+            <CondTitle size={16} italic={false} style={{ letterSpacing: 1, marginTop: 8 }}>
+              YOU
+            </CondTitle>
+            <ReadyTag on={!!iAmReady} colors={colors} />
+          </View>
+          <GhostText size={34} color={withAlpha('#565D73', 0.9)} strokeWidth={1.4} style={{ marginHorizontal: 6 }}>
+            VS
+          </GhostText>
+          <View style={styles.faceCol}>
+            <Avatar name={opp?.username || opponentName} size={64} />
+            <CondTitle size={16} italic={false} color={colors.purpleText} style={{ letterSpacing: 1, marginTop: 8 }} numberOfLines={1}>
+              {(opp?.username || opponentName).toUpperCase()}
+            </CondTitle>
+            <ReadyTag on={!!(opp && state.ready[opp.id])} colors={colors} />
+          </View>
+        </View>
+      ) : (
+        <View style={styles.readyRow}>
+          {players.map((p) => {
+            const isMe = String(p.id) === String(myId);
+            return (
+              <View key={p.id} style={[styles.pill, state.ready[p.id] ? styles.pillOn : styles.pillOff]}>
+                <Avatar name={isMe ? 'You' : p.username} size={44} />
+                <Text style={styles.pillName} numberOfLines={1}>
+                  {isMe ? 'You' : p.username}
+                </Text>
+                <ReadyTag on={!!state.ready[p.id]} colors={colors} />
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      <View style={styles.termsRow}>
+        {chips.map((c) => (
+          <View key={c} style={styles.termChip}>
+            <Text style={styles.termChipText}>{c}</Text>
+          </View>
+        ))}
       </View>
 
-      <Button
-        title={iAmReady ? 'Ready — waiting…' : "I'm Ready"}
-        icon={iAmReady ? 'checkmark-circle' : 'flame'}
-        onPress={() => conn?.ready()}
-        disabled={iAmReady}
-      />
+      <Pulse color={withAlpha(colors.accent, 0.3)} disabled={!!iAmReady} style={{ marginTop: 30, alignSelf: 'stretch' }}>
+        <Button
+          title={iAmReady ? 'Ready — waiting…' : "I'm ready"}
+          size="lg"
+          onPress={() => conn?.ready()}
+          disabled={!!iAmReady}
+        />
+      </Pulse>
+      <Text style={[styles.dim, { marginTop: 14 }]}>Coin flip decides who's on the clock first</Text>
       <Button title="Cancel draft (no-show)" variant="ghost" onPress={() => conn?.cancel()} style={{ marginTop: spacing.sm }} />
     </View>
   );
 }
 
-// A slot in the flow-layout strip; flashes in the drafter's color on fill.
-function FlashSlotCard({ slot, pick, tint, styles, colors }) {
-  const flash = useRef(new Animated.Value(0)).current;
-  const prevId = useRef(pick?.player?.id);
-
-  useEffect(() => {
-    const id = pick?.player?.id;
-    if (id && prevId.current !== id) {
-      flash.setValue(1);
-      Animated.timing(flash, { toValue: 0, duration: 900, useNativeDriver: true }).start();
-    }
-    prevId.current = id;
-  }, [pick?.player?.id, flash]);
-
-  return (
-    <View style={[styles.slotCard, pick && styles.slotCardFilled]}>
-      <Animated.View
-        pointerEvents="none"
-        style={[
-          StyleSheet.absoluteFillObject,
-          { backgroundColor: tint, borderRadius: radius.md, opacity: flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.35] }) },
-        ]}
-      />
-      <Text style={styles.slotCardLabel}>{slot.label}</Text>
-      <Text style={[styles.slotCardName, !pick && { color: colors.placeholder }]} numberOfLines={1}>
-        {pick ? shortName(pick.player.name) : '—'}
-      </Text>
-    </View>
-  );
+function user2name(players, myId, opponentName) {
+  const me = players.find((p) => String(p.id) === String(myId));
+  return { me: me?.username || 'You', opp: players.find((p) => String(p.id) !== String(myId))?.username || opponentName };
 }
 
-function ReadyPill({ name, ready }) {
-  const { colors } = useTheme();
-  const styles = useThemedStyles(makeStyles);
+function ReadyTag({ on, colors }) {
   return (
-    <View style={[styles.pill, ready ? styles.pillOn : styles.pillOff]}>
-      <Avatar name={name} size={44} />
-      <Text style={styles.pillName} numberOfLines={1}>
-        {name}
-      </Text>
-      <View style={styles.pillStateRow}>
-        <Ionicons name={ready ? 'checkmark-circle' : 'ellipse-outline'} size={15} color={ready ? colors.accent : colors.muted} />
-        <Text style={[styles.pillState, ready && { color: colors.accent }]}>{ready ? 'Ready' : 'Not ready'}</Text>
-      </View>
-    </View>
+    <Text
+      style={{
+        marginTop: 5,
+        fontSize: 9,
+        fontFamily: fonts.bodyBlack,
+        letterSpacing: 1.2,
+        color: on ? colors.accent : colors.placeholder,
+      }}
+    >
+      {on ? '✓ READY' : 'WAITING'}
+    </Text>
   );
 }
 
@@ -208,11 +301,10 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
   };
 
   // One UNIQUE color per seat (name-hash tints can collide — two players both
-  // green was unreadable). You are always accent green; everyone else gets a
-  // distinct non-green tint in seat order. Seat tabs carry the same dot so the
-  // order strip is decodable.
+  // lime was unreadable). You are always the accent; everyone else gets a
+  // distinct tint in seat order — the first rival is always the purple side.
   const seatTint = useMemo(() => {
-    const tints = ['#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f97316'];
+    const tints = [colors.purple, '#22E5FF', '#FFB021', '#FF4D8D', '#5CA8FF', '#FF7A1A'];
     const map = {};
     let i = 0;
     const ids = players.length > 0 ? players.map((p) => p.id) : Object.keys(state.ready || {});
@@ -221,7 +313,7 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
       else map[String(id)] = tints[i++ % tints.length];
     }
     return map;
-  }, [players, state.ready, myId, colors.accent]);
+  }, [players, state.ready, myId, colors.accent, colors.purple]);
 
   const colorFor = (uid) => seatTint[String(uid)] || colors.muted;
   const [sheetUid, setSheetUid] = useState(null); // user id whose roster sheet is open
@@ -262,25 +354,6 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
     prevTurn.current = isMyTurn;
   }, [isMyTurn, complete]);
 
-  // The status bar breathes in the current picker's color — a slow pulse when
-  // someone else is up, an insistent one when it's you.
-  const pulse = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    if (complete || !state.current_picker_id) {
-      pulse.setValue(0);
-      return;
-    }
-    const dur = isMyTurn ? 600 : 1200;
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: dur, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0, duration: dur, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [isMyTurn, complete, state.current_picker_id, pulse]);
-
   const lineupFull = !complete && eligible.size === 0;
 
   const positions = useMemo(() => {
@@ -319,36 +392,49 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
       ?.receive('timeout', () => setError('Pick didn’t go through — try again.'));
   }
 
+  const rounds = state.slots.length;
+  const perRound = Math.max(1, Math.round((state.total_picks || rounds) / rounds));
+  const round = Math.min(rounds, Math.ceil((state.pick_number || 1) / perRound));
+
+  // ---- LOCKED IN. ----
+  if (complete) {
+    return (
+      <View style={[styles.board, { justifyContent: 'center' }]}>
+        <View style={{ alignItems: 'center', paddingHorizontal: spacing.lg }}>
+          <DisplayTitle size={38} color={colors.accent}>
+            LOCKED IN.
+          </DisplayTitle>
+          <Text style={styles.completeNote}>
+            {flow ? 'All slips are sealed.' : 'Both slips are sealed.'} Scoring runs on the real box scores — the winner is
+            called automatically.
+          </Text>
+          <Pulse color={withAlpha(colors.accent, 0.3)} style={{ alignSelf: 'stretch', marginTop: spacing.xl }}>
+            <Button title="Watch it live →" onPress={() => navigation.navigate('LiveMatchup', { id: duelId, opponentName })} />
+          </Pulse>
+          <Button title="Back to duels" variant="outline" onPress={() => navigation.popToTop()} style={{ marginTop: spacing.sm }} />
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.board}>
-      <View style={[styles.statusBar, isMyTurn && !complete && styles.statusBarMine]}>
-        {!complete && state.current_picker_id ? (
-          <Animated.View
-            pointerEvents="none"
-            style={[
-              styles.pulseRing,
-              {
-                borderColor: colorFor(state.current_picker_id),
-                opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.15, isMyTurn ? 0.95 : 0.5] }),
-              },
-            ]}
-          />
-        ) : null}
-        {complete ? (
-          <Text style={styles.turnDone}>🏁 Draft complete</Text>
-        ) : (
-          <>
-            <Text style={[styles.turn, isMyTurn && styles.turnMine]}>
-              {isMyTurn ? '🟢 Your pick' : `${nameFor(state.current_picker_id)} is picking…`}
-            </Text>
-            <View style={styles.statusRight}>
-              <Text style={styles.pickNo}>
-                Pick {state.pick_number}/{state.total_picks}
-              </Text>
-              <PickClock deadline={state.clock_deadline} serverNow={state.server_now} />
-            </View>
-          </>
-        )}
+      {/* Turn banner: who's up, pick/round, the clock — with a ghost pick no. */}
+      <View style={[styles.turnCard, isMyTurn ? styles.turnCardMine : styles.turnCardTheirs]}>
+        <View style={styles.turnGhost} pointerEvents="none">
+          <GhostText size={56} color={withAlpha(colors.text, 0.08)} strokeWidth={1}>
+            {String(Math.min(state.pick_number || 1, state.total_picks || 99)).padStart(2, '0')}
+          </GhostText>
+        </View>
+        <View style={{ flex: 1, paddingRight: spacing.sm }}>
+          <CondTitle size={20} color={isMyTurn ? colors.accent : colors.purpleText} numberOfLines={1} style={{ paddingRight: 4 }}>
+            {isMyTurn ? "YOU'RE ON THE CLOCK" : `${nameFor(state.current_picker_id).toUpperCase()} IS PICKING…`}
+          </CondTitle>
+          <Kicker size={9.5} tracking={1.5} color={colors.muted} style={{ marginTop: 3 }}>
+            {`Pick ${state.pick_number} of ${state.total_picks} · round ${round} of ${rounds}`}
+          </Kicker>
+        </View>
+        <PickClock deadline={state.clock_deadline} serverNow={state.server_now} />
       </View>
 
       <DraftOrderDots order={order} pickNumber={state.pick_number} colorFor={colorFor} />
@@ -403,122 +489,105 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
         </>
       ) : (
         <View style={styles.rostersRow}>
-          <View style={styles.rosterCol}>
+          <View style={[styles.rosterCol, { borderColor: withAlpha(colors.accent, 0.4) }]}>
             <Pressable style={styles.rosterHead} onPress={() => setSheetUid(myId)} hitSlop={6}>
-              <View style={[styles.seatTabDot, { backgroundColor: colorFor(myId) }]} />
-              <Text style={styles.rosterLabel} numberOfLines={1}>
-                Your lineup
+              <Text style={[styles.rosterLabel, { color: colors.accent }]} numberOfLines={1}>
+                YOUR SLIP
               </Text>
-              <Ionicons name="chevron-expand" size={14} color={colors.muted} />
+              <Text style={styles.rosterCount}>
+                {myPicks.length}/{state.slots.length}
+              </Text>
             </Pressable>
             <LineupSlots slots={state.slots} picks={myPicks} compact tint={colorFor(myId)} />
           </View>
-          <View style={styles.rosterCol}>
+          <View style={[styles.rosterCol, { borderColor: withAlpha(colors.purple, 0.4) }]}>
             <Pressable style={styles.rosterHead} onPress={() => setSheetUid(oppId)} hitSlop={6}>
-              <View style={[styles.seatTabDot, { backgroundColor: colorFor(oppId) }]} />
-              <Text style={styles.rosterLabel} numberOfLines={1}>
-                {nameFor(oppId)}
+              <Text style={[styles.rosterLabel, { color: colors.purpleText }]} numberOfLines={1}>
+                {nameFor(oppId).toUpperCase()}
               </Text>
-              <Ionicons name="chevron-expand" size={14} color={colors.muted} />
+              <Text style={styles.rosterCount}>
+                {oppPicks.length}/{state.slots.length}
+              </Text>
             </Pressable>
             <LineupSlots slots={state.slots} picks={oppPicks} compact tint={colorFor(oppId)} />
           </View>
         </View>
       )}
 
-      {!complete ? (
-        <>
-          {lineupFull ? (
-            <Text style={styles.watchNote}>Your lineup is full — watching {flow ? 'the others' : nameFor(oppId)} finish.</Text>
-          ) : null}
+      {lineupFull ? (
+        <Text style={styles.watchNote}>Your slip is full — watching {flow ? 'the others' : nameFor(oppId)} finish.</Text>
+      ) : null}
 
-          <SearchInput value={query} onChangeText={setQuery} placeholder="Search players or teams…" style={{ marginTop: spacing.md }} />
+      <SearchInput value={query} onChangeText={setQuery} placeholder="Find a player…" style={{ marginTop: spacing.md }} />
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={styles.chipRowContent}>
-            <Chip label="All" active={activePos === null} onPress={() => setPosFilter(null)} />
-            {positions.map((pos) => (
-              <Chip key={pos} label={pos} active={activePos === pos} onPress={() => setPosFilter(activePos === pos ? null : pos)} />
-            ))}
-          </ScrollView>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow} contentContainerStyle={styles.chipRowContent}>
+        <Chip label="All" active={activePos === null} onPress={() => setPosFilter(null)} />
+        {positions.map((pos) => (
+          <Chip key={pos} label={pos} active={activePos === pos} onPress={() => setPosFilter(activePos === pos ? null : pos)} />
+        ))}
+      </ScrollView>
 
-          {queue.length > 0 ? (
-            <Text style={styles.queueHint}>★ {queue.length} queued — auto-pick drafts these first if your clock runs out.</Text>
-          ) : null}
+      <View style={styles.queueHintRow}>
+        <Ionicons name="star" size={11} color={colors.accent} />
+        <Text style={styles.queueHint}>
+          {queue.length > 0
+            ? `${queue.length} queued — auto-pick grabs these if the clock dies`
+            : 'Star players to queue them for auto-pick'}
+        </Text>
+      </View>
 
-          <FlatList
-            style={styles.list}
-            data={ordered}
-            keyExtractor={(p) => String(p.id)}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-            ListEmptyComponent={<EmptyState icon="search" title="Nobody matches" subtitle="Loosen the search or clear the position filter." />}
-            renderItem={({ item }) => {
-              const isQ = queued.has(item.id);
-              return (
-                <Pressable
-                  onPress={() => pick(item)}
-                  style={({ pressed }) => [
-                    styles.player,
-                    isQ && styles.playerQueued,
-                    !isMyTurn && styles.playerDim,
-                    pressed && isMyTurn && { opacity: 0.85, transform: [{ scale: 0.99 }] },
-                  ]}
-                >
-                  <Avatar name={item.name} size={38} />
-                  <View style={{ flex: 1, marginLeft: spacing.md }}>
-                    <Text style={styles.playerName}>{item.name}</Text>
-                    <Text style={styles.playerMeta}>
-                      {item.position} · {item.team}
-                      {nextGameLabel(item.next_game_at) ? (
-                        <Text style={styles.gameTime}> · {nextGameLabel(item.next_game_at)}</Text>
-                      ) : null}
-                    </Text>
-                  </View>
-                  <Pressable onPress={() => toggleQueue(item.id)} hitSlop={8} style={{ paddingHorizontal: 4 }}>
-                    <Ionicons name={isQ ? 'star' : 'star-outline'} size={22} color={isQ ? colors.accent : colors.muted} />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => navigation.navigate('PlayerProfile', { id: item.id, name: item.name, team: item.team, position: item.position })}
-                    hitSlop={8}
-                    style={{ paddingHorizontal: 4 }}
-                  >
-                    <Ionicons name="information-circle-outline" size={22} color={colors.muted} />
-                  </Pressable>
-                  <View style={[styles.projWrap, { marginLeft: spacing.sm }]}>
-                    <Text style={styles.proj}>{(item.projection ?? 0).toFixed(1)}</Text>
-                    <Text style={styles.projLabel}>FPG</Text>
-                  </View>
-                  {isMyTurn ? <Ionicons name="add-circle" size={24} color={colors.accent} style={{ marginLeft: spacing.sm }} /> : null}
-                </Pressable>
-              );
-            }}
-          />
-        </>
-      ) : (
-        <View>
-          <Text style={styles.completeNote}>
-            Lineups are locked. The winner is declared once the games in the scoring window finish.
-          </Text>
-          <Button
-            title="Watch Live Matchup"
-            icon="pulse"
-            onPress={() => navigation.navigate('LiveMatchup', { id: duelId, opponentName })}
-            style={{ marginTop: spacing.xl }}
-          />
-          <Button
-            title="Back to Duels"
-            icon="list"
-            variant="outline"
-            onPress={() => navigation.popToTop()}
-            style={{ marginTop: spacing.sm }}
-          />
-        </View>
-      )}
+      <FlatList
+        style={styles.list}
+        data={ordered}
+        keyExtractor={(p) => String(p.id)}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={<EmptyState icon="search" title="Nobody matches" subtitle="Loosen the search or clear the position filter." />}
+        renderItem={({ item }) => {
+          const isQ = queued.has(item.id);
+          return (
+            <Pressable
+              onPress={() => pick(item)}
+              style={({ pressed }) => [
+                styles.player,
+                isQ && styles.playerQueued,
+                !isMyTurn && styles.playerDim,
+                pressed && isMyTurn && { transform: [{ scale: 0.98 }] },
+              ]}
+            >
+              <Avatar name={item.name} size={36} />
+              <View style={{ flex: 1, marginLeft: 10, minWidth: 0 }}>
+                <Text style={styles.playerName} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                <Text style={styles.playerMeta} numberOfLines={1}>
+                  {item.position} · {item.team}
+                  {nextGameLabel(item.next_game_at) ? ` · ${nextGameLabel(item.next_game_at)}` : ''}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => navigation.navigate('PlayerProfile', { id: item.id, name: item.name, team: item.team, position: item.position })}
+                hitSlop={8}
+                style={{ paddingHorizontal: 2 }}
+              >
+                <Ionicons name="information-circle-outline" size={19} color={colors.placeholder} />
+              </Pressable>
+              <View style={styles.projWrap}>
+                <Text style={styles.proj}>{(item.projection ?? 0).toFixed(1)}</Text>
+                <Text style={styles.projLabel}>PROJ</Text>
+              </View>
+              <Pressable onPress={() => toggleQueue(item.id)} hitSlop={8} style={[styles.starBtn, isQ && styles.starBtnOn]}>
+                <Ionicons name={isQ ? 'star' : 'star-outline'} size={16} color={isQ ? colors.accent : colors.placeholder} />
+              </Pressable>
+            </Pressable>
+          );
+        }}
+      />
 
       <RosterSheet
         visible={sheetUid != null}
         onClose={() => setSheetUid(null)}
-        title={String(sheetUid) === String(myId) ? 'Your lineup' : `${nameFor(sheetUid)}'s lineup`}
+        title={String(sheetUid) === String(myId) ? 'Your slip' : `${nameFor(sheetUid)}'s slip`}
         name={nameFor(sheetUid ?? myId)}
         slots={state.slots}
         picks={sheetUid != null ? picksFor(sheetUid) : []}
@@ -527,50 +596,107 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
   );
 }
 
+// A slot in the flow-layout strip; flashes in the drafter's color on fill.
+function FlashSlotCard({ slot, pick, tint, styles, colors }) {
+  const flash = useRef(new Animated.Value(0)).current;
+  const prevId = useRef(pick?.player?.id);
+
+  useEffect(() => {
+    const id = pick?.player?.id;
+    if (id && prevId.current !== id) {
+      flash.setValue(1);
+      Animated.timing(flash, { toValue: 0, duration: 900, useNativeDriver: true }).start();
+    }
+    prevId.current = id;
+  }, [pick?.player?.id, flash]);
+
+  return (
+    <View style={[styles.slotCard, pick && styles.slotCardFilled]}>
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFillObject,
+          { backgroundColor: tint, borderRadius: radius.md, opacity: flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.35] }) },
+        ]}
+      />
+      <Text style={styles.slotCardLabel}>{slot.label}</Text>
+      <Text style={[styles.slotCardName, !pick && { color: colors.placeholder }]} numberOfLines={1}>
+        {pick ? shortName(pick.player.name) : '—'}
+      </Text>
+    </View>
+  );
+}
+
 const makeStyles = (colors) =>
   StyleSheet.create({
     center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-    dim: { color: colors.muted, marginTop: 12, textAlign: 'center' },
+    dim: { color: colors.muted, marginTop: 12, textAlign: 'center', fontFamily: fonts.body, fontSize: 12.5 },
+
+    flipWrap: { ...StyleSheet.absoluteFillObject, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+    coin: {
+      width: 92,
+      height: 92,
+      borderRadius: 46,
+      borderWidth: 4,
+      borderColor: colors.accent,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.purple,
+    },
+    coinInner: {
+      width: 74,
+      height: 74,
+      borderRadius: 37,
+      backgroundColor: colors.bg,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
 
     lobby: { flex: 1, backgroundColor: colors.bg, padding: spacing.xl, justifyContent: 'center' },
-    lobbyTitle: { color: colors.text, fontSize: font.titleLg, fontWeight: '800', textAlign: 'center' },
-    readyRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.xl, marginBottom: spacing.xl },
+    faceOff: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: spacing.xl },
+    faceCol: { alignItems: 'center', maxWidth: 130 },
+    readyRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, marginTop: spacing.xl },
     pill: { flexGrow: 1, flexBasis: '45%', borderRadius: radius.lg, borderWidth: 1, paddingVertical: spacing.lg, alignItems: 'center' },
     pillOn: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
     pillOff: { borderColor: colors.border, backgroundColor: colors.card },
-    pillName: { color: colors.text, fontWeight: '800', fontSize: font.bodyLg, marginTop: spacing.sm, maxWidth: '90%' },
-    pillStateRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6 },
-    pillState: { color: colors.muted, fontSize: font.small, fontWeight: '600' },
+    pillName: { color: colors.text, fontFamily: fonts.condBold, fontSize: font.bodyLg, marginTop: spacing.sm, maxWidth: '90%' },
+    termsRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 7, marginTop: spacing.xl },
+    termChip: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+      borderRadius: 999,
+      paddingVertical: 5,
+      paddingHorizontal: 12,
+    },
+    termChipText: { fontSize: 11, fontFamily: fonts.bodyExtra, color: colors.muted, letterSpacing: 0.5 },
 
     board: { flex: 1, backgroundColor: colors.bg, padding: spacing.md },
-    statusBar: {
+    turnCard: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: colors.card,
+      borderRadius: 15,
       borderWidth: 1,
-      borderColor: colors.borderSubtle,
-      borderRadius: radius.md,
-      paddingHorizontal: spacing.md,
-      paddingVertical: spacing.sm,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      overflow: 'hidden',
     },
-    statusBarMine: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
-    pulseRing: { ...StyleSheet.absoluteFillObject, borderRadius: radius.md, borderWidth: 2 },
-    statusRight: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-    turn: { color: colors.muted, fontSize: font.bodyLg, fontWeight: '700' },
-    turnMine: { color: colors.accent },
-    turnDone: { color: colors.text, fontSize: font.subtitle, fontWeight: '800' },
-    pickNo: { color: colors.muted, fontSize: font.small },
-    rostersRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-    rosterCol: { flex: 1 },
-    rosterHead: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: spacing.sm },
-    rosterLabel: { color: colors.text, fontWeight: '700', flex: 1 },
+    turnCardMine: { borderColor: withAlpha(colors.accent, 0.55), backgroundColor: withAlpha(colors.accent, 0.08) },
+    turnCardTheirs: { borderColor: withAlpha(colors.purple, 0.45), backgroundColor: colors.card },
+    turnGhost: { position: 'absolute', right: 64, top: -14 },
+
+    rostersRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+    rosterCol: { flex: 1, borderWidth: 1, borderRadius: radius.md, padding: 6, backgroundColor: colors.card },
+    rosterHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 4, marginBottom: 6 },
+    rosterLabel: { fontSize: 9, fontFamily: fonts.bodyBlack, letterSpacing: 1.5, flexShrink: 1 },
+    rosterCount: { color: colors.muted, fontFamily: fonts.condBold, fontSize: 12 },
+
     mySlotsStrip: { marginTop: spacing.md, flexGrow: 0 },
     mySlotsContent: { gap: spacing.sm, paddingRight: spacing.sm },
     slotCard: {
       width: 92,
       backgroundColor: colors.card,
-      borderColor: colors.borderSubtle,
+      borderColor: colors.border,
       borderWidth: 1,
       borderRadius: radius.md,
       paddingVertical: 6,
@@ -578,14 +704,14 @@ const makeStyles = (colors) =>
       alignItems: 'center',
     },
     slotCardFilled: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
-    slotCardLabel: { color: colors.muted, fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-    slotCardName: { color: colors.text, fontSize: font.caption, fontWeight: '600', marginTop: 2, maxWidth: 84 },
+    slotCardLabel: { color: colors.muted, fontSize: 9, fontFamily: fonts.bodyBlack, letterSpacing: 0.5 },
+    slotCardName: { color: colors.text, fontSize: font.caption, fontFamily: fonts.condBold, marginTop: 2, maxWidth: 84 },
     seatTabs: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
     seatTab: {
       flex: 1,
       alignItems: 'center',
       backgroundColor: colors.card,
-      borderColor: colors.borderSubtle,
+      borderColor: colors.border,
       borderWidth: 1,
       borderRadius: radius.md,
       paddingVertical: 6,
@@ -593,22 +719,44 @@ const makeStyles = (colors) =>
     seatTabCurrent: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
     seatTabNameRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, maxWidth: '92%' },
     seatTabDot: { width: 7, height: 7, borderRadius: 4 },
-    seatTabName: { color: colors.text, fontSize: 11, fontWeight: '700', flexShrink: 1 },
-    seatTabCount: { color: colors.muted, fontSize: 10, fontWeight: '700', marginTop: 1 },
-    chipRow: { marginTop: spacing.md, marginBottom: spacing.xs, flexGrow: 0 },
+    seatTabName: { color: colors.text, fontSize: 11, fontFamily: fonts.bodyBold, flexShrink: 1 },
+    seatTabCount: { color: colors.muted, fontSize: 10, fontFamily: fonts.bodyBold, marginTop: 1 },
+
+    chipRow: { marginTop: spacing.sm, marginBottom: 2, flexGrow: 0 },
     chipRowContent: { gap: spacing.sm, paddingRight: spacing.sm },
-    watchNote: { color: colors.muted, fontSize: font.small, marginTop: spacing.md, fontStyle: 'italic' },
+    watchNote: { color: colors.muted, fontSize: font.small, marginTop: spacing.md, fontStyle: 'italic', fontFamily: fonts.body },
+    queueHintRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 7 },
+    queueHint: { color: colors.placeholder, fontSize: 10, fontFamily: fonts.bodyBold },
     list: { flex: 1, marginTop: spacing.sm },
-    player: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderSubtle, padding: spacing.md, marginBottom: spacing.sm },
-    playerQueued: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
+    player: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.card,
+      borderRadius: radius.md,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingVertical: 9,
+      paddingHorizontal: 11,
+      marginBottom: 7,
+    },
+    playerQueued: { borderColor: colors.accentBorder, backgroundColor: withAlpha(colors.accent, 0.07) },
     playerDim: { opacity: 0.45 },
-    queueHint: { color: colors.muted, fontSize: font.small, marginTop: spacing.sm, fontStyle: 'italic' },
-    playerName: { color: colors.text, fontSize: font.body, fontWeight: '600' },
-    playerMeta: { color: colors.muted, fontSize: font.small, marginTop: 2 },
-    gameTime: { color: colors.accent, fontSize: font.small, fontWeight: '600' },
-    projWrap: { alignItems: 'center' },
-    proj: { color: colors.accent, fontSize: font.bodyLg, fontWeight: '800' },
-    projLabel: { color: colors.placeholder, fontSize: 9, fontWeight: '700', letterSpacing: 0.5 },
-    completeNote: { color: colors.muted, textAlign: 'center', marginTop: spacing.xl, lineHeight: 20 },
+    playerName: { color: colors.text, fontSize: 13.5, fontFamily: fonts.bodyBold },
+    playerMeta: { color: colors.muted, fontSize: 10.5, fontFamily: fonts.bodySemi, marginTop: 1 },
+    projWrap: { alignItems: 'flex-end', marginLeft: 6, minWidth: 40 },
+    proj: { color: colors.accent, fontSize: 19, fontFamily: fonts.hero, lineHeight: 20 },
+    projLabel: { color: colors.placeholder, fontSize: 8, fontFamily: fonts.bodyBlack, letterSpacing: 1 },
+    starBtn: {
+      width: 32,
+      height: 32,
+      borderRadius: 9,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginLeft: 8,
+    },
+    starBtnOn: { borderColor: withAlpha(colors.accent, 0.5), backgroundColor: withAlpha(colors.accent, 0.14) },
+    completeNote: { color: colors.muted, textAlign: 'center', marginTop: spacing.md, lineHeight: 20, fontFamily: fonts.body, fontSize: 12.5 },
     error: { color: colors.danger, textAlign: 'center', marginTop: spacing.sm },
   });

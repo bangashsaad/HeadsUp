@@ -24,57 +24,118 @@ export const shadow = {
 };
 
 // ---------------------------------------------------------------------------
+// Typeface tokens ("Reimagined" design language). Each entry is a loaded
+// expo-google-fonts face; when you set one as fontFamily, do NOT also set
+// fontWeight (the weight is baked into the face name).
+//   display   – Archivo Black energy, italic: wordmark, YOU WIN., ghost VS
+//   hero      – Barlow Condensed 800 italic: scores, section titles, buttons
+//   body*     – Archivo: running text and labels
+// ---------------------------------------------------------------------------
+export const fonts = {
+  display: 'Archivo_900Black_Italic',
+  displayUpright: 'Archivo_900Black',
+  hero: 'BarlowCondensed_800ExtraBold_Italic',
+  heroUpright: 'BarlowCondensed_800ExtraBold',
+  condBold: 'BarlowCondensed_700Bold',
+  condBoldItalic: 'BarlowCondensed_700Bold_Italic',
+  condSemi: 'BarlowCondensed_600SemiBold',
+  condMedium: 'BarlowCondensed_500Medium',
+  body: 'Archivo_400Regular',
+  bodyMedium: 'Archivo_500Medium',
+  bodySemi: 'Archivo_600SemiBold',
+  bodyBold: 'Archivo_700Bold',
+  bodyExtra: 'Archivo_800ExtraBold',
+  bodyBlack: 'Archivo_900Black',
+};
+
+// hex (#RRGGBB) -> rgba() string. The JS stand-in for CSS color-mix().
+export function withAlpha(hex, alpha) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ---------------------------------------------------------------------------
 // Palettes. `onAccent` is the text/icon color that sits ON the accent (so the
-// primary button stays legible: dark text on bright green / white on deep green).
+// primary button stays legible: near-black text on lime).
 // ---------------------------------------------------------------------------
 const DARK = {
-  bg: '#0f172a',
-  bgElevated: '#162136',
-  card: '#1e293b',
-  cardElevated: '#243349',
-  border: '#334155',
-  borderSubtle: '#28344a',
-  text: '#ffffff',
-  muted: '#94a3b8',
-  placeholder: '#64748b',
-  accent: '#4ade80',
-  onAccent: '#0f172a',
-  accentSoft: 'rgba(74,222,128,0.12)',
-  accentBorder: 'rgba(74,222,128,0.35)',
-  danger: '#f87171',
-  dangerSoft: 'rgba(248,113,113,0.12)',
-  dangerBorder: 'rgba(248,113,113,0.35)',
-  warning: '#fbbf24',
-  warningSoft: 'rgba(251,191,36,0.12)',
-  warningBorder: 'rgba(251,191,36,0.35)',
-  info: '#60a5fa',
-  infoSoft: 'rgba(96,165,250,0.12)',
-  infoBorder: 'rgba(96,165,250,0.35)',
+  bg: '#0A0B10',
+  bgElevated: '#0D0F16',
+  card: '#12141D',
+  cardElevated: '#191C28',
+  border: '#252A3A',
+  borderSubtle: '#1A1E2B',
+  text: '#F4F5F7',
+  textDim: '#B9BECF',
+  textFaint: '#3A4157',
+  muted: '#8B91A7',
+  placeholder: '#565D73',
+  accent: '#C8FF2E',
+  onAccent: '#0A0B10',
+  accentSoft: 'rgba(200,255,46,0.10)',
+  accentBorder: 'rgba(200,255,46,0.45)',
+  danger: '#FF4557',
+  dangerSoft: 'rgba(255,69,87,0.15)',
+  dangerBorder: 'rgba(255,69,87,0.50)',
+  warning: '#FFB021',
+  warningSoft: 'rgba(255,176,33,0.14)',
+  warningBorder: 'rgba(255,176,33,0.40)',
+  info: '#9F8BFF',
+  infoSoft: 'rgba(124,92,255,0.15)',
+  infoBorder: 'rgba(124,92,255,0.45)',
+  // Extended "Reimagined" family
+  purple: '#7C5CFF',
+  purpleText: '#9F8BFF',
+  purpleSoft: 'rgba(124,92,255,0.15)',
+  purpleBorder: 'rgba(124,92,255,0.45)',
+  cyan: '#22E5FF',
+  pink: '#FF4D8D',
+  green: '#39D98A',
+  orange: '#FF7A1A',
+  gold: '#FFB021',
+  silver: '#B9BECF',
+  bronze: '#C97C3D',
 };
 
 const LIGHT = {
-  bg: '#f1f5f9',
-  bgElevated: '#e9eef5',
-  card: '#ffffff',
-  cardElevated: '#ffffff',
-  border: '#dce3ec',
-  borderSubtle: '#e8edf3',
-  text: '#0f172a',
-  muted: '#64748b',
-  placeholder: '#94a3b8',
-  accent: '#16a34a',
-  onAccent: '#ffffff',
-  accentSoft: 'rgba(22,163,74,0.10)',
-  accentBorder: 'rgba(22,163,74,0.30)',
-  danger: '#dc2626',
-  dangerSoft: 'rgba(220,38,38,0.08)',
-  dangerBorder: 'rgba(220,38,38,0.28)',
-  warning: '#d97706',
-  warningSoft: 'rgba(217,119,6,0.10)',
-  warningBorder: 'rgba(217,119,6,0.30)',
-  info: '#2563eb',
-  infoSoft: 'rgba(37,99,235,0.08)',
-  infoBorder: 'rgba(37,99,235,0.28)',
+  bg: '#F4F5F8',
+  bgElevated: '#ECEEF4',
+  card: '#FFFFFF',
+  cardElevated: '#FFFFFF',
+  border: '#DCE0EA',
+  borderSubtle: '#E8EBF2',
+  text: '#12141D',
+  textDim: '#3A4157',
+  textFaint: '#B9BECF',
+  muted: '#565D73',
+  placeholder: '#8B91A7',
+  accent: '#6AA400',
+  onAccent: '#FFFFFF',
+  accentSoft: 'rgba(106,164,0,0.10)',
+  accentBorder: 'rgba(106,164,0,0.30)',
+  danger: '#E11D48',
+  dangerSoft: 'rgba(225,29,72,0.08)',
+  dangerBorder: 'rgba(225,29,72,0.28)',
+  warning: '#C77700',
+  warningSoft: 'rgba(199,119,0,0.10)',
+  warningBorder: 'rgba(199,119,0,0.30)',
+  info: '#6D4AFF',
+  infoSoft: 'rgba(109,74,255,0.08)',
+  infoBorder: 'rgba(109,74,255,0.28)',
+  purple: '#6D4AFF',
+  purpleText: '#6D4AFF',
+  purpleSoft: 'rgba(109,74,255,0.08)',
+  purpleBorder: 'rgba(109,74,255,0.28)',
+  cyan: '#0891B2',
+  pink: '#DB2777',
+  green: '#0E9F6E',
+  orange: '#EA580C',
+  gold: '#B45309',
+  silver: '#64748B',
+  bronze: '#A16207',
 };
 
 export const PALETTES = { dark: DARK, light: LIGHT };
@@ -98,7 +159,7 @@ export function statusTone(status) {
     case 'settled':
       return 'accent';
     case 'drafting':
-      return 'warning';
+      return 'danger'; // live = red, per the Reimagined language
     case 'pending':
     case 'countered':
       return 'info';
@@ -111,7 +172,7 @@ export function statusTone(status) {
 }
 
 // Deterministic avatar tint from a name (mode-independent).
-const AVATAR_TINTS = ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4', '#f97316'];
+const AVATAR_TINTS = ['#FF4D8D', '#22E5FF', '#39D98A', '#FFB021', '#7C5CFF', '#5CA8FF', '#FF7A1A'];
 export function avatarColor(seed = '') {
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
@@ -173,7 +234,8 @@ export function useNavHeader() {
     headerStyle: { backgroundColor: colors.bg },
     headerTintColor: colors.text,
     headerShadowVisible: false,
-    headerTitleStyle: { fontWeight: '800' },
+    headerTitleStyle: { fontFamily: fonts.heroUpright, fontSize: 18, letterSpacing: 0.5 },
+    headerBackTitleVisible: false,
     contentStyle: { backgroundColor: colors.bg },
   };
 }
@@ -189,7 +251,7 @@ export const navHeader = {
   headerStyle: { backgroundColor: DARK.bg },
   headerTintColor: DARK.text,
   headerShadowVisible: false,
-  headerTitleStyle: { fontWeight: '800' },
+  headerTitleStyle: { fontFamily: fonts.heroUpright, fontSize: 18, letterSpacing: 0.5 },
 };
 
 export const authStyles = StyleSheet.create({
@@ -208,7 +270,7 @@ export const authStyles = StyleSheet.create({
     borderColor: DARK.border,
   },
   button: { backgroundColor: DARK.accent, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
-  buttonText: { color: DARK.bg, fontSize: 16, fontWeight: '700' },
+  buttonText: { color: DARK.onAccent, fontSize: 16, fontWeight: '700' },
   link: { color: DARK.accent, textAlign: 'center', marginTop: 18, fontSize: 15 },
   error: { color: DARK.danger, textAlign: 'center', marginBottom: 14, fontSize: 14 },
 });

@@ -1,15 +1,14 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
-import { useTheme, useThemedStyles, spacing, font } from '../theme';
+import { useThemedStyles, spacing, font } from '../theme';
 import { Field, Button } from '../components/ui';
+import WordMark from '../components/WordMark';
 
 const EMAIL_RE = /\S+@\S+\.\S+/;
 
 export default function LoginScreen({ navigation }) {
   const { signIn } = useAuth();
-  const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -34,11 +33,8 @@ export default function LoginScreen({ navigation }) {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.brandWrap}>
-        <View style={styles.brand}>
-          <Ionicons name="flame" size={34} color={colors.accent} />
-        </View>
+        <WordMark size={34} style={{ alignItems: 'center' }} />
       </View>
-      <Text style={styles.title}>Heads Up</Text>
       <Text style={styles.subtitle}>Log in to challenge your friends</Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}

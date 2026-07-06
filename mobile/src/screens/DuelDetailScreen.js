@@ -5,8 +5,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { getDuel, respondToDuel, startWithGroup, getLiveResult } from '../api/duels';
 import { formatDateTime } from '../utils/datetime';
-import { useTheme, useThemedStyles, spacing, radius, font, statusTone } from '../theme';
-import { Screen, Card, Avatar, Badge, Button, SectionHeader } from '../components/ui';
+import { useTheme, useThemedStyles, spacing, radius, font, fonts, statusTone, withAlpha } from '../theme';
+import { Screen, Card, Avatar, Badge, Button, SectionHeader, GhostText } from '../components/ui';
 
 const SPORT_LABEL = {
   nfl: '🏈 Football',
@@ -148,7 +148,9 @@ export default function DuelDetailScreen({ route, navigation }) {
             <Avatar name="You" size={56} />
             <Text style={styles.sideName}>You</Text>
           </View>
-          <Text style={styles.vs}>VS</Text>
+          <GhostText size={28} color={withAlpha('#565D73', 0.9)} strokeWidth={1.3} style={{ marginHorizontal: 4 }}>
+            VS
+          </GhostText>
           <Pressable
             style={({ pressed }) => [styles.side, pressed && { opacity: 0.7 }]}
             onPress={() => navigation.navigate('UserProfile', { id: duel.opponent.id, username: duel.opponent.username })}
@@ -410,24 +412,23 @@ const makeStyles = (colors) =>
     loading: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
     side: { alignItems: 'center', flex: 1 },
-    sideName: { color: colors.text, fontSize: font.body, fontWeight: '700', marginTop: spacing.sm, maxWidth: '90%' },
-    vs: { color: colors.placeholder, fontSize: font.body, fontWeight: '800', letterSpacing: 1, paddingHorizontal: spacing.md },
+    sideName: { color: colors.text, fontSize: 16, fontFamily: fonts.condBold, letterSpacing: 0.5, marginTop: spacing.sm, maxWidth: '90%' },
     statusRow: { alignItems: 'center', marginBottom: spacing.lg },
     error: { color: colors.danger, textAlign: 'center', marginBottom: spacing.md },
     term: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, paddingHorizontal: spacing.lg },
     termDivider: { borderTopColor: colors.borderSubtle, borderTopWidth: StyleSheet.hairlineWidth },
-    termLabel: { color: colors.muted, fontSize: font.body },
-    termValue: { color: colors.text, fontSize: font.body, fontWeight: '600' },
+    termLabel: { color: colors.muted, fontSize: 12.5, fontFamily: fonts.bodySemi },
+    termValue: { color: colors.text, fontSize: 15, fontFamily: fonts.condBold, letterSpacing: 0.3 },
     actions: { marginTop: spacing.xl, gap: spacing.md },
     twoUp: { flexDirection: 'row', gap: spacing.md },
     locked: { color: colors.muted, fontSize: font.body, textAlign: 'center', marginTop: spacing.sm, lineHeight: 21 },
     liveCard: { borderColor: colors.accentBorder },
     liveTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, marginBottom: spacing.sm },
-    liveHead: { color: colors.muted, fontSize: font.caption, fontWeight: '800', letterSpacing: 1, textAlign: 'center' },
+    liveHead: { color: colors.muted, fontSize: 9, fontFamily: fonts.bodyBlack, letterSpacing: 1.5, textAlign: 'center' },
     liveWaiting: { color: colors.muted, fontSize: font.body, textAlign: 'center', marginTop: spacing.xs },
     liveRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
     liveSide: { flex: 1, alignItems: 'center' },
-    liveTotal: { color: colors.text, fontSize: font.hero, fontWeight: '900' },
+    liveTotal: { color: colors.text, fontSize: 40, lineHeight: 42, fontFamily: fonts.hero, paddingRight: 3 },
     liveName: { color: colors.muted, fontSize: font.small, marginTop: 2, maxWidth: '90%' },
     liveLeading: { color: colors.accent, fontSize: 10, fontWeight: '800', letterSpacing: 1, marginTop: 2 },
     liveLeadingSpacer: { fontSize: 10, marginTop: 2, height: 13 },
@@ -436,7 +437,7 @@ const makeStyles = (colors) =>
     liveStandRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 5 },
     liveRank: { color: colors.placeholder, fontSize: font.small, fontWeight: '800', width: 18 },
     liveStandName: { color: colors.text, fontSize: font.body, fontWeight: '600', flex: 1 },
-    liveStandPts: { color: colors.text, fontSize: font.bodyLg, fontWeight: '800' },
+    liveStandPts: { color: colors.text, fontSize: 19, fontFamily: fonts.hero },
     seatsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md, justifyContent: 'center' },
     seatChip: {
       flexGrow: 1,
@@ -444,13 +445,13 @@ const makeStyles = (colors) =>
       maxWidth: '48%',
       alignItems: 'center',
       backgroundColor: colors.card,
-      borderColor: colors.borderSubtle,
+      borderColor: colors.border,
       borderWidth: 1,
       borderRadius: radius.lg,
       paddingVertical: spacing.md,
       paddingHorizontal: spacing.sm,
     },
-    seatName: { color: colors.text, fontWeight: '700', fontSize: font.small, marginTop: spacing.xs, maxWidth: '95%' },
+    seatName: { color: colors.text, fontFamily: fonts.condBold, fontSize: 14, marginTop: spacing.xs, maxWidth: '95%' },
     seatStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 3 },
     seatStatus: { fontSize: 11, fontWeight: '700' },
   });

@@ -1,12 +1,13 @@
 import { Pressable, Text, ActivityIndicator, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { impact } from '../../haptics';
-import { useTheme, radius, shadow } from '../../theme';
+import { useTheme, radius, shadow, fonts } from '../../theme';
 
+// Condensed-italic pill buttons — the Reimagined CTA voice (ENTER ROOM →).
 const SIZES = {
-  sm: { py: 9, px: 14, font: 14, icon: 16 },
-  md: { py: 14, px: 18, font: 16, icon: 18 },
-  lg: { py: 16, px: 20, font: 17, icon: 20 },
+  sm: { py: 8, px: 15, font: 14, icon: 15 },
+  md: { py: 13, px: 20, font: 16, icon: 18 },
+  lg: { py: 15, px: 24, font: 18, icon: 20 },
 };
 
 export default function Button({
@@ -50,7 +51,7 @@ export default function Button({
         { backgroundColor: v.bg, borderColor: v.border, paddingVertical: s.py, paddingHorizontal: s.px },
         variant === 'primary' && !isDisabled && shadow.sm,
         full && { alignSelf: 'stretch' },
-        pressed && !isDisabled && { transform: [{ scale: 0.985 }], opacity: 0.92 },
+        pressed && !isDisabled && { transform: [{ scale: 0.97 }], opacity: 0.92 },
         isDisabled && { opacity: 0.45 },
         style,
       ]}
@@ -60,7 +61,17 @@ export default function Button({
       ) : (
         <View style={styles.row}>
           {icon && <Ionicons name={icon} size={s.icon} color={v.fg} style={{ marginRight: 8 }} />}
-          <Text style={{ color: v.fg, fontSize: s.font, fontWeight: '700' }}>{title}</Text>
+          <Text
+            style={{
+              color: v.fg,
+              fontSize: s.font,
+              fontFamily: fonts.hero,
+              letterSpacing: 1.2,
+              textTransform: 'uppercase',
+            }}
+          >
+            {title}
+          </Text>
           {iconRight && <Ionicons name={iconRight} size={s.icon} color={v.fg} style={{ marginLeft: 8 }} />}
         </View>
       )}
@@ -69,6 +80,6 @@ export default function Button({
 }
 
 const styles = StyleSheet.create({
-  base: { borderRadius: radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  base: { borderRadius: radius.pill, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
 });

@@ -4,7 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { getUserProfile, sendFriendRequest, acceptRequest } from '../api/social';
 import { notify, NotifyType } from '../haptics';
-import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
+import { useTheme, useThemedStyles, spacing, radius, font, fonts } from '../theme';
 import { Screen, Card, Avatar, Badge, Button, EmptyState } from '../components/ui';
 
 // Another player's profile, reachable by tapping them anywhere in a game
@@ -153,16 +153,16 @@ const makeStyles = (colors) =>
   StyleSheet.create({
     center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
     head: { alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg },
-    username: { color: colors.text, fontSize: font.title, fontWeight: '800' },
+    username: { color: colors.text, fontSize: 26, fontFamily: fonts.hero, paddingRight: 4 },
     error: { color: colors.danger, textAlign: 'center', marginBottom: spacing.md },
     recordCard: { marginTop: spacing.lg },
-    cardHead: { color: colors.muted, fontSize: font.caption, fontWeight: '800', letterSpacing: 1, textAlign: 'center', marginBottom: spacing.md },
+    cardHead: { color: colors.muted, fontSize: 9, fontFamily: fonts.bodyBlack, letterSpacing: 2, textAlign: 'center', marginBottom: spacing.md, textTransform: 'uppercase' },
     recordRow: { flexDirection: 'row', justifyContent: 'space-around' },
     stat: { alignItems: 'center' },
-    statValue: { fontSize: font.title, fontWeight: '900' },
+    statValue: { fontSize: 24, fontFamily: fonts.hero },
     statLabel: { color: colors.muted, fontSize: font.caption, fontWeight: '700', marginTop: 2 },
     streak: { color: colors.muted, fontSize: font.small, textAlign: 'center', marginTop: spacing.md },
-    vsLine: { color: colors.text, fontSize: font.title, fontWeight: '800', textAlign: 'center' },
+    vsLine: { color: colors.text, fontSize: 24, fontFamily: fonts.hero, textAlign: 'center', paddingRight: 4 },
     vsMuted: { color: colors.muted, fontSize: font.small, fontWeight: '400' },
     note: { color: colors.placeholder, fontSize: font.caption, textAlign: 'center', marginTop: spacing.lg },
   });

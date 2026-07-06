@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Animated, StyleSheet, Text, View } from 'react-native';
-import { useThemedStyles, spacing, radius, font } from '../theme';
+import { useThemedStyles, spacing, radius, fonts, font } from '../theme';
 import { shortName } from '../utils/names';
 
 // Renders a team's lineup: one row per slot (in template order), showing the
@@ -51,9 +51,9 @@ function SlotRow({ slot, pick, compact, divider, tint, styles }) {
         style={[
           StyleSheet.absoluteFillObject,
           {
-            backgroundColor: tint || '#4ade80',
+            backgroundColor: tint || '#C8FF2E',
             borderRadius: radius.sm,
-            opacity: flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.3] }),
+            opacity: flash.interpolate({ inputRange: [0, 1], outputRange: [0, 0.35] }),
           },
         ]}
       />
@@ -78,7 +78,7 @@ function SlotRow({ slot, pick, compact, divider, tint, styles }) {
           </View>
         )
       ) : (
-        <Text style={[styles.empty, compact && styles.emptyCompact]}>Open slot</Text>
+        <Text style={[styles.empty, compact && styles.emptyCompact]}>Open</Text>
       )}
     </View>
   );
@@ -86,16 +86,31 @@ function SlotRow({ slot, pick, compact, divider, tint, styles }) {
 
 const makeStyles = (colors) =>
   StyleSheet.create({
-    wrap: { backgroundColor: colors.card, borderColor: colors.borderSubtle, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md },
-    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm },
-    rowCompact: { paddingVertical: 6 },
+    wrap: {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+      borderWidth: 1,
+      borderRadius: radius.md,
+      paddingHorizontal: spacing.sm,
+      paddingVertical: 4,
+    },
+    row: { flexDirection: 'row', alignItems: 'center', paddingVertical: spacing.sm, paddingHorizontal: 4 },
+    rowCompact: { paddingVertical: 5 },
     divider: { borderBottomColor: colors.borderSubtle, borderBottomWidth: StyleSheet.hairlineWidth },
-    slotChip: { backgroundColor: colors.bgElevated, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3, marginRight: spacing.md, minWidth: 42, alignItems: 'center' },
-    slotChipCompact: { minWidth: 34, paddingHorizontal: 6, marginRight: spacing.sm },
-    slotText: { color: colors.muted, fontSize: 11, fontWeight: '800' },
-    filled: { color: colors.text, fontSize: font.body, fontWeight: '600' },
-    filledCompact: { color: colors.text, fontSize: font.small, fontWeight: '600', flex: 1 },
-    team: { color: colors.muted, fontSize: font.caption, marginTop: 1 },
-    empty: { color: colors.placeholder, fontSize: font.body, flex: 1 },
-    emptyCompact: { fontSize: font.small },
+    slotChip: {
+      backgroundColor: colors.cardElevated,
+      borderRadius: 5,
+      paddingHorizontal: 6,
+      paddingVertical: 3,
+      marginRight: spacing.sm,
+      minWidth: 36,
+      alignItems: 'center',
+    },
+    slotChipCompact: { minWidth: 30, paddingHorizontal: 5 },
+    slotText: { color: colors.muted, fontSize: 8.5, fontFamily: fonts.bodyBlack, letterSpacing: 0.5 },
+    filled: { color: colors.text, fontSize: font.body, fontFamily: fonts.condBold },
+    filledCompact: { color: colors.text, fontSize: 13.5, fontFamily: fonts.condBold, flex: 1 },
+    team: { color: colors.muted, fontSize: font.caption, marginTop: 1, fontFamily: fonts.body },
+    empty: { color: colors.textFaint, fontSize: font.small, flex: 1, fontFamily: fonts.condBold },
+    emptyCompact: { fontSize: 13 },
   });

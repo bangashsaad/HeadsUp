@@ -3,7 +3,7 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
 import { searchPlayers, getPlayerProfile } from '../api/sports';
-import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
+import { useTheme, useThemedStyles, spacing, radius, font, fonts } from '../theme';
 import { Screen, Card, Avatar, SearchInput } from '../components/ui';
 
 export default function CompareScreen() {
@@ -159,7 +159,7 @@ const makeStyles = (colors) =>
   StyleSheet.create({
     slots: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
     slot: { flex: 1, alignItems: 'center', minHeight: 120 },
-    vs: { color: colors.placeholder, fontSize: font.body, fontWeight: '800', letterSpacing: 1, marginTop: 40 },
+    vs: { color: colors.placeholder, fontSize: 17, fontFamily: fonts.hero, letterSpacing: 1, marginTop: 40 },
     clear: { position: 'absolute', top: 0, right: 0, zIndex: 1 },
     slotName: { color: colors.text, fontSize: font.subtitle, fontWeight: '700', marginTop: spacing.sm, textAlign: 'center' },
     slotMeta: { color: colors.muted, fontSize: font.small, marginTop: 2 },
@@ -172,7 +172,7 @@ const makeStyles = (colors) =>
     cmpHead: { backgroundColor: colors.bgElevated },
     cmpDivider: { borderBottomColor: colors.borderSubtle, borderBottomWidth: StyleSheet.hairlineWidth },
     cmpVal: { flex: 1, textAlign: 'center', color: colors.text, fontSize: font.bodyLg, fontWeight: '700' },
-    cmpHeadText: { color: colors.text, fontSize: font.body, fontWeight: '800' },
+    cmpHeadText: { color: colors.text, fontSize: 15, fontFamily: fonts.condBold },
     cmpLabel: { width: 70, textAlign: 'center', color: colors.muted, fontSize: font.caption, fontWeight: '700' },
-    cmpLabelHead: { width: 70, textAlign: 'center', color: colors.placeholder, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+    cmpLabelHead: { width: 70, textAlign: 'center', color: colors.placeholder, fontSize: 9, fontFamily: fonts.bodyBlack, letterSpacing: 1 },
   });

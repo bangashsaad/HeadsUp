@@ -1,14 +1,14 @@
 import { useCallback, useState } from 'react';
 import { SectionList, StyleSheet, Text, View, Pressable } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../auth/AuthContext';
 import { listUpcomingGames } from '../api/sports';
-import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
-import { Screen, Badge, EmptyState, SkeletonList } from '../components/ui';
+import { useTheme, useThemedStyles, spacing, fonts, withAlpha } from '../theme';
+import { Screen, Badge, EmptyState, SkeletonList, Segmented, BlinkDot } from '../components/ui';
 
-const WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const WEEK = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 // Shift a UTC instant to ET wall-clock (UTC-4 all WNBA season), read via getUTC*.
 function et(iso) {
@@ -41,9 +41,9 @@ function buildSections(games) {
 
   return Array.from(byDay.values()).map(({ e, items }) => {
     const key = dayKey(e);
-    let title = `${WEEK[e.getUTCDay()]}, ${MON[e.getUTCMonth()]} ${e.getUTCDate()}`;
-    if (key === todayKey) title = `Today · ${title}`;
-    else if (key === tomKey) title = `Tomorrow · ${title}`;
+    let title = `${WEEK[e.getUTCDay()]} ${MON[e.getUTCMonth()]} ${e.getUTCDate()}`;
+    if (key === todayKey) title = `TONIGHT · ${title}`;
+    else if (key === tomKey) title = `TOMORROW · ${title}`;
     return { title, data: items };
   });
 }
@@ -76,9 +76,12 @@ export default function GamesScreen({ navigation }) {
     }
   }, [token, sport]);
 
+  // Refresh on focus and keep polling — live scores move while you watch.
   useFocusEffect(
     useCallback(() => {
       load();
+      const iv = setInterval(load, 30000);
+      return () => clearInterval(iv);
     }, [load])
   );
 
@@ -89,22 +92,17 @@ export default function GamesScreen({ navigation }) {
     setSport(next);
   }
 
-  const label = SPORTS.find((s) => s.key === sport)?.label || '';
-
   return (
     <Screen padded={false}>
-      <View style={styles.segmentWrap}>
-        <View style={styles.segment}>
-          {SPORTS.map((s) => (
-            <Pressable key={s.key} onPress={() => switchSport(s.key)} style={[styles.segTab, sport === s.key && styles.segTabOn]}>
-              <Text style={[styles.segLabel, { color: sport === s.key ? colors.onAccent : colors.muted }]}>{s.label}</Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
+      <Segmented
+        style={{ marginHorizontal: spacing.lg, marginTop: spacing.md }}
+        value={sport}
+        onChange={switchSport}
+        options={SPORTS.map((s) => ({ key: s.key, label: s.label }))}
+      />
 
       {loading ? (
-        <View style={{ paddingHorizontal: spacing.lg }}>
+        <View style={{ padding: spacing.lg }}>
           <SkeletonList count={6} />
         </View>
       ) : (
@@ -112,14 +110,13 @@ export default function GamesScreen({ navigation }) {
           sections={buildSections(games)}
           keyExtractor={(item) => item.id}
           stickySectionHeadersEnabled={false}
-          contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.sm, flexGrow: 1 }}
+          contentContainerStyle={{ padding: spacing.lg, paddingTop: spacing.xs, flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
           onRefresh={() => {
             setRefreshing(true);
             load();
           }}
           refreshing={refreshing}
-          ListHeaderComponent={<Text style={styles.intro}>Upcoming {label} games — tap one to scout both rosters.</Text>}
           ListEmptyComponent={
             error ? (
               <EmptyState icon="cloud-offline-outline" title="Couldn't load games" subtitle={error} />
@@ -128,82 +125,106 @@ export default function GamesScreen({ navigation }) {
             )
           }
           renderSectionHeader={({ section }) => <Text style={styles.dayHeader}>{section.title}</Text>}
-          renderItem={({ item }) => <GameRow game={item} styles={styles} onPress={() => navigation.navigate('GameDetail', { game: item, sport })} />}
+          renderItem={({ item }) => (
+            <GameCard game={item} styles={styles} colors={colors} onPress={() => navigation.navigate('GameDetail', { game: item, sport })} />
+          )}
         />
       )}
     </Screen>
   );
 }
 
-function GameRow({ game, styles, onPress }) {
+// One game. Live gets the red treatment; upcoming leads with the tip time.
+function GameCard({ game, styles, colors, onPress }) {
   const live = game.state === 'in';
   const final = game.state === 'post';
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [styles.game, pressed && { opacity: 0.85 }]}>
+  const showScore = live || final;
+  const away = Number(game.away.score);
+  const home = Number(game.home.score);
+
+  const inner = (
+    <View style={styles.gameInner}>
       <View style={{ flex: 1 }}>
-        <TeamLine side={game.away} score={final || live ? game.away.score : null} styles={styles} />
-        <View style={{ height: 6 }} />
-        <TeamLine side={game.home} score={final || live ? game.home.score : null} styles={styles} atHome />
+        <TeamLine side={game.away} score={showScore ? game.away.score : null} winner={showScore && away > home} dim={final && away < home} styles={styles} colors={colors} />
+        <View style={{ height: 7 }} />
+        <TeamLine side={game.home} score={showScore ? game.home.score : null} winner={showScore && home > away} dim={final && home < away} styles={styles} colors={colors} />
       </View>
       <View style={styles.gameMeta}>
-        {live ? <Badge label="LIVE" tone="danger" dot /> : final ? <Badge label="Final" tone="neutral" /> : <Text style={styles.gameTime}>{timeLabel(game.date)}</Text>}
+        {live ? (
+          <>
+            <Badge label="Live" tone="danger" blink />
+            <Text style={styles.liveStatus} numberOfLines={1}>
+              {game.status}
+            </Text>
+          </>
+        ) : final ? (
+          <Badge label="Final" tone="neutral" />
+        ) : (
+          <Text style={styles.gameTime}>{timeLabel(game.date)}</Text>
+        )}
       </View>
+    </View>
+  );
+
+  if (live) {
+    return (
+      <Pressable onPress={onPress} style={({ pressed }) => [pressed && { transform: [{ scale: 0.98 }] }]}>
+        <LinearGradient
+          colors={[withAlpha(colors.danger, 0.1), colors.card]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 0.9, y: 1 }}
+          style={[styles.game, { borderColor: colors.dangerBorder }]}
+        >
+          {inner}
+        </LinearGradient>
+      </Pressable>
+    );
+  }
+
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.game, final && { opacity: 0.85 }, pressed && { transform: [{ scale: 0.98 }] }]}>
+      {inner}
     </Pressable>
   );
 }
 
-function TeamLine({ side, score, styles, atHome }) {
+function TeamLine({ side, score, winner, dim, styles, colors }) {
   return (
     <View style={styles.teamLine}>
-      <Text style={styles.teamAbbrev}>{side.abbrev}</Text>
+      <Text style={[styles.teamAbbrev, dim && { color: colors.muted }]}>{side.abbrev}</Text>
       <Text style={styles.teamName} numberOfLines={1}>
-        {atHome ? '' : ''}
         {side.name}
       </Text>
-      {score != null ? <Text style={styles.score}>{score}</Text> : null}
+      {score != null ? <Text style={[styles.score, winner && { color: colors.accent }, dim && { color: colors.muted }]}>{score}</Text> : null}
     </View>
   );
 }
 
 const makeStyles = (colors) =>
   StyleSheet.create({
-    segmentWrap: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
-    segment: {
-      flexDirection: 'row',
-      gap: spacing.xs,
-      backgroundColor: colors.card,
-      borderRadius: radius.md,
-      padding: spacing.xs,
-      borderWidth: 1,
-      borderColor: colors.borderSubtle,
-    },
-    segTab: { flex: 1, alignItems: 'center', paddingVertical: 10, borderRadius: radius.sm },
-    segTabOn: { backgroundColor: colors.accent },
-    segLabel: { fontSize: font.body, fontWeight: '700' },
-    intro: { color: colors.muted, fontSize: font.body, marginBottom: spacing.md },
     dayHeader: {
-      color: colors.muted,
-      fontSize: font.caption,
-      fontWeight: '800',
-      textTransform: 'uppercase',
-      letterSpacing: 1,
+      color: colors.placeholder,
+      fontSize: 10,
+      fontFamily: fonts.bodyExtra,
+      letterSpacing: 2,
       marginTop: spacing.lg,
       marginBottom: spacing.sm,
     },
     game: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.card,
+      borderRadius: 14,
       borderWidth: 1,
-      borderColor: colors.borderSubtle,
-      borderRadius: radius.md,
-      padding: spacing.md,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+      padding: 13,
       marginBottom: spacing.sm,
+      overflow: 'hidden',
     },
+    gameInner: { flexDirection: 'row', alignItems: 'center' },
     teamLine: { flexDirection: 'row', alignItems: 'center' },
-    teamAbbrev: { color: colors.text, fontWeight: '800', fontSize: font.body, width: 46 },
-    teamName: { color: colors.muted, fontSize: font.body, flex: 1 },
-    score: { color: colors.text, fontWeight: '800', fontSize: font.bodyLg, marginLeft: spacing.sm },
-    gameMeta: { marginLeft: spacing.md, alignItems: 'flex-end', minWidth: 64 },
-    gameTime: { color: colors.muted, fontSize: font.small, fontWeight: '600', textAlign: 'right' },
+    teamAbbrev: { color: colors.text, fontFamily: fonts.heroUpright, fontSize: 17, width: 52, letterSpacing: 0.5 },
+    teamName: { color: colors.muted, fontSize: 12, fontFamily: fonts.bodySemi, flex: 1 },
+    score: { color: colors.text, fontFamily: fonts.hero, fontSize: 22, lineHeight: 24, marginLeft: spacing.sm, paddingRight: 3 },
+    gameMeta: { marginLeft: spacing.md, alignItems: 'flex-end', minWidth: 70, gap: 4 },
+    gameTime: { color: colors.accent, fontFamily: fonts.condBold, fontSize: 15, textAlign: 'right' },
+    liveStatus: { color: colors.muted, fontFamily: fonts.condBold, fontSize: 12, maxWidth: 90, textAlign: 'right' },
   });

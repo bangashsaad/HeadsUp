@@ -3,7 +3,7 @@ import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
 import { getLeaderboard } from '../api/me';
-import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
+import { useTheme, useThemedStyles, spacing, radius, font, fonts } from '../theme';
 import { Screen, Avatar, EmptyState, SkeletonList } from '../components/ui';
 
 const MEDAL = { 1: '🥇', 2: '🥈', 3: '🥉' };
@@ -83,8 +83,8 @@ const makeStyles = (colors) =>
       marginBottom: spacing.sm,
     },
     meRow: { borderColor: colors.accentBorder },
-    rank: { color: colors.text, fontSize: font.bodyLg, fontWeight: '800', width: 30, textAlign: 'center', marginRight: spacing.sm },
+    rank: { color: colors.text, fontSize: 17, fontFamily: fonts.hero, width: 30, textAlign: 'center', marginRight: spacing.sm },
     name: { color: colors.text, fontSize: font.subtitle, fontWeight: '700' },
     sub: { color: colors.muted, fontSize: font.small, marginTop: 2 },
-    record: { color: colors.text, fontSize: font.bodyLg, fontWeight: '900' },
+    record: { color: colors.text, fontSize: 17, fontFamily: fonts.heroUpright },
   });

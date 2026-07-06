@@ -1,16 +1,15 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
-import { useTheme, useThemedStyles, spacing, font } from '../theme';
+import { useThemedStyles, spacing, font, fonts } from '../theme';
 import { Field, Button } from '../components/ui';
+import WordMark from '../components/WordMark';
 
 const EMAIL_RE = /\S+@\S+\.\S+/;
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
 
 export default function SignUpScreen({ navigation }) {
   const { signUp } = useAuth();
-  const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -38,11 +37,9 @@ export default function SignUpScreen({ navigation }) {
   return (
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.brandWrap}>
-        <View style={styles.brand}>
-          <Ionicons name="flame" size={34} color={colors.accent} />
-        </View>
+        <WordMark size={26} tag={false} style={{ alignItems: 'center' }} />
       </View>
-      <Text style={styles.title}>Create your account</Text>
+      <Text style={styles.title}>CREATE YOUR ACCOUNT</Text>
       <Text style={styles.subtitle}>Pick a username your buddies will know you by</Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -87,7 +84,7 @@ const makeStyles = (colors) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
-    title: { color: colors.text, fontSize: 30, fontWeight: '800', textAlign: 'center' },
+    title: { color: colors.text, fontSize: 24, fontFamily: fonts.hero, letterSpacing: 0.5, textAlign: 'center' },
     subtitle: { color: colors.muted, fontSize: font.body, textAlign: 'center', marginTop: 6, marginBottom: 28 },
     error: { color: colors.danger, textAlign: 'center', marginBottom: 14, fontSize: font.body },
     link: { color: colors.accent, textAlign: 'center', marginTop: 18, fontSize: font.body },

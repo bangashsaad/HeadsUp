@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { useThemedStyles, spacing, font } from '../theme';
+import { useThemedStyles, spacing, font, fonts } from '../theme';
 import { Chip, Button } from './ui';
 
 // WNBA + MLB are live (real ESPN rosters/stats); NBA/NFL use placeholder pools
@@ -114,7 +114,15 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
 
 const makeStyles = (colors) =>
   StyleSheet.create({
-    label: { color: colors.text, fontSize: font.body, fontWeight: '700', marginTop: spacing.lg, marginBottom: spacing.sm },
+    label: {
+      color: colors.placeholder,
+      fontSize: 10,
+      fontFamily: fonts.bodyExtra,
+      letterSpacing: 2,
+      textTransform: 'uppercase',
+      marginTop: spacing.lg,
+      marginBottom: spacing.sm,
+    },
     row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
     note: { color: colors.muted, fontSize: font.small, marginTop: spacing.lg, lineHeight: 19 },
     gateNote: { color: colors.placeholder, fontSize: font.caption, marginTop: spacing.sm },

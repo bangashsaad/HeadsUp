@@ -1,29 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../auth/AuthContext';
 import { getResult, rematch } from '../api/duels';
 import { ApiError } from '../api/client';
 import ConfettiBurst from '../components/ConfettiBurst';
 import { notify, NotifyType } from '../haptics';
-import { useTheme, useThemedStyles, spacing, radius, font } from '../theme';
-import { Screen, Card, Avatar, Button, EmptyState } from '../components/ui';
-
-const OUTCOME = {
-  win: { tone: 'accent', icon: '🏆', title: 'You win!' },
-  tie: { tone: 'neutral', icon: '🤝', title: "It's a tie" },
-  loss: { tone: 'danger', icon: '😤', title: 'You lost' },
-};
+import { useTheme, useThemedStyles, spacing, radius, font, fonts, withAlpha } from '../theme';
+import { Screen, Card, Avatar, Button, EmptyState, GhostText, Kicker, DisplayTitle, CondTitle, Pulse } from '../components/ui';
 
 const ordinal = (n) => (n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`);
 const medal = (rank) => (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : String(rank));
+const pn = (v) => Number(v) || 0;
 
 function groupBanner(rank, tiedTop) {
-  if (rank === 1 && tiedTop) return { tone: 'neutral', icon: '🤝', title: 'Tied for 1st' };
-  if (rank === 1) return { tone: 'accent', icon: '🏆', title: 'Champion!' };
-  if (rank === 2) return { tone: 'neutral', icon: '🥈', title: '2nd place' };
-  if (rank === 3) return { tone: 'neutral', icon: '🥉', title: '3rd place' };
-  return { tone: 'danger', icon: '😤', title: `${ordinal(rank)} place` };
+  if (rank === 1 && tiedTop) return { title: 'DEAD HEAT', color: 'text', sub: 'Tied for the top spot. Run it back.' };
+  if (rank === 1) return { title: 'CHAMPION.', color: 'accent', sub: 'Top of the pile. Send them the receipt.' };
+  return { title: `${ordinal(rank).toUpperCase()} PLACE`, color: rank <= 3 ? 'text' : 'danger', sub: 'Not your night. Instant rematch?' };
 }
 
 // Ease a number from 0 to target on mount (easeOutCubic).
@@ -57,7 +51,7 @@ function topStats(statLine) {
 export default function ResultsScreen({ route, navigation }) {
   const { id, opponentName = 'Opponent' } = route.params;
   const { token } = useAuth();
-  const { colors, tones } = useTheme();
+  const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [result, setResult] = useState(null);
   const [pending, setPending] = useState(false);
@@ -65,6 +59,7 @@ export default function ResultsScreen({ route, navigation }) {
   const celebrated = useRef(false);
   const pop = useRef(new Animated.Value(0.85)).current;
   const [rematching, setRematching] = useState(false);
+  const [confetti, setConfetti] = useState(false);
 
   async function doRematch() {
     setRematching(true);
@@ -97,8 +92,6 @@ export default function ResultsScreen({ route, navigation }) {
     }, [token, id])
   );
 
-  const [confetti, setConfetti] = useState(false);
-
   useEffect(() => {
     if (!result || celebrated.current) return;
     celebrated.current = true;
@@ -119,7 +112,7 @@ export default function ResultsScreen({ route, navigation }) {
         <EmptyState
           icon="hourglass-outline"
           title="Results aren't in yet"
-          subtitle="Your lineups are locked. The winner is declared once the games in the scoring window finish."
+          subtitle="Your slips are sealed. The winner is declared once the games in the scoring window finish."
         />
       </Screen>
     );
@@ -141,56 +134,33 @@ export default function ResultsScreen({ route, navigation }) {
     );
   }
 
-  const me = result.challenger.is_me ? result.challenger : result.opponent;
-  const them = result.challenger.is_me ? result.opponent : result.challenger;
-  const o = OUTCOME[result.my_outcome] || OUTCOME.tie;
-  const tone = tones[o.tone];
-
-  function shareResult() {
-    const verb = result.my_outcome === 'win' ? 'won' : result.my_outcome === 'loss' ? 'lost' : 'tied';
-    Share.share({
-      message: `I ${verb} my Heads Up fantasy duel vs ${opponentName} — ${me.total.toFixed(1)} to ${them.total.toFixed(1)}! 🏀⚾️`,
-    }).catch(() => {});
-  }
-
-  function ScoreSide({ name, value, win }) {
-    const shown = useCountUp(value);
+  function Team({ title, lineup, mine }) {
+    const tint = mine ? colors.accent : colors.purpleText;
     return (
-      <View style={styles.scoreSide}>
-        <View style={win ? styles.champRing : null}>
-          <Avatar name={name} size={48} />
+      <View style={[styles.five, { borderColor: withAlpha(mine ? colors.accent : colors.purple, 0.35) }]}>
+        <View style={[styles.fiveHead, { backgroundColor: withAlpha(mine ? colors.accent : colors.purple, 0.08) }]}>
+          <Text style={[styles.fiveTitle, { color: tint }]}>{title}</Text>
         </View>
-        <Text style={styles.scoreLabel} numberOfLines={1}>
-          {name}
-        </Text>
-        <Text style={[styles.scoreValue, win && { color: colors.warning }]}>{shown.toFixed(1)}</Text>
-        {win ? <Text style={styles.winnerTag}>👑 WINNER</Text> : <Text style={styles.spacerTag} />}
-      </View>
-    );
-  }
-
-  function Team({ title, lineup, highlight }) {
-    return (
-      <View style={styles.team}>
-        <Text style={styles.teamTitle}>{title}</Text>
-        <Card padded={false} style={highlight && { borderColor: colors.accentBorder }}>
-          {lineup.players.map((p, i) => (
-            <Pressable
-              key={`${p.slot}-${p.player_id}`}
-              onPress={() => navigation.navigate('PlayerProfile', { id: p.player_id, name: p.name, team: p.team, position: p.position })}
-              style={({ pressed }) => [styles.playerRow, i < lineup.players.length - 1 && styles.playerDivider, pressed && { opacity: 0.7 }]}
-            >
-              <View style={styles.slotChip}>
-                <Text style={styles.slotText}>{p.slot}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.playerName}>{p.name}</Text>
-                <Text style={styles.statLine}>{topStats(p.stat_line)}</Text>
-              </View>
-              <Text style={styles.points}>{p.points}</Text>
-            </Pressable>
-          ))}
-        </Card>
+        {lineup.players.map((p, i) => (
+          <Pressable
+            key={`${p.slot}-${p.player_id}`}
+            onPress={() => navigation.navigate('PlayerProfile', { id: p.player_id, name: p.name, team: p.team, position: p.position })}
+            style={({ pressed }) => [styles.playerRow, i > 0 && styles.playerTopBorder, pressed && { opacity: 0.7 }]}
+          >
+            <View style={styles.slotChip}>
+              <Text style={styles.slotText}>{p.slot}</Text>
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.playerName} numberOfLines={1}>
+                {p.name}
+              </Text>
+              <Text style={styles.statLine} numberOfLines={1}>
+                {topStats(p.stat_line)}
+              </Text>
+            </View>
+            <Text style={[styles.points, { color: tint }]}>{pn(p.points).toFixed(1)}</Text>
+          </Pressable>
+        ))}
       </View>
     );
   }
@@ -200,7 +170,7 @@ export default function ResultsScreen({ route, navigation }) {
   if (standings.length > 2) {
     const mine = standings.find((s) => s.is_me);
     const b = groupBanner(mine?.rank ?? standings.length, result.is_tie);
-    const gTone = tones[b.tone];
+    const bannerColor = b.color === 'accent' ? colors.accent : b.color === 'danger' ? colors.danger : colors.text;
 
     const shareStandings = () =>
       Share.share({
@@ -208,7 +178,7 @@ export default function ResultsScreen({ route, navigation }) {
       }).catch(() => {});
 
     function StandRow({ s, last }) {
-      const shown = useCountUp(s.total ?? 0);
+      const shown = useCountUp(pn(s.total));
       const champ = s.rank === 1;
       const name = s.is_me ? 'You' : s.username || 'Player';
       return (
@@ -218,89 +188,155 @@ export default function ResultsScreen({ route, navigation }) {
           style={({ pressed }) => [
             styles.standRow,
             champ && styles.standRowChamp,
-            !last && styles.playerDivider,
+            !last && styles.playerTopBorderB,
             pressed && { opacity: 0.7 },
           ]}
         >
           <Text style={styles.standRank}>{medal(s.rank)}</Text>
-          <View style={champ ? styles.champRing : null}>
-            <Avatar name={name} size={34} />
-          </View>
-          <Text style={[styles.standName, s.is_me && { color: colors.accent }, champ && { color: colors.warning }]} numberOfLines={1}>
+          <Avatar name={name} size={34} />
+          <Text style={[styles.standName, s.is_me && { color: colors.accent }, champ && { color: colors.gold }]} numberOfLines={1}>
             {name}
             {champ ? ' 👑' : ''}
           </Text>
-          <Text style={[styles.standPts, champ && styles.standPtsChamp]}>{shown.toFixed(1)}</Text>
+          <CondTitle size={champ ? 22 : 19} color={champ ? colors.gold : colors.text}>
+            {shown.toFixed(1)}
+          </CondTitle>
         </Pressable>
       );
     }
 
     return (
       <View style={{ flex: 1 }}>
-      <Screen scroll>
-        <Animated.View style={[styles.banner, { backgroundColor: gTone.bg, borderColor: gTone.border, transform: [{ scale: pop }] }]}>
-          <Text style={styles.bannerEmoji}>{b.icon}</Text>
-          <Text style={[styles.bannerTitle, { color: gTone.text }]}>{b.title}</Text>
-        </Animated.View>
+        <Screen scroll padded={false}>
+          <LinearGradient colors={[withAlpha(colors.accent, mine?.rank === 1 ? 0.16 : 0.05), 'transparent']} style={styles.glow}>
+            <Animated.View style={{ alignItems: 'center', transform: [{ scale: pop }] }}>
+              <Kicker tracking={3} color={colors.muted}>{`FINAL · ${standings.length}-WAY DUEL`}</Kicker>
+              <DisplayTitle size={44} color={bannerColor} style={{ marginTop: 8 }}>
+                {b.title}
+              </DisplayTitle>
+              <Text style={styles.resultSub}>{b.sub}</Text>
+            </Animated.View>
+          </LinearGradient>
 
-        <Card padded={false} style={{ overflow: 'hidden' }}>
-          {standings.map((s, i) => (
-            <StandRow key={s.user_id} s={s} last={i === standings.length - 1} />
-          ))}
-        </Card>
+          <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl }}>
+            <Card padded={false} style={{ overflow: 'hidden' }}>
+              {standings.map((s, i) => (
+                <StandRow key={s.user_id} s={s} last={i === standings.length - 1} />
+              ))}
+            </Card>
 
-        {standings.map((s) => (
-          <Team
-            key={s.user_id}
-            title={s.is_me ? 'Your lineup' : `${s.username || 'Player'}'s lineup`}
-            lineup={s}
-            highlight={s.rank === 1}
-          />
-        ))}
+            {standings.map((s) => (
+              <Team
+                key={s.user_id}
+                title={s.is_me ? 'YOUR SLIP' : `${(s.username || 'PLAYER').toUpperCase()}'S SLIP`}
+                lineup={s}
+                mine={s.is_me}
+              />
+            ))}
 
-        <Button
-          title={rematching ? 'Sending…' : 'Rematch the group'}
-          icon="refresh"
-          onPress={doRematch}
-          disabled={rematching}
-          style={{ marginTop: spacing.xl }}
-        />
-        <Button title="Share result" icon="share-outline" variant="outline" onPress={shareStandings} style={{ marginTop: spacing.sm }} />
-      </Screen>
-      {confetti ? <ConfettiBurst /> : null}
+            <Pulse color={withAlpha(colors.accent, 0.3)} style={{ marginTop: spacing.xl }}>
+              <Button title={rematching ? 'Sending…' : '⚡ Rematch the group'} onPress={doRematch} disabled={rematching} />
+            </Pulse>
+            <Button title="Share the receipt" icon="share-outline" variant="outline" onPress={shareStandings} style={{ marginTop: spacing.sm }} />
+          </View>
+        </Screen>
+        {confetti ? <ConfettiBurst /> : null}
+      </View>
+    );
+  }
+
+  const me = result.challenger.is_me ? result.challenger : result.opponent;
+  const them = result.challenger.is_me ? result.opponent : result.challenger;
+  const won = result.my_outcome === 'win';
+  const tie = result.my_outcome === 'tie';
+  const resultTitle = tie ? 'DEAD HEAT' : won ? 'YOU WIN.' : 'YOU LOST.';
+  const resultColor = tie ? colors.text : won ? colors.accent : colors.danger;
+  const resultSub = tie
+    ? 'Nobody blinks. Run it back.'
+    : won
+      ? 'Bragging rights secured. Send the receipt.'
+      : 'They got you this time. Instant rematch?';
+
+  // Everyone from both slips, best night first.
+  const perf = [
+    ...(me.players || []).map((p) => ({ ...p, mine: true })),
+    ...(them.players || []).map((p) => ({ ...p, mine: false })),
+  ]
+    .sort((a, b) => pn(b.points) - pn(a.points))
+    .slice(0, 3);
+
+  function shareResult() {
+    const verb = won ? 'won' : result.my_outcome === 'loss' ? 'lost' : 'tied';
+    Share.share({
+      message: `I ${verb} my Heads Up fantasy duel vs ${opponentName} — ${pn(me.total).toFixed(1)} to ${pn(them.total).toFixed(1)}! 🏀⚾️`,
+    }).catch(() => {});
+  }
+
+  function BigScore({ label, value, color, alignEnd }) {
+    const shown = useCountUp(pn(value));
+    return (
+      <View style={{ alignItems: 'center' }}>
+        <Kicker size={9.5} tracking={1} color={label === 'YOU' ? colors.accent : colors.purpleText}>
+          {label}
+        </Kicker>
+        <Text style={[styles.finalScore, { color }, alignEnd && { textAlign: 'right' }]}>{shown.toFixed(1)}</Text>
       </View>
     );
   }
 
   return (
     <View style={{ flex: 1 }}>
-    <Screen scroll>
-      <Animated.View style={[styles.banner, { backgroundColor: tone.bg, borderColor: tone.border, transform: [{ scale: pop }] }]}>
-        <Text style={styles.bannerEmoji}>{o.icon}</Text>
-        <Text style={[styles.bannerTitle, { color: tone.text }]}>{o.title}</Text>
-      </Animated.View>
+      <Screen scroll padded={false}>
+        <LinearGradient colors={[withAlpha(colors.accent, won ? 0.18 : 0.05), 'transparent']} style={styles.glow}>
+          <Animated.View style={{ alignItems: 'center', transform: [{ scale: pop }] }}>
+            <Kicker tracking={3} color={colors.muted}>{`FINAL · DUEL VS ${opponentName.toUpperCase()}`}</Kicker>
+            <DisplayTitle size={50} color={resultColor} style={{ marginTop: 8 }}>
+              {resultTitle}
+            </DisplayTitle>
+            <View style={styles.finalRow}>
+              <BigScore label="YOU" value={me.total} color={won || tie ? colors.accent : colors.text} />
+              <GhostText size={19} color={withAlpha('#3A4157', 1)} strokeWidth={1}>
+                VS
+              </GhostText>
+              <BigScore label={opponentName.toUpperCase()} value={them.total} color={!won && !tie ? colors.purpleText : colors.text} alignEnd />
+            </View>
+            <Text style={styles.resultSub}>{resultSub}</Text>
+          </Animated.View>
+        </LinearGradient>
 
-      <Card style={styles.scoreCard}>
-        <ScoreSide name="You" value={me.total} win={result.my_outcome === 'win'} />
-        <View style={styles.vsWrap}>
-          <Text style={styles.vs}>VS</Text>
+        <View style={{ paddingHorizontal: spacing.lg, paddingBottom: spacing.xxl }}>
+          {/* Top performers across both slips */}
+          <View style={styles.perfCard}>
+            <View style={styles.perfHead}>
+              <Text style={styles.perfHeadText}>TOP PERFORMERS</Text>
+              <Text style={[styles.perfHeadText, { color: colors.placeholder }]}>FAN PTS</Text>
+            </View>
+            {perf.map((p, i) => (
+              <View key={`${p.slot}-${p.player_id}-${p.mine}`} style={[styles.playerRow, i > 0 && styles.playerTopBorder]}>
+                <CondTitle size={15} color={colors.placeholder} style={{ width: 16 }}>
+                  {i + 1}
+                </CondTitle>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.playerName} numberOfLines={1}>
+                    {p.name}
+                  </Text>
+                  <Text style={styles.statLine}>{p.mine ? 'Your slip' : `${opponentName}'s slip`}</Text>
+                </View>
+                <Text style={[styles.points, { color: p.mine ? colors.accent : colors.purpleText }]}>{pn(p.points).toFixed(1)}</Text>
+              </View>
+            ))}
+          </View>
+
+          <Team title="YOUR SLIP" lineup={me} mine />
+          <Team title={`${opponentName.toUpperCase()}'S SLIP`} lineup={them} mine={false} />
+
+          <Pulse color={withAlpha(colors.accent, 0.3)} style={{ marginTop: spacing.xl }}>
+            <Button title={rematching ? 'Sending…' : '⚡ Instant rematch'} onPress={doRematch} disabled={rematching} />
+          </Pulse>
+          <Button title="Share the receipt" icon="share-outline" variant="outline" onPress={shareResult} style={{ marginTop: spacing.sm }} />
         </View>
-        <ScoreSide name={opponentName} value={them.total} win={result.my_outcome === 'loss'} />
-      </Card>
-
-      <Team title="Your lineup" lineup={me} highlight={result.my_outcome === 'win'} />
-      <Team title={`${opponentName}'s lineup`} lineup={them} highlight={result.my_outcome === 'loss'} />
-
-      <Button
-        title={rematching ? 'Sending…' : `Rematch ${opponentName}`}
-        icon="refresh"
-        onPress={doRematch}
-        disabled={rematching}
-        style={{ marginTop: spacing.xl }}
-      />
-      <Button title="Share result" icon="share-outline" variant="outline" onPress={shareResult} style={{ marginTop: spacing.sm }} />
-    </Screen>
-    {confetti ? <ConfettiBurst /> : null}
+      </Screen>
+      {confetti ? <ConfettiBurst /> : null}
     </View>
   );
 }
@@ -308,31 +344,32 @@ export default function ResultsScreen({ route, navigation }) {
 const makeStyles = (colors) =>
   StyleSheet.create({
     center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-    banner: { borderRadius: radius.lg, borderWidth: 1, alignItems: 'center', paddingVertical: spacing.xl, marginBottom: spacing.lg },
-    bannerEmoji: { fontSize: 44 },
-    bannerTitle: { fontSize: font.titleLg, fontWeight: '900', marginTop: spacing.sm },
-    scoreCard: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing.lg },
-    scoreSide: { flex: 1, alignItems: 'center' },
-    scoreLabel: { color: colors.muted, fontSize: font.small, marginTop: spacing.sm, maxWidth: '90%' },
-    scoreValue: { color: colors.text, fontSize: font.hero, fontWeight: '900', marginTop: 2 },
-    winnerTag: { color: colors.warning, fontSize: 10, fontWeight: '800', letterSpacing: 1, marginTop: 2 },
-    spacerTag: { fontSize: 10, marginTop: 2, height: 13 },
-    vsWrap: { paddingHorizontal: spacing.sm },
-    vs: { color: colors.placeholder, fontSize: font.caption, fontWeight: '800', letterSpacing: 1 },
-    team: { marginTop: spacing.lg },
-    teamTitle: { color: colors.text, fontSize: font.bodyLg, fontWeight: '700', marginBottom: spacing.sm },
-    playerRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, paddingHorizontal: spacing.lg },
-    playerDivider: { borderBottomColor: colors.borderSubtle, borderBottomWidth: StyleSheet.hairlineWidth },
-    slotChip: { backgroundColor: colors.bgElevated, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3, marginRight: spacing.md, minWidth: 46, alignItems: 'center' },
-    slotText: { color: colors.muted, fontSize: 11, fontWeight: '800' },
-    playerName: { color: colors.text, fontSize: font.body, fontWeight: '600' },
-    statLine: { color: colors.muted, fontSize: font.caption, marginTop: 2 },
-    points: { color: colors.accent, fontSize: font.subtitle, fontWeight: '800', width: 52, textAlign: 'right' },
+    glow: { alignItems: 'center', paddingTop: spacing.xl, paddingBottom: spacing.lg, paddingHorizontal: spacing.lg },
+    finalRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: spacing.lg },
+    finalScore: { fontFamily: fonts.hero, fontSize: 54, lineHeight: 56, paddingRight: 4 },
+    resultSub: { color: colors.muted, fontSize: 11.5, fontFamily: fonts.bodySemi, marginTop: 10, textAlign: 'center' },
+    perfCard: { borderRadius: 13, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, overflow: 'hidden' },
+    perfHead: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      backgroundColor: colors.cardElevated,
+    },
+    perfHeadText: { fontSize: 9, fontFamily: fonts.bodyBlack, letterSpacing: 1.5, color: colors.muted },
+    five: { borderRadius: 13, borderWidth: 1, backgroundColor: colors.card, overflow: 'hidden', marginTop: spacing.md },
+    fiveHead: { paddingVertical: 7, paddingHorizontal: 12 },
+    fiveTitle: { fontSize: 9, fontFamily: fonts.bodyBlack, letterSpacing: 1.5 },
+    playerRow: { flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 9, paddingHorizontal: 12 },
+    playerTopBorder: { borderTopColor: colors.borderSubtle, borderTopWidth: StyleSheet.hairlineWidth },
+    playerTopBorderB: { borderBottomColor: colors.borderSubtle, borderBottomWidth: StyleSheet.hairlineWidth },
+    slotChip: { backgroundColor: colors.cardElevated, borderRadius: 5, paddingVertical: 2, minWidth: 34, alignItems: 'center' },
+    slotText: { color: colors.muted, fontSize: 8.5, fontFamily: fonts.bodyBlack },
+    playerName: { color: colors.text, fontSize: 13, fontFamily: fonts.bodyBold },
+    statLine: { color: colors.muted, fontSize: 10.5, fontFamily: fonts.body, marginTop: 1 },
+    points: { fontSize: 19, fontFamily: fonts.hero, minWidth: 48, textAlign: 'right' },
     standRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 10, paddingHorizontal: spacing.lg },
     standRowChamp: { backgroundColor: colors.warningSoft, paddingVertical: 14 },
     standRank: { fontSize: font.subtitle, width: 26, textAlign: 'center' },
-    standName: { color: colors.text, fontSize: font.body, fontWeight: '700', flex: 1 },
-    standPts: { color: colors.text, fontSize: font.subtitle, fontWeight: '800' },
-    standPtsChamp: { color: colors.warning, fontSize: font.title, fontWeight: '900' },
-    champRing: { borderWidth: 2, borderColor: colors.warning, borderRadius: 999, padding: 2 },
+    standName: { color: colors.text, fontSize: font.body, fontFamily: fonts.bodyBold, flex: 1 },
   });

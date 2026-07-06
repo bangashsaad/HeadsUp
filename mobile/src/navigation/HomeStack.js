@@ -8,7 +8,7 @@ export default function HomeStack() {
   const header = useNavHeader();
   return (
     <Stack.Navigator screenOptions={header}>
-      <Stack.Screen name="Home" component={HomeScreen} options={{ title: 'Heads Up' }} />
+      <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 }
