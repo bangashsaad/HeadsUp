@@ -14,8 +14,8 @@ defmodule HeadsUpWeb.DeepLinkController do
   # The current preview build's .ipa (public EAS artifact). Update on each
   # preview rebuild. Served via Apple's itms-services OTA install so testers
   # never need an Expo account — install works for the registered devices only.
-  @ipa_url "https://expo.dev/artifacts/eas/oCF_l4CILFGS9NxCP7NOuZv8vYFs4VNinVh9h0W-VSg.ipa"
-  @app_version "1.0.0"
+  @ipa_url "https://expo.dev/artifacts/eas/stq16Sm7r17GmmX5FX_2BHU6Txs92vTci8Wz7I2SvR0.ipa"
+  @app_version "1.0.1"
 
   def aasa(conn, _params) do
     app_id = "#{@team_id}.#{@bundle_id}"
