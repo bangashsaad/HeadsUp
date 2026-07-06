@@ -25,12 +25,15 @@ export default function Chip({ label, active = false, onPress, style }) {
       ]}
     >
       <Text
+        numberOfLines={1}
         style={{
           color: active ? colors.onAccent : colors.muted,
           fontFamily: fonts.heroUpright,
           fontSize: 13,
+          lineHeight: 17,
           letterSpacing: 1,
           textTransform: 'uppercase',
+          includeFontPadding: false,
         }}
       >
         {label}
