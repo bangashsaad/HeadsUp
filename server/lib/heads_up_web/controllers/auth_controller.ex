@@ -2,6 +2,7 @@ defmodule HeadsUpWeb.AuthController do
   use HeadsUpWeb, :controller
 
   alias HeadsUp.Accounts
+  alias HeadsUp.Coins
 
   plug :put_view, json: HeadsUpWeb.UserJSON
   action_fallback HeadsUpWeb.FallbackController
@@ -9,11 +10,14 @@ defmodule HeadsUpWeb.AuthController do
   # POST /api/register  { "username", "email", "password" }
   def register(conn, params) do
     with {:ok, user} <- Accounts.register_user(params) do
+      # Idempotency-keyed, and the comeback bonus heals a miss — never fail a
+      # fresh registration over its welcome coins.
+      _ = Coins.grant_signup(user.id)
       token = Accounts.create_user_api_token(user)
 
       conn
       |> put_status(:created)
-      |> render(:auth, user: user, token: token)
+      |> render(:auth, user: user, token: token, coins: Coins.balance(user.id))
     end
   end
 
@@ -21,7 +25,7 @@ defmodule HeadsUpWeb.AuthController do
   def login(conn, %{"email" => email, "password" => password}) do
     if user = Accounts.get_user_by_email_and_password(email, password) do
       token = Accounts.create_user_api_token(user)
-      render(conn, :auth, user: user, token: token)
+      render(conn, :auth, user: user, token: token, coins: Coins.balance(user.id))
     else
       {:error, "Invalid email or password"}
     end
@@ -37,7 +41,11 @@ defmodule HeadsUpWeb.AuthController do
 
   # GET /api/me  (requires auth)
   def me(conn, _params) do
-    render(conn, :user, user: conn.assigns.current_user)
+    user = conn.assigns.current_user
+    # The lazy faucet: a busted wallet gets its daily comeback bonus on the
+    # next app open — no cron needed.
+    _ = Coins.maybe_comeback(user.id)
+    render(conn, :user, user: user, coins: Coins.balance(user.id))
   end
 
   # PUT /api/me/password  { "current_password", "password" }  (requires auth)

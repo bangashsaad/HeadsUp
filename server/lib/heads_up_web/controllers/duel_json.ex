@@ -43,7 +43,8 @@ defmodule HeadsUpWeb.DuelJSON do
       lineup_template: duel.lineup_template,
       pick_clock_seconds: duel.pick_clock_seconds,
       scoring_rules: duel.scoring_rules,
-      wager_cents: duel.wager_cents,
+      stake_coins: duel.stake_coins,
+      pot_coins: pot_coins(duel, group, participants),
       draft_starts_at: duel.draft_starts_at,
       scoring_window_end: duel.scoring_window_end,
       # Settlement outcome (present once status == "settled"; winner_id nil = tie).
@@ -53,6 +54,23 @@ defmodule HeadsUpWeb.DuelJSON do
       parent_duel_id: duel.parent_duel_id,
       inserted_at: duel.inserted_at
     }
+  end
+
+  # The pot on the table: stake × players. While a group is still pending the
+  # undecided seats count (the pot if everyone's in); once it starts, only the
+  # seats that actually staked do.
+  defp pot_coins(%Duel{stake_coins: 0}, _group, _participants), do: 0
+  defp pot_coins(%Duel{} = duel, false, _participants), do: duel.stake_coins * 2
+
+  defp pot_coins(%Duel{} = duel, true, participants) do
+    live =
+      if duel.status == "pending" do
+        Enum.count(participants, &(&1.status in ["accepted", "invited"]))
+      else
+        Enum.count(participants, &(&1.status == "accepted"))
+      end
+
+    duel.stake_coins * live
   end
 
   defp participants_list(%Duel{participants: participants}) when is_list(participants) do

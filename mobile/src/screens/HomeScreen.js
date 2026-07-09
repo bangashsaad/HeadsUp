@@ -34,7 +34,7 @@ function fmtDate(iso) {
 }
 
 export default function HomeScreen({ navigation }) {
-  const { token, user } = useAuth();
+  const { token, user, refreshUser } = useAuth();
   const { colors, scheme } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [home, setHome] = useState(null);
@@ -65,6 +65,10 @@ export default function HomeScreen({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       load();
+      // Refresh the coin balance too — /me also hands out the daily comeback
+      // bonus to a busted wallet, so opening Home is enough to get back in.
+      refreshUser();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [load])
   );
 
@@ -126,6 +130,13 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.brandRow}>
             <WordMark size={21} />
             <View style={styles.brandRight}>
+              <Pressable
+                onPress={() => navigation.navigate('YouTab', { screen: 'CoinHistory', initial: false })}
+                hitSlop={6}
+                style={styles.coinChip}
+              >
+                <Text style={styles.coinChipText}>◎ {(user?.coins ?? 0).toLocaleString()}</Text>
+              </Pressable>
               {rec.streak?.count > 0 ? (
                 <View style={styles.streakChip}>
                   <Text
@@ -441,6 +452,15 @@ const makeStyles = (colors) =>
       paddingHorizontal: 10,
     },
     streakText: { fontFamily: fonts.hero, fontSize: 15 },
+    coinChip: {
+      backgroundColor: withAlpha(colors.gold, 0.1),
+      borderWidth: 1,
+      borderColor: withAlpha(colors.gold, 0.4),
+      borderRadius: 999,
+      paddingVertical: 5,
+      paddingHorizontal: 10,
+    },
+    coinChipText: { fontFamily: fonts.hero, fontSize: 14, color: colors.gold },
     recordRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 14, marginTop: spacing.lg },
     recordBig: { fontFamily: fonts.hero, fontSize: 52, lineHeight: 52, color: colors.text, paddingRight: 6 },
     formCol: { paddingBottom: 8, gap: 6 },

@@ -13,7 +13,7 @@ import { Screen, Avatar, EmptyState, SkeletonList, SectionHeader } from '../comp
 const MAX_INVITEES = 3;
 
 export default function CreateChallengeScreen({ navigation }) {
-  const { token } = useAuth();
+  const { token, refreshUser } = useAuth();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [friends, setFriends] = useState([]);
@@ -63,6 +63,7 @@ export default function CreateChallengeScreen({ navigation }) {
     try {
       const who = selected.length === 1 ? { opponent_id: selected[0] } : { opponent_ids: selected };
       const res = await createChallenge(token, { ...who, ...terms });
+      refreshUser(); // the stake just left the wallet
       navigation.replace('DuelDetail', { id: res.duel.id });
     } catch (e) {
       setError(e.message);

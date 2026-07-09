@@ -8,7 +8,7 @@ import { Screen, Card } from '../components/ui';
 
 export default function CounterScreen({ route, navigation }) {
   const { id, initial } = route.params;
-  const { token } = useAuth();
+  const { token, refreshUser } = useAuth();
   const styles = useThemedStyles(makeStyles);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -18,6 +18,7 @@ export default function CounterScreen({ route, navigation }) {
     setError(null);
     try {
       const res = await counterChallenge(token, id, terms);
+      refreshUser(); // old stake refunded, new stake escrowed
       navigation.replace('DuelDetail', { id: res.duel.id });
     } catch (e) {
       setError(e.message);

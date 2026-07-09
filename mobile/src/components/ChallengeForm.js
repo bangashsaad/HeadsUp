@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useAuth } from '../auth/AuthContext';
 import { useThemedStyles, spacing, font, fonts } from '../theme';
 import { Chip, Button } from './ui';
 
@@ -41,12 +42,25 @@ const TIME_OPTIONS = [
   { label: 'In 2 days', ms: 2 * 24 * 60 * 60 * 1000 },
 ];
 
+// Coin stakes: every player antes the same amount into escrow; winner takes
+// the pot. 0 = friendly (bragging rights only).
+const STAKES = [
+  { coins: 0, label: 'Friendly' },
+  { coins: 25, label: '◎ 25' },
+  { coins: 100, label: '◎ 100' },
+  { coins: 500, label: '◎ 500' },
+];
+
 export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, submitting, sportsStatus }) {
   const styles = useThemedStyles(makeStyles);
+  const { user } = useAuth();
   const [sport, setSport] = useState(initial.sport || 'wnba');
   const [preset, setPreset] = useState((initial.lineup_template || '').split('_')[1] || 'standard');
   const [clockSecs, setClockSecs] = useState(initial.pick_clock_seconds || 60);
   const [timeMs, setTimeMs] = useState(TIME_OPTIONS[0].ms);
+  const [stake, setStake] = useState(initial.stake_coins || 0);
+
+  const balance = user?.coins ?? 0;
 
   // If the selected sport turns out to be off-season, snap to the first
   // playable one once status arrives.
@@ -66,6 +80,7 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
       lineup_template: `${sport}_${preset}`,
       pick_clock_seconds: clockSecs,
       draft_starts_at: new Date(Date.now() + timeMs).toISOString(),
+      stake_coins: stake,
     });
   }
 
@@ -105,6 +120,23 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
         ))}
       </View>
 
+      <Text style={styles.label}>Stake</Text>
+      <View style={styles.row}>
+        {STAKES.map((s) => {
+          const affordable = s.coins <= balance;
+          return (
+            <View key={s.coins} style={!affordable && { opacity: 0.4 }}>
+              <Chip label={s.label} active={stake === s.coins} onPress={() => affordable && setStake(s.coins)} />
+            </View>
+          );
+        })}
+      </View>
+      <Text style={styles.stakeNote}>
+        {stake === 0
+          ? `Bragging rights only. You have ◎ ${balance.toLocaleString()}.`
+          : `Everyone antes ◎ ${stake} — winner takes the pot. You have ◎ ${balance.toLocaleString()}.`}
+      </Text>
+
       <Text style={styles.note}>Standard {sport.toUpperCase()} scoring applies — the full chart is shown on the challenge.</Text>
 
       <Button title={submitLabel} icon="send" onPress={handleSubmit} loading={submitting} style={{ marginTop: spacing.xl }} />
@@ -126,4 +158,5 @@ const makeStyles = (colors) =>
     row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
     note: { color: colors.muted, fontSize: font.small, marginTop: spacing.lg, lineHeight: 19 },
     gateNote: { color: colors.placeholder, fontSize: font.caption, marginTop: spacing.sm },
+    stakeNote: { color: colors.gold, fontSize: font.caption, marginTop: spacing.sm },
   });

@@ -191,6 +191,18 @@ defmodule HeadsUp.Settlement do
       :duel,
       Duel.settle_changeset(duel, %{status: "settled", winner_id: outcome.winner_id, settled_at: now})
     )
+    |> Ecto.Multi.run(:coins, fn repo, _changes ->
+      # Escrow → winner (or split across the tied top; a 1v1 tie is exactly
+      # both stakes back). Idempotency-keyed, so a double settle can't double-pay.
+      HeadsUp.Coins.settle(
+        repo,
+        duel.id,
+        duel.stake_coins,
+        Enum.map(standings, &%{user_id: &1.user_id, rank: &1.rank}),
+        outcome.winner_id,
+        is_tie
+      )
+    end)
     |> Repo.transaction()
     |> case do
       {:ok, %{result: result, duel: settled}} ->

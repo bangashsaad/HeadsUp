@@ -62,6 +62,18 @@ export function AuthProvider({ children }) {
     });
   }
 
+  // Re-pull /api/me (coin balance rides the user object) after anything that
+  // moves coins: staking a duel, results landing, the wallet screen opening.
+  async function refreshUser() {
+    if (!token) return;
+    try {
+      const data = await apiRequest('/api/me', { token });
+      setUser(data.user);
+    } catch (_) {
+      // transient network error — keep the stale user rather than logging out
+    }
+  }
+
   async function signOut() {
     try {
       if (token) {
@@ -77,7 +89,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, signUp, signIn, signOut, changePassword }}>
+    <AuthContext.Provider value={{ user, token, loading, signUp, signIn, signOut, changePassword, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
