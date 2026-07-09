@@ -120,8 +120,13 @@ them (later, gated).
 - **Viral loop:** what's the ideal shared-result → install → first-duel path?
 - **ESPN dependency:** what's plan B if the free feed breaks or rate-limits? Cost of
   a paid provider before there's revenue?
-- **Money model specifics:** flat rake per duel vs % — and what does "fair" look
-  like when there's no wager, just a contest fee?
+- **Money model specifics:** ~~flat rake per duel vs %~~ — **ANSWERED 2026-07-09:
+  see MONEY-LEGALITY.md.** Verdict: "friends wager + rake" is illegal as sketched
+  (rake kills social exemptions; floating pot fails the fantasy safe harbor; wager
+  framing forfeits the entry-fee doctrine; CA AG hostile since July 2025). The
+  legal shape = fixed entry fees + posted predetermined prizes as registered skill
+  contests (the Splash Sports model), or rent a licensed partner's money layer.
+  Staged plan in the doc; free beta stays correct for now.
 
 ---
 
