@@ -29,7 +29,7 @@ defmodule HeadsUp.DraftsTest do
       roster_size: 5,
       pick_clock_seconds: 60,
       scoring_rules: %{},
-      wager_cents: 0,
+      stake_coins: 0,
       draft_starts_at: future,
       status: "accepted"
     })

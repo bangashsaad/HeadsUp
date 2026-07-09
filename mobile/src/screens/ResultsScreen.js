@@ -50,7 +50,7 @@ function topStats(statLine) {
 
 export default function ResultsScreen({ route, navigation }) {
   const { id, opponentName = 'Opponent' } = route.params;
-  const { token } = useAuth();
+  const { token, refreshUser } = useAuth();
   const { colors, scheme } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [result, setResult] = useState(null);
@@ -95,6 +95,7 @@ export default function ResultsScreen({ route, navigation }) {
   useEffect(() => {
     if (!result || celebrated.current) return;
     celebrated.current = true;
+    refreshUser(); // the pot (or refund) just landed in the wallet
     Animated.spring(pop, { toValue: 1, friction: 5, tension: 80, useNativeDriver: true }).start();
     if (result.my_outcome === 'win') setConfetti(true);
     const type =
@@ -132,6 +133,20 @@ export default function ResultsScreen({ route, navigation }) {
         <ActivityIndicator size="large" color={colors.accent} />
       </View>
     );
+  }
+
+  // The coin swing under the banner: net delta from the settle (payout − stake).
+  function CoinLine() {
+    if (!result.stake_coins) return null;
+    const d = result.my_coin_delta || 0;
+    const text =
+      d > 0
+        ? `◎ +${d.toLocaleString()} — pot of ${(result.pot_coins || 0).toLocaleString()} banked`
+        : d < 0
+          ? `◎ −${Math.abs(d).toLocaleString()} — stake surrendered`
+          : '◎ Stakes returned';
+    const color = d > 0 ? colors.gold : d < 0 ? colors.danger : colors.muted;
+    return <Text style={[styles.coinLine, { color }]}>{text}</Text>;
   }
 
   function Team({ title, lineup, mine }) {
@@ -215,6 +230,7 @@ export default function ResultsScreen({ route, navigation }) {
                 {b.title}
               </DisplayTitle>
               <Text style={styles.resultSub}>{b.sub}</Text>
+              <CoinLine />
             </Animated.View>
           </LinearGradient>
 
@@ -301,6 +317,7 @@ export default function ResultsScreen({ route, navigation }) {
               <BigScore label={opponentName.toUpperCase()} value={them.total} color={!won && !tie ? colors.purpleText : colors.text} alignEnd />
             </View>
             <Text style={styles.resultSub}>{resultSub}</Text>
+            <CoinLine />
           </Animated.View>
         </LinearGradient>
 
@@ -348,6 +365,7 @@ const makeStyles = (colors) =>
     finalRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: spacing.lg },
     finalScore: { fontFamily: fonts.hero, fontSize: 54, lineHeight: 56, paddingRight: 4 },
     resultSub: { color: colors.muted, fontSize: 11.5, fontFamily: fonts.bodySemi, marginTop: 10, textAlign: 'center' },
+    coinLine: { fontSize: 14, fontFamily: fonts.condBold, letterSpacing: 0.5, marginTop: 8, textAlign: 'center' },
     perfCard: { borderRadius: 13, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card, overflow: 'hidden' },
     perfHead: {
       flexDirection: 'row',

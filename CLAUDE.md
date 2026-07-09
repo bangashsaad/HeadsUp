@@ -45,6 +45,12 @@ Prereqs already installed on this Mac: Elixir, PostgreSQL 16 (brew service), Nod
 - **Phase 2 — Sports & player pool:** 3 sports, ~81 seeded players, browse + filter. ✅
 - **Phase 3 — Challenges (duels):** create a challenge with terms (sport, roster size,
   draft time) + per-sport scoring chart; accept / decline / cancel / **counter**. ✅
+- **Coins — in-house currency (free):** double-entry ledger (`HeadsUp.Coins`, adapted
+  from the Jeb bank app), duel stakes escrowed per lifecycle transition, winner takes
+  the pot at settlement. 1,000-coin signup grant + lazy daily comeback bonus; coins
+  can't be bought/cashed out/transferred (keeps it legally inert). Spec:
+  `docs/coin-system-spec.md`. Dev tools: `mix coins.backfill`, `mix coins.grant
+  <email> <amt>`. ✅
 
 ## Next steps
 - **Phase 4 — LIVE DRAFT ENGINE (the centerpiece):** when a duel is accepted, both

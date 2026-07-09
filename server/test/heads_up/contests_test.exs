@@ -298,7 +298,7 @@ defmodule HeadsUp.ContestsTest do
       roster_size: 5,
       pick_clock_seconds: 90,
       scoring_rules: %{"point" => 1, "rebound" => 1.25},
-      wager_cents: 0,
+      stake_coins: 0,
       draft_starts_at: now,
       status: "settled",
       winner_id: c.id,

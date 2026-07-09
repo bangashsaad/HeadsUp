@@ -19,6 +19,8 @@ defmodule HeadsUpWeb.ResultJSON do
         true -> "loss"
       end
 
+    coins = coin_outcome(result, duel, uid)
+
     %{
       duel_id: duel.id,
       status: duel.status,
@@ -26,11 +28,35 @@ defmodule HeadsUpWeb.ResultJSON do
       winner_id: result.winner_id,
       my_outcome: outcome,
       settled_at: result.settled_at,
+      stake_coins: duel.stake_coins,
+      pot_coins: coins.pot,
+      my_coin_delta: coins.delta,
       # Ranked standings (all contests; the only shape group duels have).
       standings: standings(result, duel, uid),
       challenger: lineup(result.breakdown["challenger"], duel.challenger_id, uid),
       opponent: lineup(result.breakdown["opponent"], duel.opponent_id, uid)
     }
+  end
+
+  # Mirrors Coins.settle/6 arithmetic: pot = stake × stakers; a decisive winner
+  # takes it all, a tie splits across the rank-1 players (floor; remainder
+  # burned). Delta is the viewer's NET coins (payout minus their stake).
+  defp coin_outcome(%Result{} = result, %Duel{} = duel, uid) do
+    stake = duel.stake_coins || 0
+    standings = result.breakdown["standings"] || []
+    stakers = Enum.map(standings, & &1["user_id"])
+    pot = stake * length(stakers)
+
+    winners =
+      if result.is_tie,
+        do: for(s <- standings, s["rank"] == 1, do: s["user_id"]),
+        else: List.wrap(result.winner_id)
+
+    share = if winners == [], do: 0, else: div(pot, length(winners))
+    won = if uid in winners, do: share, else: 0
+    staked = if uid in stakers, do: stake, else: 0
+
+    %{pot: pot, delta: won - staked}
   end
 
   # Standings stored at settle time, joined to usernames via the duel's seats.

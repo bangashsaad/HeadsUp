@@ -26,7 +26,7 @@ const prettyKey = (k) => k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperC
 
 export default function DuelDetailScreen({ route, navigation }) {
   const { id } = route.params;
-  const { token, user } = useAuth();
+  const { token, user, refreshUser } = useAuth();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const [duel, setDuel] = useState(null);
@@ -53,6 +53,7 @@ export default function DuelDetailScreen({ route, navigation }) {
     setError(null);
     try {
       await respondToDuel(token, id, action);
+      refreshUser(); // stakes/refunds just moved — pull the fresh balance
       navigation.goBack();
     } catch (e) {
       setError(e.message);
@@ -165,6 +166,11 @@ export default function DuelDetailScreen({ route, navigation }) {
 
       <View style={styles.statusRow}>
         <Badge label={duel.status} tone={statusTone(duel.status)} dot />
+        {duel.stake_coins > 0 ? (
+          <View style={styles.potPill}>
+            <Text style={styles.potText}>◎ {(duel.pot_coins || duel.stake_coins * 2).toLocaleString()} POT</Text>
+          </View>
+        ) : null}
       </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -174,6 +180,7 @@ export default function DuelDetailScreen({ route, navigation }) {
         <Term label="Draft type" value={cap(duel.draft_type)} />
         <Term label="Lineup" value={`${cap((duel.lineup_template || '').split('_')[1] || '')} · ${duel.roster_size} slots`} />
         <Term label="Pick clock" value={clockLabel(duel.pick_clock_seconds)} />
+        <Term label="Stake" value={duel.stake_coins > 0 ? `◎ ${duel.stake_coins.toLocaleString()} each` : 'Friendly'} />
         <Term label="Draft starts" value={formatDateTime(duel.draft_starts_at)} />
       </Card>
 
@@ -187,7 +194,12 @@ export default function DuelDetailScreen({ route, navigation }) {
       <View style={styles.actions}>
         {isOpponentPending ? (
           <>
-            <Button title="Accept Challenge" icon="checkmark-circle" onPress={() => act('accept')} disabled={busy} />
+            <Button
+              title={duel.stake_coins > 0 ? `Accept & Stake ◎ ${duel.stake_coins.toLocaleString()}` : 'Accept Challenge'}
+              icon="checkmark-circle"
+              onPress={() => act('accept')}
+              disabled={busy}
+            />
             <View style={styles.twoUp}>
               <Button title="Counter" variant="outline" full={false} style={{ flex: 1 }} onPress={() => goCounter(navigation, duel)} disabled={busy} />
               <Button title="Decline" variant="danger" full={false} style={{ flex: 1 }} onPress={() => act('decline')} disabled={busy} />
@@ -197,7 +209,12 @@ export default function DuelDetailScreen({ route, navigation }) {
 
         {canRespondSeat ? (
           <>
-            <Button title="Accept Your Seat" icon="checkmark-circle" onPress={() => act('accept')} disabled={busy} />
+            <Button
+              title={duel.stake_coins > 0 ? `Accept Seat & Stake ◎ ${duel.stake_coins.toLocaleString()}` : 'Accept Your Seat'}
+              icon="checkmark-circle"
+              onPress={() => act('accept')}
+              disabled={busy}
+            />
             <Button title="Decline" variant="danger" icon="close-circle" onPress={() => act('decline')} disabled={busy} />
             <Text style={styles.locked}>Everyone drafts their own team — best total wins.</Text>
           </>
@@ -403,6 +420,7 @@ function goCounter(navigation, duel) {
       sport: duel.sport,
       lineup_template: duel.lineup_template,
       pick_clock_seconds: duel.pick_clock_seconds,
+      stake_coins: duel.stake_coins,
     },
   });
 }
@@ -413,7 +431,16 @@ const makeStyles = (colors) =>
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
     side: { alignItems: 'center', flex: 1 },
     sideName: { color: colors.text, fontSize: 16, fontFamily: fonts.condBold, letterSpacing: 0.5, marginTop: spacing.sm, maxWidth: '90%' },
-    statusRow: { alignItems: 'center', marginBottom: spacing.lg },
+    statusRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg },
+    potPill: {
+      backgroundColor: withAlpha(colors.gold, 0.14),
+      borderColor: withAlpha(colors.gold, 0.45),
+      borderWidth: 1,
+      borderRadius: radius.pill,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 4,
+    },
+    potText: { color: colors.gold, fontSize: 11, fontFamily: fonts.bodyBlack, letterSpacing: 1 },
     error: { color: colors.danger, textAlign: 'center', marginBottom: spacing.md },
     term: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, paddingHorizontal: spacing.lg },
     termDivider: { borderTopColor: colors.borderSubtle, borderTopWidth: StyleSheet.hairlineWidth },

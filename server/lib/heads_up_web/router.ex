@@ -56,6 +56,9 @@ defmodule HeadsUpWeb.Router do
     put "/me/push_token", AuthController, :push_token
     delete "/logout", AuthController, :logout
 
+    # Coins (the in-house currency): wallet balance + movement history
+    get "/coins", CoinController, :index
+
     # Competitive stats + home dashboard
     get "/me/stats", StatsController, :me
     get "/me/achievements", StatsController, :achievements

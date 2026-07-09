@@ -20,7 +20,8 @@ defmodule HeadsUp.Contests.Duel do
     field :draft_type, :string, default: "snake"
     field :roster_size, :integer
     field :scoring_rules, :map
-    field :wager_cents, :integer, default: 0
+    # The uniform coin stake each player escrows to enter (0 = friendly duel).
+    field :stake_coins, :integer, default: 0
     field :draft_starts_at, :utc_datetime
     field :pick_clock_seconds, :integer, default: 60
     field :lineup_template, :string
@@ -69,7 +70,7 @@ defmodule HeadsUp.Contests.Duel do
       :draft_type,
       :roster_size,
       :scoring_rules,
-      :wager_cents,
+      :stake_coins,
       :draft_starts_at,
       :pick_clock_seconds,
       :lineup_template,
@@ -95,7 +96,10 @@ defmodule HeadsUp.Contests.Duel do
     |> validate_inclusion(:pick_clock_seconds, @pick_clocks)
     |> validate_inclusion(:lineup_template, Lineup.templates())
     |> validate_number(:roster_size, greater_than_or_equal_to: 1, less_than_or_equal_to: 15)
-    |> validate_number(:wager_cents, greater_than_or_equal_to: 0)
+    |> validate_number(:stake_coins,
+      greater_than_or_equal_to: 0,
+      less_than_or_equal_to: HeadsUp.Coins.stake_max()
+    )
     |> validate_lineup_for_sport()
     |> validate_roster_matches_template()
     |> validate_scoring_rules()

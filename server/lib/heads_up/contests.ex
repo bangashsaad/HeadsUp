@@ -11,6 +11,7 @@ defmodule HeadsUp.Contests do
   import Ecto.Query, warn: false
   alias HeadsUp.Repo
   alias HeadsUp.Accounts.User
+  alias HeadsUp.Coins
   alias HeadsUp.Social
   alias HeadsUp.Contests.{Duel, Participant, Scoring}
   alias HeadsUp.Drafts.Lineup
@@ -42,12 +43,24 @@ defmodule HeadsUp.Contests do
             {:error, off_season_message(attrs["sport"])}
 
           true ->
-            %Duel{}
-            |> Duel.create_changeset(build_attrs(challenger, attrs))
-            |> Repo.insert()
-            |> seed_participants()
-            |> with_users()
-            |> notify_challenged()
+            # Duel + the challenger's stake land (or fail) together: not enough
+            # coins means no duel row at all.
+            Ecto.Multi.new()
+            |> Ecto.Multi.insert(:duel, Duel.create_changeset(%Duel{}, build_attrs(challenger, attrs)))
+            |> Ecto.Multi.run(:stake, fn repo, %{duel: duel} ->
+              Coins.stake(repo, challenger.id, duel.id, duel.stake_coins)
+            end)
+            |> Repo.transaction()
+            |> case do
+              {:ok, %{duel: duel}} ->
+                {:ok, duel} |> seed_participants() |> with_users() |> notify_challenged()
+
+              {:error, _step, %Ecto.Changeset{} = changeset, _} ->
+                {:error, changeset}
+
+              {:error, _step, reason, _} ->
+                {:error, reason}
+            end
         end
     end
   end
@@ -107,6 +120,10 @@ defmodule HeadsUp.Contests do
 
       {count, _} = repo.insert_all(Participant, rows)
       {:ok, count}
+    end)
+    |> Ecto.Multi.run(:stake, fn repo, %{duel: duel} ->
+      # The host stakes at creation; each invitee stakes when their seat accepts.
+      Coins.stake(repo, challenger.id, duel.id, duel.stake_coins)
     end)
     |> Repo.transaction()
     |> case do
@@ -207,7 +224,7 @@ defmodule HeadsUp.Contests do
           "draft_type" => duel.draft_type,
           "pick_clock_seconds" => duel.pick_clock_seconds,
           "scoring_rules" => duel.scoring_rules,
-          "wager_cents" => duel.wager_cents,
+          "stake_coins" => duel.stake_coins,
           "draft_starts_at" => attrs["draft_starts_at"] || default_rematch_start(),
           "parent_duel_id" => duel.id
         }
@@ -258,8 +275,16 @@ defmodule HeadsUp.Contests do
 
         Ecto.Multi.new()
         |> Ecto.Multi.update(:original, Duel.status_changeset(original, "countered"))
+        |> Ecto.Multi.run(:refund, fn repo, %{original: countered} ->
+          # The original challenger's stake comes home; the counter-er stakes
+          # the NEW terms' amount on the fresh duel below.
+          Coins.refund(repo, countered.challenger_id, countered.id, countered.stake_coins)
+        end)
         |> Ecto.Multi.insert(:counter, fn _ ->
           Duel.create_changeset(%Duel{}, build_attrs(user, attrs))
+        end)
+        |> Ecto.Multi.run(:stake, fn repo, %{counter: counter} ->
+          Coins.stake(repo, user.id, counter.id, counter.stake_coins)
         end)
         |> Repo.transaction()
         |> case do
@@ -315,7 +340,14 @@ defmodule HeadsUp.Contests do
   def cancel_drafting(duel_id) do
     case Repo.get(Duel, duel_id) do
       %Duel{status: s} = duel when s in ["accepted", "drafting"] ->
-        duel |> Duel.status_changeset("cancelled") |> Repo.update()
+        Ecto.Multi.new()
+        |> Ecto.Multi.update(:duel, Duel.status_changeset(duel, "cancelled"))
+        |> Ecto.Multi.run(:coins, fn repo, %{duel: fresh} -> refund_staked(repo, fresh) end)
+        |> Repo.transaction()
+        |> case do
+          {:ok, %{duel: fresh}} -> {:ok, fresh}
+          {:error, _step, reason, _} -> {:error, reason}
+        end
 
       %Duel{} = duel ->
         {:ok, duel}
@@ -423,22 +455,88 @@ defmodule HeadsUp.Contests do
     |> Map.put("roster_size", Lineup.slot_count(template))
     |> Map.put_new("draft_type", "snake")
     |> Map.put_new("pick_clock_seconds", 60)
-    |> Map.put_new("wager_cents", 0)
+    |> Map.put_new("stake_coins", 0)
     |> Map.put_new("scoring_rules", Scoring.default_rules(sport))
   end
 
   # Generic guarded status change: the duel must be at `from_status` and the
-  # acting user must hold the given `role`.
+  # acting user must hold the given `role`. The status flip and its coin
+  # movement commit (or fail) together.
   defp transition(%User{id: uid}, id, role, from_status, to_status) do
     duel = Repo.get(Duel, id)
 
     cond do
-      is_nil(duel) -> {:error, :not_found}
-      duel.status != from_status -> {:error, :not_found}
-      role == :opponent and duel.opponent_id != uid -> {:error, :not_found}
-      role == :challenger and duel.challenger_id != uid -> {:error, :not_found}
-      true -> duel |> Duel.status_changeset(to_status) |> Repo.update() |> sync_seat(uid, to_status) |> with_users()
+      is_nil(duel) ->
+        {:error, :not_found}
+
+      duel.status != from_status ->
+        {:error, :not_found}
+
+      role == :opponent and duel.opponent_id != uid ->
+        {:error, :not_found}
+
+      role == :challenger and duel.challenger_id != uid ->
+        {:error, :not_found}
+
+      true ->
+        Ecto.Multi.new()
+        |> Ecto.Multi.update(:duel, Duel.status_changeset(duel, to_status))
+        |> Ecto.Multi.run(:coins, fn repo, %{duel: fresh} ->
+          transition_coins(repo, fresh, uid, to_status)
+        end)
+        |> Repo.transaction()
+        |> case do
+          {:ok, %{duel: fresh}} -> {:ok, fresh} |> sync_seat(uid, to_status) |> with_users()
+          {:error, _step, reason, _} -> {:error, reason}
+        end
     end
+  end
+
+  # Accepting stakes the actor in; declining/cancelling refunds everyone who
+  # staked. (The seat rows are still pristine here — sync_seat runs after —
+  # so "who staked" is exactly the accepted seats.)
+  defp transition_coins(repo, %Duel{} = duel, uid, "accepted"),
+    do: Coins.stake(repo, uid, duel.id, duel.stake_coins)
+
+  defp transition_coins(repo, %Duel{} = duel, _uid, to_status)
+       when to_status in ["declined", "cancelled"],
+       do: refund_staked(repo, duel)
+
+  defp transition_coins(_repo, _duel, _uid, _to_status), do: {:ok, :noop}
+
+  # Refund every staked player: stakes ride accepted seats (seat 0 auto-accepts
+  # at creation, mirroring the challenger's stake; invitees stake on accept).
+  defp refund_staked(_repo, %Duel{stake_coins: 0}), do: {:ok, :no_stake}
+
+  defp refund_staked(repo, %Duel{} = duel) do
+    staked =
+      from(p in Participant,
+        where: p.duel_id == ^duel.id and p.status == "accepted",
+        select: p.user_id
+      )
+      |> repo.all()
+
+    Enum.reduce_while(staked, {:ok, []}, fn uid, {:ok, acc} ->
+      case Coins.refund(repo, uid, duel.id, duel.stake_coins) do
+        {:ok, txn} -> {:cont, {:ok, [txn | acc]}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  @doc """
+  Coins that SHOULD be sitting in duel escrow right now: every live duel's
+  stake summed once per staked (accepted-seat) player. The coin ledger's
+  integrity check reconciles the escrow account against this.
+  """
+  def expected_escrow_coins do
+    from(d in Duel,
+      join: p in Participant,
+      on: p.duel_id == d.id and p.status == "accepted",
+      where: d.stake_coins > 0 and d.status in ["pending", "accepted", "drafting", "drafted"],
+      select: coalesce(sum(d.stake_coins), 0)
+    )
+    |> Repo.one()
   end
 
   @doc "All seats for a duel, host first, with users preloaded."
@@ -458,10 +556,25 @@ defmodule HeadsUp.Contests do
         {:error, :not_found}
 
       true ->
-        {:ok, _} = seat |> Participant.changeset(%{status: new_status}) |> Repo.update()
-        resolve_group_status(duel, actor, new_status)
+        # Seat answer + the actor's stake + any collapse-refunds are atomic: an
+        # accept that can't cover the stake leaves the seat invited.
+        Repo.transaction(fn ->
+          {:ok, _} = seat |> Participant.changeset(%{status: new_status}) |> Repo.update()
+
+          with {:ok, _} <- seat_coins(Repo, duel, actor, new_status),
+               {:ok, fresh} <- resolve_group_status(duel, actor, new_status) do
+            fresh
+          else
+            {:error, reason} -> Repo.rollback(reason)
+          end
+        end)
     end
   end
+
+  defp seat_coins(repo, %Duel{} = duel, %User{id: uid}, "accepted"),
+    do: Coins.stake(repo, uid, duel.id, duel.stake_coins)
+
+  defp seat_coins(_repo, _duel, _actor, _new_status), do: {:ok, :noop}
 
   defp resolve_group_status(%Duel{} = duel, %User{} = actor, responded_with) do
     seats = list_participants(duel.id)
@@ -482,7 +595,11 @@ defmodule HeadsUp.Contests do
         status -> duel |> Duel.status_changeset(status) |> Repo.update()
       end
 
-    with {:ok, fresh} <- result do
+    with {:ok, fresh} <- result,
+         # A collapse sends everyone's stake home (the decliner never staked —
+         # their seat already flipped, so they're not in the accepted set).
+         {:ok, _} <-
+           (if duel_status == "cancelled", do: refund_staked(Repo, fresh), else: {:ok, :noop}) do
       cond do
         # Everyone's in (the actor already knows — they just tapped).
         duel_status == "accepted" -> notify_group_ready(fresh, accepted_ids -- [actor.id])
