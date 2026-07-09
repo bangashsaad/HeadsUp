@@ -162,6 +162,38 @@ them (later, gated).
 - Declines SHRINK the match (4→3→2); below 2 total → auto-cancel. Non-responders can't wedge it: host gets "Start with current group" (drops pending invitees, needs ≥2 in) + cancel anytime.
 - Draftable when every non-declined seat accepted (∧ ≥2). Pushes: seat invite → each invitee; "everyone's in" → all; shrink notice → host. Rematch re-invites the same group (tapper becomes host).
 
+## Roadmap of record (agreed 2026-07-09)
+Money verdict shaping this: see MONEY-LEGALITY.md — money arrives via fixed-entry
+tiers + posted prizes (skill-contest framing), gated on traction, never as raked
+wagers. Coin system (PR #1) is stage one of that path.
+
+- **Now → mid-July — coins + polish:** verify & deploy the coin merge (tests,
+  refund paths, OTA-vs-rebuild check) **[ON HOLD until Saad says go]**; fix the
+  chip-clipping bug (OTA-marker diagnostic first); brothers play real coin duels —
+  first live test of "do stakes make it more fun."
+- **Late July — fun pass + growth plumbing (Sessions 2–3, all OTA):** draft-room
+  emoji reactions; live-matchup juice (game-state chips, score flashes); invite
+  links live end-to-end (/d/… foundation already deployed); run-it-back rematch
+  from rivalry records; uptime pinger for on-time settlement. End of July = app
+  feature-complete for the friends era.
+- **August — NFL month (the one hard deadline):** NFL scoring model, ~1,700-player
+  rosters, stat parsing, settlement provider — tested live against preseason
+  (early Aug). TestFlight so the cohort grows past the 4 registered phones. Coin
+  seasons/weekly leaderboards so stakes have rhythm.
+- **September — NFL kickoff = the real test:** season gating auto-flips NFL on
+  (~Sept 10). Retention numbers start meaning something: duels/user/week + do
+  people return unprompted (the north stars from the 2026-06-30 review).
+- **Q4 2026 — the money gate (decision, not date):** if retention holds through
+  October → gaming-attorney consult + licensed-partner conversations (Splash
+  Partner Solutions) → real-money tiers via partner, realistically early 2027,
+  geofenced (CA excluded until the Bonta fight resolves). If not → keep iterating
+  free; the compliance clock never starts.
+- **2027 — own the money layer (only at scale):** registered operator in
+  cheap-tier states (~$1.5–3k gov fees; ~$50–150k all-in) when partner rev-share
+  math justifies it.
+- Constant threads: Sentry rides the next rebuild; NBA in October (reuses the
+  WNBA model cheaply); password rotations (still on Saad).
+
 ## Ideas parking lot (unfiltered, no commitment)
 - Positionless / UTIL-heavy lineup presets (Saad, 2026-07-01): keep classic slots
   as the default, but offer a mode where most/all slots are UTIL — draft anyone,
