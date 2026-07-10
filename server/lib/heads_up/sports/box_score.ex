@@ -36,6 +36,8 @@ defmodule HeadsUp.Sports.BoxScore do
       |> get_in(["boxscore", "players"])
       |> List.wrap()
       |> Enum.map(&team(sport, &1, meta))
+      # Away first, home second — the matchup hero renders left-to-right.
+      |> Enum.sort_by(&(&1.home_away != "away"))
 
     %{
       event_id: to_string(get_in(body, ["header", "id"]) || ""),
@@ -55,6 +57,14 @@ defmodule HeadsUp.Sports.BoxScore do
       name: get_in(t, ["team", "shortDisplayName"]) || get_in(t, ["team", "displayName"]),
       score: comp["score"],
       home_away: comp["homeAway"],
+      logo: get_in(comp, ["team", "logo"]) || get_in(t, ["team", "logo"]),
+      color: get_in(comp, ["team", "color"]),
+      # Per-period scores (quarters / innings) for the matchup line-score strip.
+      linescores:
+        comp
+        |> Map.get("linescores")
+        |> List.wrap()
+        |> Enum.map(&(&1["displayValue"] || to_string(&1["value"] || ""))),
       groups: t |> Map.get("statistics") |> List.wrap() |> Enum.map(&group(sport, &1))
     }
   end

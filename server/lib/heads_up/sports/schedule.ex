@@ -80,6 +80,9 @@ defmodule HeadsUp.Sports.Schedule do
       abbrev: team["abbreviation"],
       name: team["shortDisplayName"] || team["displayName"] || team["name"],
       logo: team["logo"],
+      # ESPN's primary team color as bare hex ("78BE20") — the mobile scoreboard
+      # tints cards/glows with it.
+      color: team["color"],
       score: competitor["score"]
     }
   end

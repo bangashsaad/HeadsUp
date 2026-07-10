@@ -34,11 +34,13 @@ export default function Chip({ label, active = false, onPress, style }) {
           color: active ? colors.onAccent : colors.muted,
           fontFamily: fonts.heroUpright,
           fontSize: 13,
+          // Belt & braces vs the squashed-line-box clipping (root cause is
+          // flex shrink in the parent — see GamesScreen's day strip).
+          lineHeight: 17,
           letterSpacing: 1,
-          textTransform: 'uppercase',
         }}
       >
-        {label}
+        {String(label).toUpperCase()}
       </Text>
     </Pressable>
   );
