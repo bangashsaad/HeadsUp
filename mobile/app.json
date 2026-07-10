@@ -6,7 +6,7 @@
     "scheme": "headsup",
     "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/app-icon-1024.png",
     "userInterfaceStyle": "automatic",
     "runtimeVersion": {
       "policy": "appVersion"
@@ -30,14 +30,14 @@
     "android": {
       "package": "com.headsupfantasy.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#5B3FE0",
+        "foregroundImage": "./assets/android-adaptive-foreground-1024.png",
+        "backgroundImage": "./assets/android-adaptive-background-1024.png",
+        "monochromeImage": "./assets/android-adaptive-foreground-1024.png"
       }
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon-256.png"
     },
     "plugins": [
       "expo-secure-store",
