@@ -47,7 +47,7 @@ export default function PlayersScreen({ route }) {
     <Screen padded={false}>
       <View style={styles.header}>
         <SearchInput value={query} onChangeText={setQuery} placeholder="Search players" />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }} contentContainerStyle={styles.chips}>
           {chips.map((pos) => (
             <Chip key={pos ?? 'all'} label={pos ?? 'All'} active={pos === activePosition} onPress={() => setActivePosition(pos)} />
           ))}

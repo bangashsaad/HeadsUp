@@ -134,7 +134,7 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
       <Text style={styles.stakeNote}>
         {stake === 0
           ? `Bragging rights only. You have ◎ ${balance.toLocaleString()}.`
-          : `Everyone antes ◎ ${stake} — winner takes the pot. You have ◎ ${balance.toLocaleString()}.`}
+          : `Everyone puts in ◎ ${stake} — winner takes all. You have ◎ ${balance.toLocaleString()}.`}
       </Text>
 
       <Text style={styles.note}>Standard {sport.toUpperCase()} scoring applies — the full chart is shown on the challenge.</Text>

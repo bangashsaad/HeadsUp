@@ -722,7 +722,7 @@ const makeStyles = (colors) =>
     seatTabName: { color: colors.text, fontSize: 11, fontFamily: fonts.bodyBold, flexShrink: 1 },
     seatTabCount: { color: colors.muted, fontSize: 10, fontFamily: fonts.bodyBold, marginTop: 1 },
 
-    chipRow: { marginTop: spacing.sm, marginBottom: 2, flexGrow: 0 },
+    chipRow: { marginTop: spacing.sm, marginBottom: 2, flexGrow: 0, flexShrink: 0 },
     chipRowContent: { gap: spacing.sm, paddingRight: spacing.sm },
     watchNote: { color: colors.muted, fontSize: font.small, marginTop: spacing.md, fontStyle: 'italic', fontFamily: fonts.body },
     queueHintRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 7 },

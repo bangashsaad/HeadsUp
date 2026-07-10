@@ -126,7 +126,7 @@ export default function GamesScreen({ navigation }) {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={{ flexGrow: 0, marginTop: spacing.sm }}
+        style={{ flexGrow: 0, flexShrink: 0, marginTop: spacing.sm }}
         contentContainerStyle={{ gap: 7, paddingHorizontal: spacing.lg }}
       >
         <Chip label="Upcoming" active={day === null} onPress={() => switchDay(null)} />
