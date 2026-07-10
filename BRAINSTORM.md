@@ -167,10 +167,11 @@ Money verdict shaping this: see MONEY-LEGALITY.md — money arrives via fixed-en
 tiers + posted prizes (skill-contest framing), gated on traction, never as raked
 wagers. Coin system (PR #1) is stage one of that path.
 
-- **Now → mid-July — coins + polish:** verify & deploy the coin merge (tests,
-  refund paths, OTA-vs-rebuild check) **[ON HOLD until Saad says go]**; fix the
-  chip-clipping bug (OTA-marker diagnostic first); brothers play real coin duels —
-  first live test of "do stakes make it more fun."
+- **Now → mid-July — coins + polish:** coin merge verified & SHIPPED 2026-07-09
+  (214 tests green, backend deployed, 6 users backfilled, ledger integrity :ok,
+  OTA update group 7b10b85b); fix the chip-clipping bug (OTA-marker diagnostic
+  first); brothers play real coin duels — first live test of "do stakes make it
+  more fun."
 - **Late July — fun pass + growth plumbing (Sessions 2–3, all OTA):** draft-room
   emoji reactions; live-matchup juice (game-state chips, score flashes); invite
   links live end-to-end (/d/… foundation already deployed); run-it-back rematch
