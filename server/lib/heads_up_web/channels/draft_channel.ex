@@ -75,6 +75,17 @@ defmodule HeadsUpWeb.DraftChannel do
     {:reply, {:ok, %{state: Server.get_state(socket.assigns.draft_id)}}, socket}
   end
 
+  # Ephemeral trash talk: relay a reaction to everyone in the room (sender
+  # included — their burst renders off the broadcast too, so all phones agree).
+  # Never touches the engine, never persists. Unknown emojis are dropped.
+  @reaction_emojis ~w(🔥 😂 😭 🥶 💀 👑)
+  def handle_in("react", %{"emoji" => emoji}, socket) when emoji in @reaction_emojis do
+    broadcast!(socket, "reaction", %{emoji: emoji, user_id: socket.assigns.current_user_id})
+    {:noreply, socket}
+  end
+
+  def handle_in("react", _payload, socket), do: {:noreply, socket}
+
   @impl true
   def terminate(_reason, socket) do
     case socket.assigns do

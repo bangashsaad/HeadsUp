@@ -39,7 +39,14 @@ defmodule HeadsUp.Settlement.StatsProvider do
   @doc "Count of `window` games by state, for a live header (`%{final, live, upcoming}`)."
   @callback live_games(Window.t()) :: %{final: non_neg_integer(), live: non_neg_integer(), upcoming: non_neg_integer()}
 
+  @doc """
+  Each in-window team's game status by abbreviation
+  (`%{"LV" => %{state: "in", detail: "End of 1st"}}`) for per-player game
+  chips. Providers without a scoreboard may return `%{}`.
+  """
+  @callback team_states(Window.t()) :: %{optional(String.t()) => %{state: String.t() | nil, detail: String.t() | nil}}
+
   # Live scoring is only used by the live endpoint; a provider used solely for
   # settlement (e.g. a test stub) needn't implement these.
-  @optional_callbacks fetch_live_stats: 2, live_games: 1
+  @optional_callbacks fetch_live_stats: 2, live_games: 1, team_states: 1
 end

@@ -60,6 +60,9 @@ defmodule HeadsUp.Settlement.Stats.MlbEspn do
   @impl true
   def live_games(%Window{} = window), do: WindowScan.game_counts(client(), window)
 
+  @impl true
+  def team_states(%Window{} = window), do: WindowScan.team_states(client(), window)
+
   defp player_line(sport, player, final_ids, cats) do
     base = Map.new(cats, &{&1, 0})
 

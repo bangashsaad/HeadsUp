@@ -105,6 +105,30 @@ defmodule HeadsUp.Settlement.Stats.WnbaEspnTest do
     end
   end
 
+  describe "team_states/1" do
+    test "maps each in-window team to its game's state + detail" do
+      live_event =
+        event("401", "STATUS_IN_PROGRESS")
+        |> put_in(["status", "type", "state"], "in")
+        |> put_in(["status", "type", "shortDetail"], "End of 1st")
+        |> Map.put("competitions", [
+          %{"competitors" => [%{"team" => %{"abbreviation" => "LV"}}, %{"team" => %{"abbreviation" => "NY"}}]}
+        ])
+
+      Process.put({:scoreboard, "20260628"}, {:ok, %{"events" => [live_event]}})
+
+      assert WnbaEspn.team_states(one_day_window()) == %{
+               "LV" => %{state: "in", detail: "End of 1st"},
+               "NY" => %{state: "in", detail: "End of 1st"}
+             }
+    end
+
+    test "a feed error yields an empty map (chips just don't render)" do
+      Process.put({:scoreboard, "20260628"}, {:error, {:transport, :timeout}})
+      assert WnbaEspn.team_states(one_day_window()) == %{}
+    end
+  end
+
   describe "fetch_stats/2" do
     test "maps stats to player ids, parses 3PT, zeros DNP and not-found, full 7 cats each" do
       athletes = [

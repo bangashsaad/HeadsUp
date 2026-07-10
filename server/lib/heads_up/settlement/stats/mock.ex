@@ -28,6 +28,9 @@ defmodule HeadsUp.Settlement.Stats.Mock do
   @impl true
   def live_games(%Window{}), do: %{final: 1, live: 0, upcoming: 0}
 
+  @impl true
+  def team_states(%Window{}), do: %{}
+
   defp line_for(%Player{} = p) do
     blank? = rem(p.id, 17) == 0
     cats = Map.keys(Scoring.default_rules(p.sport))

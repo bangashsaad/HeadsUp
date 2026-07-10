@@ -13,21 +13,23 @@ defmodule HeadsUpWeb.LiveJSON do
       leader_id: live.leader_id,
       games: live.games,
       # Every seat scored, best total first — the N-player standings strip.
-      sides: Enum.map(live.sides, &side(duel.sport, users[&1.user_id], &1, live.players_by_id, uid)),
+      sides: Enum.map(live.sides, &side(duel.sport, users[&1.user_id], &1, live, uid)),
       # 1v1 keys for the existing matchup screen (absent for group duels).
-      challenger: live.challenger && side(duel.sport, duel.challenger, live.challenger, live.players_by_id, uid),
-      opponent: live.opponent && side(duel.sport, duel.opponent, live.opponent, live.players_by_id, uid)
+      challenger: live.challenger && side(duel.sport, duel.challenger, live.challenger, live, uid),
+      opponent: live.opponent && side(duel.sport, duel.opponent, live.opponent, live, uid)
     }
   end
 
-  defp side(sport, user, roster, by_id, uid) do
+  defp side(sport, user, roster, live, uid) do
+    team_states = Map.get(live, :team_states) || %{}
+
     %{
       user: PublicUserJSON.public(user),
       is_me: user.id == uid,
       total: roster.total,
       players:
         Enum.map(roster.players, fn p ->
-          info = Map.get(by_id, p.player_id, %{})
+          info = Map.get(live.players_by_id, p.player_id, %{})
 
           %{
             player_id: p.player_id,
@@ -37,7 +39,9 @@ defmodule HeadsUpWeb.LiveJSON do
             slot: p.slot,
             points: p.points,
             stat_line: p.stat_line,
-            line: StatLine.format(sport, p.stat_line)
+            line: StatLine.format(sport, p.stat_line),
+            # The player's game right now: %{state: "pre"|"in"|"post", detail: "End of 1st"}.
+            game: info[:team] && Map.get(team_states, info[:team])
           }
         end)
     }

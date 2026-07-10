@@ -47,9 +47,19 @@ defmodule HeadsUp.Settlement.Stats.WindowScan do
       %{
         id: to_string(e["id"]),
         final?: get_in(e, ["status", "type", "name"]) == "STATUS_FINAL",
-        state: get_in(e, ["status", "type", "state"])
+        state: get_in(e, ["status", "type", "state"]),
+        detail: get_in(e, ["status", "type", "shortDetail"]),
+        teams: event_teams(e)
       }
     end)
+  end
+
+  defp event_teams(event) do
+    event
+    |> get_in(["competitions", Access.at(0), "competitors"])
+    |> List.wrap()
+    |> Enum.map(&get_in(&1, ["team", "abbreviation"]))
+    |> Enum.reject(&is_nil/1)
   end
 
   @doc "Count in-window games by state (`%{final, live, upcoming}`); on feed error, all zero."
@@ -65,6 +75,25 @@ defmodule HeadsUp.Settlement.Stats.WindowScan do
 
       {:error, _} ->
         %{final: 0, live: 0, upcoming: 0}
+    end
+  end
+
+  @doc """
+  Each in-window team's game status, keyed by team abbreviation:
+  `%{"LV" => %{state: "in", detail: "End of 1st"}}`. Powers the per-player
+  game chips on the live matchup screen. On feed error → `%{}` (chips just
+  don't render; live scoring already fails soft).
+  """
+  @spec team_states(module(), Window.t()) :: %{optional(String.t()) => %{state: String.t() | nil, detail: String.t() | nil}}
+  def team_states(client, window) do
+    case events(client, window) do
+      {:ok, evs} ->
+        for ev <- evs, team <- ev.teams, into: %{} do
+          {team, %{state: ev.state, detail: ev.detail}}
+        end
+
+      {:error, _} ->
+        %{}
     end
   end
 

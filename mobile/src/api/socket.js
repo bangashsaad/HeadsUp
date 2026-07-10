@@ -5,7 +5,7 @@ import { API_URL } from './client';
 const WS_URL = API_URL.replace(/^http/, 'ws') + '/socket';
 
 // Open a draft channel for a duel. `token` is the same API token used for REST.
-// `handlers` = { onJoin(reply), onUpdate(payload), onError(reply) }.
+// `handlers` = { onJoin(reply), onUpdate(payload), onReaction(payload), onError(reply) }.
 // Returns { ready, makePick, leave } — makePick returns the Phoenix push so the
 // caller can attach .receive('error', ...) for rejected picks.
 export function connectDraft(duelId, token, handlers) {
@@ -14,6 +14,7 @@ export function connectDraft(duelId, token, handlers) {
 
   const channel = socket.channel(`draft:${duelId}`, {});
   channel.on('update', (payload) => handlers.onUpdate?.(payload));
+  channel.on('reaction', (payload) => handlers.onReaction?.(payload));
 
   channel
     .join()
@@ -24,6 +25,7 @@ export function connectDraft(duelId, token, handlers) {
     ready: () => channel.push('ready', {}),
     makePick: (playerId) => channel.push('make_pick', { player_id: playerId }),
     setQueue: (playerIds) => channel.push('set_queue', { player_ids: playerIds }),
+    react: (emoji) => channel.push('react', { emoji }),
     cancel: () => channel.push('cancel', {}),
     leave: () => {
       channel.leave();

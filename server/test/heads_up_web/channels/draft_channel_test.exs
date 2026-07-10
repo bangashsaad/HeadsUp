@@ -73,6 +73,27 @@ defmodule HeadsUpWeb.DraftChannelTest do
     end
   end
 
+  describe "reactions" do
+    test "a reaction is relayed to everyone in the room, sender included", ctx do
+      {:ok, chal_sock, _} = join_as(ctx.challenger, ctx.duel)
+      {:ok, _oppo_sock, _} = join_as(ctx.opponent, ctx.duel)
+
+      push(chal_sock, "react", %{"emoji" => "🔥"})
+
+      chal_id = ctx.challenger.id
+      assert_broadcast "reaction", %{emoji: "🔥", user_id: ^chal_id}
+    end
+
+    test "an off-menu emoji is dropped, not relayed", ctx do
+      {:ok, chal_sock, _} = join_as(ctx.challenger, ctx.duel)
+
+      push(chal_sock, "react", %{"emoji" => "🖕"})
+      push(chal_sock, "react", %{"emoji" => String.duplicate("🔥", 50)})
+
+      refute_broadcast "reaction", %{}
+    end
+  end
+
   # --- helpers ---
 
   # Returns {:ok, joined_socket, join_reply}.

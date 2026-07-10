@@ -57,6 +57,9 @@ defmodule HeadsUp.Settlement.Stats.WnbaEspn do
   @impl true
   def live_games(%Window{} = window), do: WindowScan.game_counts(client(), window)
 
+  @impl true
+  def team_states(%Window{} = window), do: WindowScan.team_states(client(), window)
+
   # Sum boxscores across in-window games. `only_final?` true (settlement) counts
   # only FINAL games; false (live) includes in-progress boxscores too.
   defp do_fetch(players, %Window{sport: sport} = window, only_final?) do

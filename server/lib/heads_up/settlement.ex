@@ -133,6 +133,7 @@ defmodule HeadsUp.Settlement do
          opponent: duel.opponent_id && find.(duel.opponent_id),
          leader_id: leader_id,
          games: provider.live_games(window),
+         team_states: provider.team_states(window),
          players_by_id: Map.new(players, &{&1.id, %{name: &1.name, team: &1.team, position: &1.position}}),
          users_by_id: live_users(duel)
        }}

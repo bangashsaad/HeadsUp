@@ -16,6 +16,24 @@ import { shortName } from '../utils/names';
 
 const SPORT_EMOJI = { nfl: '🏈', nba: '🏀', wnba: '🏀', mlb: '⚾️' };
 
+// The trash-talk menu. Must match the server's whitelist exactly — off-menu
+// emojis are dropped silently by the channel.
+const REACTION_EMOJIS = ['🔥', '😂', '😭', '🥶', '💀', '👑'];
+
+// One UNIQUE color per seat (name-hash tints can collide — two players both
+// lime was unreadable). You are always the accent; everyone else gets a
+// distinct tint in seat order — the first rival is always the purple side.
+function buildSeatTints(ids, myId, colors) {
+  const tints = [colors.purple, '#22E5FF', '#FFB021', '#FF4D8D', '#5CA8FF', '#FF7A1A'];
+  const map = {};
+  let i = 0;
+  for (const id of ids) {
+    if (String(id) === String(myId)) map[String(id)] = colors.accent;
+    else map[String(id)] = tints[i++ % tints.length];
+  }
+  return map;
+}
+
 // "7:00 PM ET" for a game today (ET), "Tmw 7:00 PM ET" for tomorrow — so you
 // know WHEN a player plays before you draft them. ET = UTC-4 in season.
 function nextGameLabel(iso) {
@@ -55,10 +73,18 @@ export default function DraftRoomScreen({ route, navigation }) {
   const [flipping, setFlipping] = useState(false);
   const prevPhase = useRef(null);
 
+  // Live reaction bursts (everyone's, ours included — all render off the relay).
+  const [bursts, setBursts] = useState([]);
+  const burstSeq = useRef(0);
+
   useEffect(() => {
     const conn = connectDraft(id, token, {
       onJoin: (reply) => setState(reply.state),
       onUpdate: (payload) => setState(payload.state),
+      onReaction: ({ emoji, user_id }) => {
+        const key = ++burstSeq.current;
+        setBursts((b) => [...b.slice(-9), { key, emoji, uid: user_id }]);
+      },
       onError: () => setError('Could not join the draft room.'),
     });
     connRef.current = conn;
@@ -119,7 +145,95 @@ export default function DraftRoomScreen({ route, navigation }) {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {body}
+      <ReactionOverlay
+        bursts={bursts}
+        state={state}
+        myId={myId}
+        onDone={(key) => setBursts((b) => b.filter((x) => x.key !== key))}
+      />
       {flipping ? <FlipOverlay /> : null}
+    </View>
+  );
+}
+
+// Floating trash talk: each relayed reaction rises from the bottom, wobbles a
+// little, and fades — tagged with the sender's seat color. Ignores touches.
+function ReactionOverlay({ bursts, state, myId, onDone }) {
+  const { colors } = useTheme();
+  if (bursts.length === 0) return null;
+  const players = state?.players || [];
+  const tints = buildSeatTints(players.map((p) => p.id), myId, colors);
+  const nameOf = (uid) =>
+    String(uid) === String(myId) ? 'You' : players.find((p) => String(p.id) === String(uid))?.username || '';
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {bursts.map((b) => (
+        <Burst key={b.key} burst={b} name={nameOf(b.uid)} color={tints[String(b.uid)] || colors.muted} onDone={onDone} />
+      ))}
+    </View>
+  );
+}
+
+function Burst({ burst, name, color, onDone }) {
+  const rise = useRef(new Animated.Value(0)).current;
+  const lane = burst.key % 5; // spread simultaneous bursts across the width
+
+  useEffect(() => {
+    Animated.timing(rise, { toValue: 1, duration: 2100, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start(
+      () => onDone(burst.key)
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const translateY = rise.interpolate({ inputRange: [0, 1], outputRange: [0, -300] });
+  const translateX = rise.interpolate({ inputRange: [0, 1], outputRange: [0, lane % 2 === 0 ? 26 : -26] });
+  const opacity = rise.interpolate({ inputRange: [0, 0.75, 1], outputRange: [1, 1, 0] });
+  const scale = rise.interpolate({ inputRange: [0, 0.12, 1], outputRange: [0.4, 1.2, 1] });
+
+  return (
+    <Animated.View
+      style={{
+        position: 'absolute',
+        bottom: 130,
+        left: `${14 + lane * 16}%`,
+        alignItems: 'center',
+        opacity,
+        transform: [{ translateY }, { translateX }, { scale }],
+      }}
+    >
+      <Text style={{ fontSize: 34 }}>{burst.emoji}</Text>
+      <Text style={{ fontSize: 9, fontFamily: fonts.bodyBlack, color, marginTop: 1, letterSpacing: 0.5 }}>
+        {name.toUpperCase()}
+      </Text>
+    </Animated.View>
+  );
+}
+
+// The emoji send bar. Cooldown keeps one thumb from becoming a confetti cannon.
+function ReactionBar({ conn }) {
+  const styles = useThemedStyles(makeStyles);
+  const lastSent = useRef(0);
+
+  function send(emoji) {
+    const now = Date.now();
+    if (now - lastSent.current < 600) return;
+    lastSent.current = now;
+    impact(ImpactStyle.Light);
+    conn?.react?.(emoji);
+  }
+
+  return (
+    <View style={styles.reactRow}>
+      {REACTION_EMOJIS.map((e) => (
+        <Pressable
+          key={e}
+          onPress={() => send(e)}
+          hitSlop={6}
+          style={({ pressed }) => [styles.reactBtn, pressed && { opacity: 0.6, transform: [{ scale: 0.9 }] }]}
+        >
+          <Text style={{ fontSize: 17 }}>{e}</Text>
+        </Pressable>
+      ))}
     </View>
   );
 }
@@ -300,20 +414,10 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
     return p ? p.username : opponentName;
   };
 
-  // One UNIQUE color per seat (name-hash tints can collide — two players both
-  // lime was unreadable). You are always the accent; everyone else gets a
-  // distinct tint in seat order — the first rival is always the purple side.
   const seatTint = useMemo(() => {
-    const tints = [colors.purple, '#22E5FF', '#FFB021', '#FF4D8D', '#5CA8FF', '#FF7A1A'];
-    const map = {};
-    let i = 0;
     const ids = players.length > 0 ? players.map((p) => p.id) : Object.keys(state.ready || {});
-    for (const id of ids) {
-      if (String(id) === String(myId)) map[String(id)] = colors.accent;
-      else map[String(id)] = tints[i++ % tints.length];
-    }
-    return map;
-  }, [players, state.ready, myId, colors.accent, colors.purple]);
+    return buildSeatTints(ids, myId, colors);
+  }, [players, state.ready, myId, colors]);
 
   const colorFor = (uid) => seatTint[String(uid)] || colors.muted;
   const [sheetUid, setSheetUid] = useState(null); // user id whose roster sheet is open
@@ -412,6 +516,7 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
             <Button title="Watch it live →" onPress={() => navigation.navigate('LiveMatchup', { id: duelId, opponentName })} />
           </Pulse>
           <Button title="Back to duels" variant="outline" onPress={() => navigation.popToTop()} style={{ marginTop: spacing.sm }} />
+          <ReactionBar conn={conn} />
         </View>
       </View>
     );
@@ -439,6 +544,7 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
 
       <DraftOrderDots order={order} pickNumber={state.pick_number} colorFor={colorFor} />
       <DraftTicker picks={state.picks} nameFor={nameFor} />
+      <ReactionBar conn={conn} />
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -724,6 +830,18 @@ const makeStyles = (colors) =>
 
     chipRow: { marginTop: spacing.sm, marginBottom: 2, flexGrow: 0, flexShrink: 0 },
     chipRowContent: { gap: spacing.sm, paddingRight: spacing.sm },
+
+    reactRow: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.sm, flexShrink: 0 },
+    reactBtn: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
     watchNote: { color: colors.muted, fontSize: font.small, marginTop: spacing.md, fontStyle: 'italic', fontFamily: fonts.body },
     queueHintRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 7 },
     queueHint: { color: colors.placeholder, fontSize: 10, fontFamily: fonts.bodyBold },

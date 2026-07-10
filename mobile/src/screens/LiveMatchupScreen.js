@@ -1,14 +1,51 @@
-import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../auth/AuthContext';
 import { getLiveResult } from '../api/duels';
 import { ApiError } from '../api/client';
+import { notify, NotifyType } from '../haptics';
 import { useTheme, useThemedStyles, spacing, radius, font, fonts, withAlpha } from '../theme';
 import { Screen, Card, Avatar, Badge, Button, GhostText, Kicker, CondTitle } from '../components/ui';
 
 const pts = (v) => (Number(v) || 0).toFixed(1);
+
+// Scale-bounces its children whenever `value` changes — the score just moved.
+// `celebrate` adds a success haptic, but only when the number went UP.
+function Pop({ value, celebrate = false, children }) {
+  const scale = useRef(new Animated.Value(1)).current;
+  const prev = useRef(value);
+
+  useEffect(() => {
+    if (prev.current === value) return;
+    const up = value > prev.current;
+    prev.current = value;
+    if (celebrate && up) notify(NotifyType.Success);
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 1.22, duration: 130, useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, friction: 4, useNativeDriver: true }),
+    ]).start();
+  }, [value, celebrate, scale]);
+
+  return <Animated.View style={{ transform: [{ scale }] }}>{children}</Animated.View>;
+}
+
+// A player's game right now, as a tiny colored prefix on their stat line.
+function gameTag(g, colors) {
+  if (!g || !g.state) return null;
+  if (g.state === 'in') return { label: (g.detail || 'LIVE').toUpperCase(), color: colors.danger };
+  if (g.state === 'post') return { label: 'FINAL', color: colors.placeholder };
+  if (g.state === 'pre') return { label: preLabel(g.detail), color: colors.muted };
+  return null;
+}
+
+// ESPN's pre-game shortDetail is "7/9 - 7:00 PM EDT" — keep just the time.
+function preLabel(detail) {
+  if (!detail) return 'TIPS SOON';
+  const t = detail.includes(' - ') ? detail.split(' - ').pop() : detail;
+  return t.replace(/\s*E[DS]T\s*$/, ' ET').toUpperCase();
+}
 
 export default function LiveMatchupScreen({ route, navigation }) {
   const { id, opponentName = 'Opponent' } = route.params;
@@ -105,9 +142,11 @@ export default function LiveMatchupScreen({ route, navigation }) {
               <Text style={[styles.standName, s.is_me && { color: colors.accent }]} numberOfLines={1}>
                 {s.is_me ? 'You' : s.user.username}
               </Text>
-              <CondTitle size={19} color={i === 0 ? colors.accent : colors.text}>
-                {pts(s.total)}
-              </CondTitle>
+              <Pop value={Number(s.total) || 0} celebrate={s.is_me}>
+                <CondTitle size={19} color={i === 0 ? colors.accent : colors.text}>
+                  {pts(s.total)}
+                </CondTitle>
+              </Pop>
             </Pressable>
           ))}
         </Card>
@@ -164,7 +203,9 @@ export default function LiveMatchupScreen({ route, navigation }) {
               <Kicker size={10} tracking={1} color={colors.accent}>
                 You
               </Kicker>
-              <Text style={[styles.scoreBig, { color: myT >= opT ? colors.accent : colors.text }]}>{myT.toFixed(1)}</Text>
+              <Pop value={myT} celebrate>
+                <Text style={[styles.scoreBig, { color: myT >= opT ? colors.accent : colors.text }]}>{myT.toFixed(1)}</Text>
+              </Pop>
             </View>
             <GhostText size={17} color={colors.textFaint} strokeWidth={1}>
               VS
@@ -173,7 +214,9 @@ export default function LiveMatchupScreen({ route, navigation }) {
               <Kicker size={10} tracking={1} color={colors.purpleText}>
                 {opponentName}
               </Kicker>
-              <Text style={[styles.scoreBig, { color: opT > myT ? colors.purpleText : colors.text }]}>{opT.toFixed(1)}</Text>
+              <Pop value={opT}>
+                <Text style={[styles.scoreBig, { color: opT > myT ? colors.purpleText : colors.text }]}>{opT.toFixed(1)}</Text>
+              </Pop>
             </View>
           </View>
           <View style={styles.momTrack}>
@@ -213,22 +256,28 @@ function Five({ title, side, mine, styles, colors }) {
       <View style={[styles.fiveHead, { backgroundColor: withAlpha(mine ? colors.accent : colors.purple, 0.08) }]}>
         <Text style={[styles.fiveTitle, { color: tint }]}>{title}</Text>
       </View>
-      {players.map((p, i) => (
-        <View key={`${p.slot}-${p.player_id}`} style={[styles.playerRow, i > 0 && styles.playerTopBorder]}>
-          <View style={styles.slotChip}>
-            <Text style={styles.slotText}>{p.slot}</Text>
+      {players.map((p, i) => {
+        const tag = gameTag(p.game, colors);
+        return (
+          <View key={`${p.slot}-${p.player_id}`} style={[styles.playerRow, i > 0 && styles.playerTopBorder]}>
+            <View style={styles.slotChip}>
+              <Text style={styles.slotText}>{p.slot}</Text>
+            </View>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={styles.playerName} numberOfLines={1}>
+                {p.name || 'Player'}
+              </Text>
+              <Text style={styles.statLine} numberOfLines={1}>
+                {tag ? <Text style={{ color: tag.color, fontFamily: fonts.bodyBlack, fontSize: 10 }}>{`${tag.label} · `}</Text> : null}
+                {p.line ? p.line : p.game?.state === 'pre' ? 'Waiting on tip' : 'Yet to check in'}
+              </Text>
+            </View>
+            <Pop value={Number(p.points) || 0}>
+              <Text style={[styles.points, { color: tint }]}>{pts(p.points)}</Text>
+            </Pop>
           </View>
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Text style={styles.playerName} numberOfLines={1}>
-              {p.name || 'Player'}
-            </Text>
-            <Text style={styles.statLine} numberOfLines={1}>
-              {p.line ? p.line : 'Yet to check in'}
-            </Text>
-          </View>
-          <Text style={[styles.points, { color: tint }]}>{pts(p.points)}</Text>
-        </View>
-      ))}
+        );
+      })}
     </View>
   );
 }
