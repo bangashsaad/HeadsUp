@@ -1,0 +1,26 @@
+# Keeps the Fly machine's settlement clock ticking during game hours.
+#
+# The prod machine scales to zero when idle; a sleeping machine can't score
+# finished games, and coin payouts ride on settlement. A ping every 20 minutes
+# from 8am to ~1am ET wakes it often enough that no duel settles more than
+# ~20 minutes late. (Cron is UTC; the window is sized for EDT and just runs an
+# extra hour under EST — fine, games run late anyway.)
+#
+# Budget: ~51 one-minute jobs/day ≈ 1,600 Actions-minutes/month, inside the
+# 2,000 free minutes for private repos. Don't tighten the cadence past */20
+# without checking that math.
+name: keepalive
+on:
+  schedule:
+    - cron: "*/20 12-23 * * *" # 8:00am – 7:59pm ET (EDT)
+    - cron: "*/20 0-4 * * *" # 8:00pm – 12:59am ET (EDT)
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake the server
+        run: |
+          curl -sS --fail --max-time 45 --retry 3 --retry-delay 5 \
+            https://headsup-fantasy.fly.dev/api/hello
