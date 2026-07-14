@@ -19,6 +19,8 @@ defmodule HeadsUp.Application do
       HeadsUp.Drafts.Supervisor,
       # Automatic settlement: sweeps duels whose scoring window has closed.
       HeadsUp.Settlement.Worker,
+      # Hourly stale-duel sweep: expired challenges + dead lobbies, stakes home.
+      HeadsUp.Contests.Janitor,
       # Fire-and-forget push notification sends.
       {Task.Supervisor, name: HeadsUp.Notifications.TaskSupervisor},
       # Start to serve requests, typically the last entry

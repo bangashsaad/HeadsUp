@@ -100,7 +100,7 @@ defmodule HeadsUp.Drafts.Server do
       pick_number: nil,
       total_picks: length(slots) * length(player_ids),
       current_picker_id: nil,
-      available: draftable_pool(duel.sport, slots, length(player_ids)),
+      available: draftable_pool(duel, slots, length(player_ids)),
       rosters: Map.new(player_ids, &{&1, %{}}),
       # Per-user priority queue of player_ids (client-authoritative, in-memory);
       # auto-pick prefers it. Never broadcast — it's each player's private plan.
@@ -197,18 +197,38 @@ defmodule HeadsUp.Drafts.Server do
   # kept is annotated with :next_game_at so the board shows WHEN they play —
   # unless filtering would gut the board (a full pool beats an undraftable one).
   # "Gut" scales with the table: N players need N rosters + slack.
-  defp draftable_pool(sport, slots, nplayers) do
+  defp draftable_pool(duel, slots, nplayers) do
+    sport = duel.sport
     eligible = slots |> Enum.flat_map(& &1.eligible) |> MapSet.new()
     pool = sport |> Drafts.draft_pool() |> Map.filter(fn {_id, p} -> p.position in eligible end)
 
-    case PoolFilter.scan(sport) do
+    # A slate duel scans ONLY its slate day, so the board is exactly "who
+    # plays that day and hasn't tipped yet". Legacy duels keep today+tomorrow.
+    scan_opts =
+      case Map.get(duel, :slate_date) do
+        %Date{} = slate -> [dates: [slate]]
+        _ -> []
+      end
+
+    slate? = match?([_ | _], scan_opts[:dates])
+
+    case PoolFilter.scan(sport, scan_opts) do
       %{ok: true, next_game_at: next} ->
         filtered = Map.filter(pool, fn {_id, p} -> Map.has_key?(next, p.team) end)
 
-        if map_size(filtered) >= length(slots) * nplayers * 2 do
-          annotate(filtered, next)
-        else
-          annotate(pool, next)
+        cond do
+          map_size(filtered) >= length(slots) * nplayers * 2 ->
+            annotate(filtered, next)
+
+          # A SLATE board never falls back to the full pool on a healthy
+          # feed: the un-slated players' games may already be running or
+          # done, and the frozen slate window would score those known stat
+          # lines — a cramped honest board beats a hindsight exploit.
+          slate? ->
+            annotate(filtered, next)
+
+          true ->
+            annotate(pool, next)
         end
 
       %{ok: false} ->

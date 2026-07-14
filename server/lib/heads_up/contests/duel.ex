@@ -27,6 +27,11 @@ defmodule HeadsUp.Contests.Duel do
     field :lineup_template, :string
     field :status, :string, default: "pending"
 
+    # The ET calendar day whose games this duel drafts from and scores against.
+    # NULL = legacy behavior (window anchored at draft completion, pool spans
+    # today+tomorrow). Day-shaped for now; NFL will widen this to week slates.
+    field :slate_date, :date
+
     # Scoring window (frozen when the draft finishes) + denormalized settlement
     # outcome (winner_id nil + status "settled" == a tie). Full per-player
     # breakdown + scores live in settlement_results.
@@ -75,6 +80,7 @@ defmodule HeadsUp.Contests.Duel do
       :pick_clock_seconds,
       :lineup_template,
       :status,
+      :slate_date,
       :challenger_id,
       :opponent_id,
       :parent_duel_id

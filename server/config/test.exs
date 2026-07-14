@@ -3,6 +3,9 @@ import Config
 # Settlement: never let the worker auto-fire mid-test; tests drive it via
 # Worker.trigger_now/0 or Settlement.settle_duel/1 with explicit past windows.
 config :heads_up, :settlement_interval_ms, 3_600_000
+
+# Same deal for the stale-duel janitor: tests call Contests.expire_stale/1.
+config :heads_up, :janitor_interval_ms, 3_600_000
 config :heads_up, :stats_provider, HeadsUp.Settlement.Stats.Mock
 
 # No real pushes from tests; Notifications tests exercise deliver/4 directly

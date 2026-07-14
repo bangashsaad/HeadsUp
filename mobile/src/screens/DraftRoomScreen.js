@@ -1,5 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Animated,
+  Easing,
+  FlatList,
+  LayoutAnimation,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  UIManager,
+  View,
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
 import { connectDraft } from '../api/socket';
@@ -15,6 +28,10 @@ import { Avatar, Button, Chip, SearchInput, EmptyState, GhostText, Pulse, Kicker
 import { shortName } from '../utils/names';
 
 const SPORT_EMOJI = { nfl: '🏈', nba: '🏀', wnba: '🏀', mlb: '⚾️' };
+
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 
 // The trash-talk menu. Must match the server's whitelist exactly — off-menu
 // emojis are dropped silently by the channel.
@@ -458,6 +475,27 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
     prevTurn.current = isMyTurn;
   }, [isMyTurn, complete]);
 
+  // Focus mode: scrolling into the player list condenses the top stack down
+  // to a slim turn bar (clock always visible) so the list gets the screen.
+  // Hysteresis keeps it from flapping at the threshold.
+  const [focused, setFocused] = useState(false);
+  const focusRef = useRef(false);
+
+  function onListScroll(e) {
+    const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent;
+    // A short list (narrow search, late rounds) can rubber-band past the
+    // threshold and spring back — never engage focus mode unless the list
+    // genuinely needs the room.
+    const scrollable = contentSize.height > layoutMeasurement.height + 120;
+    const y = contentOffset.y;
+    const want = focusRef.current ? y > 8 : scrollable && y > 48;
+    if (want !== focusRef.current) {
+      focusRef.current = want;
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setFocused(want);
+    }
+  }
+
   const lineupFull = !complete && eligible.size === 0;
 
   const positions = useMemo(() => {
@@ -524,31 +562,45 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
 
   return (
     <View style={styles.board}>
-      {/* Turn banner: who's up, pick/round, the clock — with a ghost pick no. */}
-      <View style={[styles.turnCard, isMyTurn ? styles.turnCardMine : styles.turnCardTheirs]}>
-        <View style={styles.turnGhost} pointerEvents="none">
-          <GhostText size={56} color={withAlpha(colors.text, 0.08)} strokeWidth={1}>
-            {String(Math.min(state.pick_number || 1, state.total_picks || 99)).padStart(2, '0')}
-          </GhostText>
-        </View>
+      {/* Turn banner: who's up, pick/round, the clock — with a ghost pick no.
+          In focus mode it condenses to a slim bar (the clock never leaves). */}
+      <View style={[styles.turnCard, isMyTurn ? styles.turnCardMine : styles.turnCardTheirs, focused && styles.turnCardTight]}>
+        {!focused && (
+          <View style={styles.turnGhost} pointerEvents="none">
+            <GhostText size={56} color={withAlpha(colors.text, 0.08)} strokeWidth={1}>
+              {String(Math.min(state.pick_number || 1, state.total_picks || 99)).padStart(2, '0')}
+            </GhostText>
+          </View>
+        )}
         <View style={{ flex: 1, paddingRight: spacing.sm }}>
-          <CondTitle size={20} color={isMyTurn ? colors.accent : colors.purpleText} numberOfLines={1} style={{ paddingRight: 4 }}>
+          <CondTitle
+            size={focused ? 15 : 20}
+            color={isMyTurn ? colors.accent : colors.purpleText}
+            numberOfLines={1}
+            style={{ paddingRight: 4 }}
+          >
             {isMyTurn ? "YOU'RE ON THE CLOCK" : `${nameFor(state.current_picker_id).toUpperCase()} IS PICKING…`}
           </CondTitle>
-          <Kicker size={9.5} tracking={1.5} color={colors.muted} style={{ marginTop: 3 }}>
-            {`Pick ${state.pick_number} of ${state.total_picks} · round ${round} of ${rounds}`}
+          <Kicker size={focused ? 8.5 : 9.5} tracking={1.5} color={colors.muted} style={{ marginTop: focused ? 1 : 3 }}>
+            {focused
+              ? `Pick ${state.pick_number}/${state.total_picks}`
+              : `Pick ${state.pick_number} of ${state.total_picks} · round ${round} of ${rounds}`}
           </Kicker>
         </View>
         <PickClock deadline={state.clock_deadline} serverNow={state.server_now} />
       </View>
 
-      <DraftOrderDots order={order} pickNumber={state.pick_number} colorFor={colorFor} />
-      <DraftTicker picks={state.picks} nameFor={nameFor} />
-      <ReactionBar conn={conn} />
+      {!focused && (
+        <>
+          <DraftOrderDots order={order} pickNumber={state.pick_number} colorFor={colorFor} />
+          <DraftTicker picks={state.picks} nameFor={nameFor} />
+          <ReactionBar conn={conn} />
+        </>
+      )}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {flow ? (
+      {!focused && flow ? (
         <>
           <ScrollView
             horizontal
@@ -593,7 +645,7 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
             })}
           </View>
         </>
-      ) : (
+      ) : !focused ? (
         <View style={styles.rostersRow}>
           <View style={[styles.rosterCol, { borderColor: withAlpha(colors.accent, 0.4) }]}>
             <Pressable style={styles.rosterHead} onPress={() => setSheetUid(myId)} hitSlop={6}>
@@ -618,9 +670,9 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
             <LineupSlots slots={state.slots} picks={oppPicks} compact tint={colorFor(oppId)} />
           </View>
         </View>
-      )}
+      ) : null}
 
-      {lineupFull ? (
+      {lineupFull && !focused ? (
         <Text style={styles.watchNote}>Your slip is full — watching {flow ? 'the others' : nameFor(oppId)} finish.</Text>
       ) : null}
 
@@ -633,14 +685,16 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
         ))}
       </ScrollView>
 
-      <View style={styles.queueHintRow}>
-        <Ionicons name="star" size={11} color={colors.accent} />
-        <Text style={styles.queueHint}>
-          {queue.length > 0
-            ? `${queue.length} queued — auto-pick grabs these if the clock dies`
-            : 'Star players to queue them for auto-pick'}
-        </Text>
-      </View>
+      {!focused && (
+        <View style={styles.queueHintRow}>
+          <Ionicons name="star" size={11} color={colors.accent} />
+          <Text style={styles.queueHint}>
+            {queue.length > 0
+              ? `${queue.length} queued — auto-pick grabs these if the clock dies`
+              : 'Star players to queue them for auto-pick'}
+          </Text>
+        </View>
+      )}
 
       <FlatList
         style={styles.list}
@@ -648,6 +702,8 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
         keyExtractor={(p) => String(p.id)}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        onScroll={onListScroll}
+        scrollEventThrottle={32}
         ListEmptyComponent={<EmptyState icon="search" title="Nobody matches" subtitle="Loosen the search or clear the position filter." />}
         renderItem={({ item }) => {
           const isQ = queued.has(item.id);
@@ -830,6 +886,8 @@ const makeStyles = (colors) =>
 
     chipRow: { marginTop: spacing.sm, marginBottom: 2, flexGrow: 0, flexShrink: 0 },
     chipRowContent: { gap: spacing.sm, paddingRight: spacing.sm },
+
+    turnCardTight: { paddingVertical: 6, paddingHorizontal: 12, marginTop: 2 },
 
     reactRow: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.sm, flexShrink: 0 },
     reactBtn: {

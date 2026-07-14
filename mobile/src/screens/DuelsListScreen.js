@@ -317,7 +317,13 @@ export default function DuelsListScreen({ navigation }) {
                             onPress={() =>
                               navigation.navigate('Counter', {
                                 id: d.id,
-                                initial: { sport: d.sport, lineup_template: d.lineup_template, pick_clock_seconds: d.pick_clock_seconds },
+                                initial: {
+                                  sport: d.sport,
+                                  lineup_template: d.lineup_template,
+                                  pick_clock_seconds: d.pick_clock_seconds,
+                                  stake_coins: d.stake_coins,
+                                  slate_date: d.slate_date,
+                                },
                               })
                             }
                             style={({ pressed }) => [styles.counterBtn, pressed && { opacity: 0.85 }]}

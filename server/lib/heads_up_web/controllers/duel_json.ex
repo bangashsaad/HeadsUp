@@ -45,6 +45,7 @@ defmodule HeadsUpWeb.DuelJSON do
       scoring_rules: duel.scoring_rules,
       stake_coins: duel.stake_coins,
       pot_coins: pot_coins(duel, group, participants),
+      slate_date: duel.slate_date,
       draft_starts_at: duel.draft_starts_at,
       scoring_window_end: duel.scoring_window_end,
       # Settlement outcome (present once status == "settled"; winner_id nil = tie).

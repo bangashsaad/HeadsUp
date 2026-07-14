@@ -39,9 +39,14 @@ defmodule HeadsUp.Sports.Espn.Client do
   @spec supported?(String.t()) :: boolean()
   def supported?(sport), do: Map.has_key?(@leagues, sport)
 
-  @doc "Games for one calendar day, `date` as `\"YYYYMMDD\"`."
-  @spec scoreboard(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
-  def scoreboard(sport, date) when is_binary(date), do: get(sport, "/scoreboard", dates: date)
+  @doc """
+  Games for a calendar day (`"YYYYMMDD"`) or range (`"YYYYMMDD-YYYYMMDD"`).
+  ESPN silently caps responses at 100 events — range callers that can exceed
+  that (a full MLB week is ~105 games) must pass `limit:` in `extra`.
+  """
+  @spec scoreboard(String.t(), String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def scoreboard(sport, date, extra \\ []) when is_binary(date),
+    do: get(sport, "/scoreboard", Keyword.merge([dates: date], extra))
 
   @doc "Full game summary (incl. boxscore) for an ESPN event id."
   @spec summary(String.t(), String.t() | integer()) :: {:ok, map()} | {:error, term()}

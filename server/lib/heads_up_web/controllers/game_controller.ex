@@ -14,6 +14,19 @@ defmodule HeadsUpWeb.GameController do
     json(conn, %{sports: HeadsUp.Sports.Season.statuses()})
   end
 
+  # GET /api/sports/:sport/slates — the next week of ET days with game counts.
+  # Drives the challenge form's slate picker; an empty list (feed down or
+  # unsupported sport) hides the picker and the server defaults the slate.
+  def slates(conn, %{"sport" => sport}) do
+    slates =
+      case HeadsUp.Sports.Slate.upcoming(sport) do
+        {:ok, days} -> Enum.map(days, &%{date: &1.date, games: &1.games, upcoming: &1.upcoming})
+        {:error, _} -> []
+      end
+
+    json(conn, %{sport: sport, slates: slates})
+  end
+
   def upcoming(conn, params) do
     sport = params["sport"] || "wnba"
     {:ok, games} = Schedule.upcoming(sport)

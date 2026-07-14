@@ -19,7 +19,11 @@ defmodule HeadsUp.Drafts.PoolFilter do
 
   @et_offset_seconds -4 * 3600
 
-  @doc "Scan today + tomorrow (ET). `opts[:client]`/`opts[:now]` for tests."
+  @doc """
+  Scan today + tomorrow (ET) by default, or exactly `opts[:dates]` — a
+  slate-scoped duel passes its slate day so only THAT day's not-yet-started
+  games count. `opts[:client]`/`opts[:now]` for tests.
+  """
   @spec scan(String.t(), keyword()) :: %{ok: boolean(), next_game_at: %{String.t() => String.t()}}
   def scan(sport, opts \\ []) do
     client = Keyword.get(opts, :client, Client)
@@ -28,7 +32,7 @@ defmodule HeadsUp.Drafts.PoolFilter do
     if Client.supported?(sport) do
       today = now |> DateTime.add(@et_offset_seconds, :second) |> DateTime.to_date()
 
-      [today, Date.add(today, 1)]
+      (Keyword.get(opts, :dates) || [today, Date.add(today, 1)])
       |> Enum.reduce_while({:ok, []}, fn date, {:ok, acc} ->
         case client.scoreboard(sport, Calendar.strftime(date, "%Y%m%d")) do
           {:ok, body} -> {:cont, {:ok, acc ++ (body |> Map.get("events", []) |> List.wrap())}}

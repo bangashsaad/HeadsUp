@@ -15,7 +15,7 @@ defmodule HeadsUp.Contests do
   alias HeadsUp.Social
   alias HeadsUp.Contests.{Duel, Participant, Scoring}
   alias HeadsUp.Drafts.Lineup
-  alias HeadsUp.Sports.Season
+  alias HeadsUp.Sports.{Player, Season, Slate}
 
   @doc """
   Creates a challenge from `challenger` to one friend (`"opponent_id"`) or, for
@@ -45,21 +45,23 @@ defmodule HeadsUp.Contests do
           true ->
             # Duel + the challenger's stake land (or fail) together: not enough
             # coins means no duel row at all.
-            Ecto.Multi.new()
-            |> Ecto.Multi.insert(:duel, Duel.create_changeset(%Duel{}, build_attrs(challenger, attrs)))
-            |> Ecto.Multi.run(:stake, fn repo, %{duel: duel} ->
-              Coins.stake(repo, challenger.id, duel.id, duel.stake_coins)
-            end)
-            |> Repo.transaction()
-            |> case do
-              {:ok, %{duel: duel}} ->
-                {:ok, duel} |> seed_participants() |> with_users() |> notify_challenged()
+            with {:ok, built} <- resolve_slate(build_attrs(challenger, attrs), 2) do
+              Ecto.Multi.new()
+              |> Ecto.Multi.insert(:duel, Duel.create_changeset(%Duel{}, built))
+              |> Ecto.Multi.run(:stake, fn repo, %{duel: duel} ->
+                Coins.stake(repo, challenger.id, duel.id, duel.stake_coins)
+              end)
+              |> Repo.transaction()
+              |> case do
+                {:ok, %{duel: duel}} ->
+                  {:ok, duel} |> seed_participants() |> with_users() |> notify_challenged()
 
-              {:error, _step, %Ecto.Changeset{} = changeset, _} ->
-                {:error, changeset}
+                {:error, _step, %Ecto.Changeset{} = changeset, _} ->
+                  {:error, changeset}
 
-              {:error, _step, reason, _} ->
-                {:error, reason}
+                {:error, _step, reason, _} ->
+                  {:error, reason}
+              end
             end
         end
     end
@@ -105,8 +107,14 @@ defmodule HeadsUp.Contests do
   defp insert_group(challenger, invitee_ids, attrs) do
     attrs = attrs |> Map.delete("opponent_ids") |> Map.put("opponent_id", nil)
 
+    with {:ok, built} <- resolve_slate(build_attrs(challenger, attrs), 1 + length(invitee_ids)) do
+      do_insert_group(challenger, invitee_ids, built)
+    end
+  end
+
+  defp do_insert_group(challenger, invitee_ids, built) do
     Ecto.Multi.new()
-    |> Ecto.Multi.insert(:duel, Duel.group_create_changeset(%Duel{}, build_attrs(challenger, attrs)))
+    |> Ecto.Multi.insert(:duel, Duel.group_create_changeset(%Duel{}, built))
     |> Ecto.Multi.run(:seats, fn repo, %{duel: duel} ->
       now = DateTime.utc_now() |> DateTime.truncate(:second)
 
@@ -273,23 +281,25 @@ defmodule HeadsUp.Contests do
           |> Map.put("opponent_id", cid)
           |> Map.put("parent_duel_id", original.id)
 
-        Ecto.Multi.new()
-        |> Ecto.Multi.update(:original, Duel.status_changeset(original, "countered"))
-        |> Ecto.Multi.run(:refund, fn repo, %{original: countered} ->
-          # The original challenger's stake comes home; the counter-er stakes
-          # the NEW terms' amount on the fresh duel below.
-          Coins.refund(repo, countered.challenger_id, countered.id, countered.stake_coins)
-        end)
-        |> Ecto.Multi.insert(:counter, fn _ ->
-          Duel.create_changeset(%Duel{}, build_attrs(user, attrs))
-        end)
-        |> Ecto.Multi.run(:stake, fn repo, %{counter: counter} ->
-          Coins.stake(repo, user.id, counter.id, counter.stake_coins)
-        end)
-        |> Repo.transaction()
-        |> case do
-          {:ok, %{counter: counter}} -> {:ok, counter} |> seed_participants() |> with_users() |> notify_challenged()
-          {:error, _step, changeset, _} -> {:error, changeset}
+        with {:ok, built} <- resolve_slate(build_attrs(user, attrs), 2) do
+          Ecto.Multi.new()
+          |> Ecto.Multi.update(:original, Duel.status_changeset(original, "countered"))
+          |> Ecto.Multi.run(:refund, fn repo, %{original: countered} ->
+            # The original challenger's stake comes home; the counter-er stakes
+            # the NEW terms' amount on the fresh duel below.
+            Coins.refund(repo, countered.challenger_id, countered.id, countered.stake_coins)
+          end)
+          |> Ecto.Multi.insert(:counter, fn _ ->
+            Duel.create_changeset(%Duel{}, built)
+          end)
+          |> Ecto.Multi.run(:stake, fn repo, %{counter: counter} ->
+            Coins.stake(repo, user.id, counter.id, counter.stake_coins)
+          end)
+          |> Repo.transaction()
+          |> case do
+            {:ok, %{counter: counter}} -> {:ok, counter} |> seed_participants() |> with_users() |> notify_challenged()
+            {:error, _step, changeset, _} -> {:error, changeset}
+          end
         end
 
       _ ->
@@ -316,21 +326,42 @@ defmodule HeadsUp.Contests do
   """
   def finish_draft(duel_id) do
     case Repo.get(Duel, duel_id) do
-      %Duel{} = duel ->
+      %Duel{status: status} = duel when status in ["accepted", "drafting"] ->
         now = DateTime.utc_now() |> DateTime.truncate(:second)
-        window_seconds = Application.get_env(:heads_up, :scoring_window_seconds, 86_400)
+        {window_start, window_end} = scoring_window(duel, now)
 
         duel
         |> Duel.finish_changeset(%{
           status: "drafted",
-          scoring_window_start: now,
-          scoring_window_end: DateTime.add(now, window_seconds, :second)
+          scoring_window_start: window_start,
+          scoring_window_end: window_end
         })
         |> Repo.update()
+
+      # Terminal states are a quiet no-op success, NEVER a flip: a duel the
+      # janitor (or anyone) cancelled mid-draft must not resurrect to
+      # "drafted" — settlement would pay a pot whose stakes were already
+      # refunded. No-op (vs error) keeps the engine's `{:ok, _} =` alive.
+      %Duel{} = duel ->
+        {:ok, duel}
 
       nil ->
         {:error, :not_found}
     end
+  end
+
+  # A slate duel scores exactly its ET calendar day (04:00 UTC → 03:59:59, the
+  # same EDT convention as WindowScan), no matter when the draft wraps — the
+  # pool filter already blocked drafting anyone whose game had tipped. Legacy
+  # duels keep the anchored-at-completion window.
+  defp scoring_window(%Duel{slate_date: %Date{} = slate}, _now) do
+    window_start = DateTime.new!(slate, ~T[04:00:00], "Etc/UTC")
+    {window_start, DateTime.add(window_start, 86_400 - 1, :second)}
+  end
+
+  defp scoring_window(_duel, now) do
+    window_seconds = Application.get_env(:heads_up, :scoring_window_seconds, 86_400)
+    {now, DateTime.add(now, window_seconds, :second)}
   end
 
   @doc """
@@ -457,6 +488,211 @@ defmodule HeadsUp.Contests do
     |> Map.put_new("pick_clock_seconds", 60)
     |> Map.put_new("stake_coins", 0)
     |> Map.put_new("scoring_rules", Scoring.default_rules(sport))
+  end
+
+  # --- slates ---------------------------------------------------------------
+
+  # Resolve a duel's slate on BUILT attrs (roster_size present): default to the
+  # next ET day with games when the client didn't pick one, and guard a picked
+  # day — real date, today..horizon, not before the draft day, and enough
+  # draftable players for the format. Feed failures always fail OPEN (a nil
+  # slate = legacy full-pool behavior; a kept date = the board filter's
+  # problem later). Rematches and counters flow through here too.
+  defp resolve_slate(built, nplayers) do
+    case parse_slate_date(built["slate_date"]) do
+      :absent -> {:ok, Map.put(built, "slate_date", default_slate_date(built, nplayers))}
+      {:ok, date} -> validate_slate(built, date, nplayers)
+      :invalid -> {:error, "that slate date isn't a real date"}
+    end
+  end
+
+  defp parse_slate_date(nil), do: :absent
+  defp parse_slate_date(""), do: :absent
+  defp parse_slate_date(%Date{} = date), do: {:ok, date}
+
+  defp parse_slate_date(iso) when is_binary(iso) do
+    case Date.from_iso8601(iso) do
+      {:ok, date} -> {:ok, date}
+      _ -> :invalid
+    end
+  end
+
+  defp parse_slate_date(_), do: :invalid
+
+  # The server-picked default must clear the same bars as a user pick: games
+  # that haven't tipped, a big enough pool, and never a day before the draft
+  # (a slate already in the past at draft time can only score zeros).
+  defp default_slate_date(built, nplayers) do
+    sport = built["sport"]
+    draft_day = draft_et_date(built["draft_starts_at"])
+    need = (built["roster_size"] || 5) * nplayers * 2
+
+    case Slate.upcoming(sport) do
+      {:ok, days} ->
+        Enum.find_value(days, fn d ->
+          viable? =
+            d.upcoming > 0 and
+              (draft_day == nil or Date.compare(d.date, draft_day) != :lt) and
+              slate_pool_count(sport, d.upcoming_teams) >= need
+
+          if viable?, do: d.date
+        end)
+
+      {:error, _} ->
+        nil
+    end
+  end
+
+  defp validate_slate(built, date, nplayers) do
+    sport = built["sport"]
+    draft_day = draft_et_date(built["draft_starts_at"])
+
+    cond do
+      Date.compare(date, Slate.today()) == :lt ->
+        {:error, "that slate already happened — pick today or later"}
+
+      Date.compare(date, Slate.horizon()) == :gt ->
+        {:error, "slates only go a week out — pick a closer day"}
+
+      draft_day != nil and Date.compare(draft_day, date) == :gt ->
+        {:error, "the draft has to happen on or before the slate day"}
+
+      true ->
+        case Slate.on(sport, date) do
+          {:ok, %{games: 0}} ->
+            {:error, "no #{String.upcase(to_string(sport))} games on that day — pick another slate"}
+
+          # Games exist but they've all tipped/finished — drafting them now
+          # would be picking known stat lines. (Only possible for today.)
+          {:ok, %{upcoming: 0}} ->
+            {:error, "tonight's slate has already tipped — pick tomorrow's games"}
+
+          {:ok, %{upcoming_teams: teams}} ->
+            need = (built["roster_size"] || 5) * nplayers * 2
+
+            if slate_pool_count(sport, teams) >= need do
+              {:ok, Map.put(built, "slate_date", date)}
+            else
+              {:error, "that slate is too small for this format — pick a day with more games"}
+            end
+
+          {:error, _} ->
+            {:ok, Map.put(built, "slate_date", date)}
+        end
+    end
+  end
+
+  defp slate_pool_count(_sport, []), do: 0
+
+  defp slate_pool_count(sport, teams) do
+    from(p in Player, where: p.sport == ^sport and p.team in ^teams, select: count())
+    |> Repo.one()
+  end
+
+  # The draft's ET calendar day (same UTC-4 convention as Slate/WindowScan).
+  defp draft_et_date(%DateTime{} = dt),
+    do: dt |> DateTime.add(-4 * 3600, :second) |> DateTime.to_date()
+
+  defp draft_et_date(iso) when is_binary(iso) do
+    case DateTime.from_iso8601(iso) do
+      {:ok, dt, _} -> draft_et_date(dt)
+      _ -> nil
+    end
+  end
+
+  defp draft_et_date(_), do: nil
+
+  # --- stale-duel sweep (the Janitor's queries) -----------------------------
+
+  @doc """
+  Expire duels that died on the vine, sending every escrowed stake home:
+
+    * PENDING challenges nobody ever answered, `cutoff_hours` past their
+      draft time — cancelled + the challenger's stake refunded.
+    * ACCEPTED/DRAFTING duels whose draft never left the lobby (zero picks),
+      `cutoff_hours` past their draft time — cancelled + all stakes refunded.
+
+  Live drafts (any picks recorded) are never touched: long-clock async drafts
+  legitimately run for days. Returns `%{pending: n, lobby: n}`.
+  """
+  def expire_stale(cutoff_hours \\ 24) do
+    cutoff = DateTime.utc_now() |> DateTime.add(-cutoff_hours * 3600, :second)
+
+    pending_ids =
+      from(d in Duel, where: d.status == "pending" and d.draft_starts_at < ^cutoff, select: d.id)
+      |> Repo.all()
+
+    pending_count = Enum.count(pending_ids, fn id -> swept?(fn -> expire_pending(id) end) end)
+
+    # Only drafts still sitting in the LOBBY count as dead — a zero-pick but
+    # ACTIVE draft is a live long-clock game (24h first pick is legal), and
+    # cancelling it would refund stakes for a duel the engine may yet finish.
+    # Zero-picks is kept as a second belt: any board activity means life.
+    lobby_ids =
+      from(d in Duel,
+        left_join: dr in HeadsUp.Drafts.Draft,
+        on: dr.duel_id == d.id,
+        left_join: pk in HeadsUp.Drafts.Pick,
+        on: pk.draft_id == dr.id,
+        where:
+          d.status in ["accepted", "drafting"] and d.draft_starts_at < ^cutoff and
+            (is_nil(dr.id) or dr.status == "lobby"),
+        group_by: d.id,
+        having: count(pk.id) == 0,
+        select: d.id
+      )
+      |> Repo.all()
+
+    lobby_count = Enum.count(lobby_ids, fn id -> swept?(fn -> cancel_drafting(id) end) end)
+
+    %{pending: pending_count, lobby: lobby_count}
+  end
+
+  # One bad duel must not abort the whole sweep.
+  defp swept?(fun) do
+    match?({:ok, _}, fun.())
+  rescue
+    e ->
+      require Logger
+      Logger.error("expire_stale: sweep of one duel raised #{Exception.message(e)}")
+      false
+  end
+
+  # Cancel one expired pending challenge; the challenger's stake rides home in
+  # the same transaction. The UPDATE is status-guarded at the SQL level so a
+  # concurrent accept/decline/counter wins the race cleanly — if the row is no
+  # longer "pending" we touch nothing and refund nobody.
+  defp expire_pending(duel_id) do
+    Ecto.Multi.new()
+    |> Ecto.Multi.run(:duel, fn repo, _ ->
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      from(d in Duel, where: d.id == ^duel_id and d.status == "pending", select: d)
+      |> repo.update_all(set: [status: "cancelled", updated_at: now])
+      |> case do
+        {1, [fresh]} -> {:ok, fresh}
+        {0, _} -> {:error, :already_resolved}
+      end
+    end)
+    |> Ecto.Multi.run(:coins, fn repo, %{duel: fresh} -> refund_staked(repo, fresh) end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{duel: fresh}} ->
+        HeadsUp.Notifications.notify_user(
+          fresh.challenger_id,
+          "Challenge expired 🕰️",
+          "Your #{String.upcase(fresh.sport)} challenge was never answered — your stake came home.",
+          %{type: "duel", duel_id: fresh.id}
+        )
+
+        {:ok, fresh}
+
+      {:error, _step, :already_resolved, _} ->
+        {:error, :already_resolved}
+
+      {:error, _step, reason, _} ->
+        {:error, reason}
+    end
   end
 
   # Generic guarded status change: the duel must be at `from_status` and the

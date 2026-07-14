@@ -24,6 +24,20 @@ function clockLabel(secs) {
 const cap = (s) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 const prettyKey = (k) => k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
+// "Tonight's games (Jul 13)" for the duel's slate day — ET, like the server.
+function slateTermLabel(iso) {
+  const et = (ms) => {
+    const d = new Date(ms - 4 * 3600 * 1000);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+  };
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const d = new Date(`${iso}T12:00:00Z`);
+  const md = `${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
+  if (iso === et(Date.now())) return `Tonight's games (${md})`;
+  if (iso === et(Date.now() + 24 * 3600 * 1000)) return `Tomorrow's games (${md})`;
+  return `${md} games only`;
+}
+
 export default function DuelDetailScreen({ route, navigation }) {
   const { id } = route.params;
   const { token, user, refreshUser } = useAuth();
@@ -181,6 +195,7 @@ export default function DuelDetailScreen({ route, navigation }) {
         <Term label="Lineup" value={`${cap((duel.lineup_template || '').split('_')[1] || '')} · ${duel.roster_size} slots`} />
         <Term label="Pick clock" value={clockLabel(duel.pick_clock_seconds)} />
         <Term label="Stake" value={duel.stake_coins > 0 ? `◎ ${duel.stake_coins.toLocaleString()} each` : 'Friendly'} />
+        {duel.slate_date ? <Term label="Slate" value={slateTermLabel(duel.slate_date)} /> : null}
         <Term label="Draft starts" value={formatDateTime(duel.draft_starts_at)} />
       </Card>
 
@@ -421,6 +436,7 @@ function goCounter(navigation, duel) {
       lineup_template: duel.lineup_template,
       pick_clock_seconds: duel.pick_clock_seconds,
       stake_coins: duel.stake_coins,
+      slate_date: duel.slate_date,
     },
   });
 }

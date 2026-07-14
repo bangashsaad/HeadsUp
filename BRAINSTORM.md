@@ -205,10 +205,39 @@ wagers. Coin system (PR #1) is stage one of that path.
 - A weekly friend leaderboard reset for recurring stakes.
 - Spectator mode for a friend's live duel.
 
+### Slate ideas beyond v1 (from the 2026-07-13 session; v1 = day slates, building now)
+- **NFL week slates (August, committed):** default = remaining games this week;
+  the slate model is being built week-compatible from day one.
+- **Hand-picked game subsets (NFL month):** "1pm Sunday games only" is how friends
+  actually play — earns its place as an NFL-era feature, not before.
+- **Multi-week slates: rejected for now** — drifts toward season-league territory
+  and fights the one-night-duel identity. Revisit only on demand.
+
+### More from the 2026-07-13 brainstorm (liked, queued)
+- **Presence dots in the draft room** — who's actually connected right now
+  (Phoenix Presence; channel already tracks joins).
+- **Reactions on the live matchup screen** — 🔥 a hot player mid-game; extends the
+  draft-room reaction relay to a matchup topic.
+- **Tappable scoring-chart reference inside the draft room** — see what earns
+  points while you pick (sheet, reuses the challenge-terms chart).
+- **Draft-room condensed header restyle on claude design** — after the
+  condense-on-scroll mechanics ship from this side.
+- **TestFlight pulled forward from August** — still the recommended next
+  distribution move (kills device registration, makes invite links real).
+
 ---
 
 ## Decisions log
 _(Move settled items here with a date and a one-line "why.")_
+- _2026-07-13 — Slate-scoped duels v1 = DAY slates only (default tonight, simple
+  next-week picker). Fixes the "drafted a player who doesn't even play" flaw;
+  window + pool both derive from the slate. NFL week slates in August (model is
+  ready); hand-picked game subsets are an NFL-era feature; multi-week rejected._
+- _2026-07-13 — Stale duels now sweep hourly (Janitor): unanswered challenges +
+  never-started lobbies auto-cancel at 24h and stakes come home. Coin hygiene —
+  escrow must never strand._
+- _2026-07-13 — Found live: ESPN range scoreboards silently cap at 100 events
+  (a full MLB week overflows it) — always pass `limit:` on range calls._
 - _2026-06-30 — Established Engagement→Growth→Money sequencing; EAS build is the first unlock._
 - _2026-06-30 — Agent reviewed the doc: roadmap validated. Surfaced the real gating
   chain — **Apple Dev acct ($99) → dev build → on-device hardening → small REAL

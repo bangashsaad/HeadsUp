@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
+import { listSlates } from '../api/sports';
 import { useThemedStyles, spacing, font, fonts } from '../theme';
 import { Chip, Button } from './ui';
 
@@ -42,6 +43,26 @@ const TIME_OPTIONS = [
   { label: 'In 2 days', ms: 2 * 24 * 60 * 60 * 1000 },
 ];
 
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+// A UTC instant's ET calendar day as "YYYY-MM-DD" (UTC-4, the season-long
+// convention shared with the server's Slate/WindowScan).
+function etDayISO(ms) {
+  const d = new Date(ms - 4 * 3600 * 1000);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
+
+// "Tonight" / "Tomorrow" / "Wed Jul 15" for a slate's ISO date.
+function slateLabel(iso) {
+  const today = etDayISO(Date.now());
+  const tomorrow = etDayISO(Date.now() + 24 * 3600 * 1000);
+  if (iso === today) return 'Tonight';
+  if (iso === tomorrow) return 'Tomorrow';
+  const d = new Date(`${iso}T12:00:00Z`);
+  return `${WEEKDAYS[d.getUTCDay()]} ${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
+}
+
 // Coin stakes: every player antes the same amount into escrow; winner takes
 // the pot. 0 = friendly (bragging rights only).
 const STAKES = [
@@ -53,12 +74,14 @@ const STAKES = [
 
 export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, submitting, sportsStatus }) {
   const styles = useThemedStyles(makeStyles);
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [sport, setSport] = useState(initial.sport || 'wnba');
   const [preset, setPreset] = useState((initial.lineup_template || '').split('_')[1] || 'standard');
   const [clockSecs, setClockSecs] = useState(initial.pick_clock_seconds || 60);
   const [timeMs, setTimeMs] = useState(TIME_OPTIONS[0].ms);
   const [stake, setStake] = useState(initial.stake_coins || 0);
+  const [slates, setSlates] = useState([]); // [{date: 'YYYY-MM-DD', games: n}]
+  const [slateDate, setSlateDate] = useState(null);
 
   const balance = user?.coins ?? 0;
 
@@ -72,7 +95,55 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sportsStatus]);
 
+  // A day is pickable if games there haven't all tipped yet (the server
+  // rejects tipped-out days — you'd be drafting known stat lines).
+  const pickable = (d) => (d.upcoming ?? d.games) > 0;
+
+  // The sport's next week of slates; default = the countered duel's slate
+  // when it's still live, else the first day with playable games. An empty
+  // answer (feed down) hides the picker — the server defaults.
+  useEffect(() => {
+    let live = true;
+    setSlates([]);
+    setSlateDate(null);
+    listSlates(token, sport)
+      .then((res) => {
+        if (!live) return;
+        const days = res.slates || [];
+        setSlates(days);
+        const fromInitial =
+          initial.slate_date && sport === initial.sport
+            ? days.find((d) => d.date === initial.slate_date && pickable(d))
+            : null;
+        const first = fromInitial || days.find(pickable);
+        if (first) setSlateDate(first.date);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, sport]);
+
   const anyGated = SPORTS.some((s) => !isPlayable(sportsStatus, s.key));
+
+  // The draft has to happen on or before the slate day — dim times past it,
+  // and snap back to the first legal one if the pick went stale. If NO time
+  // fits (late night: every option crosses into the next ET day), bump the
+  // slate forward instead of dead-ending the form.
+  const timeAllowed = (ms) => !slateDate || etDayISO(Date.now() + ms) <= slateDate;
+
+  useEffect(() => {
+    if (timeAllowed(timeMs)) return;
+    const first = TIME_OPTIONS.find((t) => timeAllowed(t.ms));
+    if (first) {
+      setTimeMs(first.ms);
+    } else {
+      const next = slates.find((d) => pickable(d) && d.date > slateDate);
+      if (next) setSlateDate(next.date);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slateDate, slates]);
 
   function handleSubmit() {
     onSubmit({
@@ -81,6 +152,7 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
       pick_clock_seconds: clockSecs,
       draft_starts_at: new Date(Date.now() + timeMs).toISOString(),
       stake_coins: stake,
+      ...(slateDate ? { slate_date: slateDate } : {}),
     });
   }
 
@@ -99,6 +171,29 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
       </View>
       {anyGated ? <Text style={styles.gateNote}>Off-season sports come back when real games are on the slate.</Text> : null}
 
+      {slates.some(pickable) ? (
+        <>
+          <Text style={styles.label}>Slate — whose games count</Text>
+          <View style={styles.row}>
+            {slates
+              .filter((d) => pickable(d) || d.date === slateDate)
+              .slice(0, 5)
+              .map((d) => (
+                <Chip
+                  key={d.date}
+                  label={`${slateLabel(d.date)} · ${d.upcoming ?? d.games}`}
+                  active={slateDate === d.date}
+                  onPress={() => setSlateDate(d.date)}
+                />
+              ))}
+          </View>
+          <Text style={styles.gateNote}>
+            You'll only draft players who play {slateDate ? slateLabel(slateDate).toLowerCase() : 'that day'} — scoring
+            covers just that slate.
+          </Text>
+        </>
+      ) : null}
+
       <Text style={styles.label}>Lineup</Text>
       <View style={styles.row}>
         {PRESETS.map((p) => (
@@ -115,9 +210,14 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
 
       <Text style={styles.label}>When's the draft?</Text>
       <View style={styles.row}>
-        {TIME_OPTIONS.map((t) => (
-          <Chip key={t.label} label={t.label} active={timeMs === t.ms} onPress={() => setTimeMs(t.ms)} />
-        ))}
+        {TIME_OPTIONS.map((t) => {
+          const ok = timeAllowed(t.ms);
+          return (
+            <View key={t.label} style={!ok && { opacity: 0.4 }}>
+              <Chip label={t.label} active={timeMs === t.ms} onPress={() => ok && setTimeMs(t.ms)} />
+            </View>
+          );
+        })}
       </View>
 
       <Text style={styles.label}>Stake</Text>

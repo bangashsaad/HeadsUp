@@ -26,6 +26,12 @@ export function getSportsStatus(token) {
   return apiRequest('/api/sports/status', { token });
 }
 
+// The next week of slates (ET days with game counts) for the challenge form's
+// slate picker. An empty list = feed down; hide the picker, the server defaults.
+export function listSlates(token, sport) {
+  return apiRequest(`/api/sports/${encodeURIComponent(sport)}/slates`, { token });
+}
+
 export function listUpcomingGames(token, sport = 'wnba') {
   return apiRequest(`/api/games/upcoming?sport=${encodeURIComponent(sport)}`, { token });
 }
