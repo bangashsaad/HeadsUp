@@ -23,7 +23,7 @@ defmodule HeadsUp.Accounts do
   def get_user_by_email_and_password(email, password)
       when is_binary(email) and is_binary(password) do
     user = Repo.get_by(User, email: email)
-    if User.valid_password?(user, password), do: user
+    if User.valid_password?(user, password) and is_nil(user.deleted_at), do: user
   end
 
   @doc """
@@ -57,8 +57,16 @@ defmodule HeadsUp.Accounts do
   @doc "Returns the user for an API token, or nil if the token is invalid."
   def get_user_by_api_token(encoded_token) when is_binary(encoded_token) do
     case UserToken.verify_api_token_query(encoded_token) do
-      {:ok, query} -> Repo.one(query)
-      :error -> nil
+      # Ghost accounts have no valid tokens (all deleted at scrub time) — the
+      # deleted_at check is the belt for any token caught mid-flight.
+      {:ok, query} ->
+        case Repo.one(query) do
+          %User{deleted_at: nil} = user -> user
+          _ -> nil
+        end
+
+      :error ->
+        nil
     end
   end
 
@@ -71,5 +79,46 @@ defmodule HeadsUp.Accounts do
     end
 
     :ok
+  end
+
+  @doc """
+  Deletes an account, Apple-style: verify the CURRENT password, then
+  anonymize-and-scrub rather than hard-delete — cascades would erase
+  opponents' shared duel history and tear the double-entry coin ledger.
+
+  What happens: their live duels are evacuated (cancelled, every escrowed
+  stake refunded — settled and in-play "drafted" duels are left to history/
+  settlement), friendships are removed both ways, every login token dies,
+  and the row is scrubbed to a ghost (`deleted_123`, dead email, random
+  password hash, no push token, `deleted_at` stamped).
+
+  Returns `{:ok, ghost}` or `{:error, :invalid_current_password}`.
+  """
+  def delete_account(%User{} = user, current_password) do
+    if User.valid_password?(user, current_password) do
+      {:ok, do_delete_account(user)}
+    else
+      {:error, :invalid_current_password}
+    end
+  end
+
+  defp do_delete_account(%User{} = user) do
+    # Leave/cancel live duels AS the user (refund paths need the actor),
+    # before their identity is scrubbed.
+    HeadsUp.Contests.evacuate_user(user)
+    HeadsUp.Social.delete_all_friendships(user)
+    Repo.delete_all(UserToken.by_user_and_contexts_query(user, :all))
+
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    user
+    |> Ecto.Changeset.change(%{
+      username: "deleted_#{user.id}",
+      email: "deleted+#{user.id}@deleted.invalid",
+      hashed_password: Bcrypt.hash_pwd_salt(:crypto.strong_rand_bytes(24) |> Base.encode64()),
+      push_token: nil,
+      deleted_at: now
+    })
+    |> Repo.update!()
   end
 end

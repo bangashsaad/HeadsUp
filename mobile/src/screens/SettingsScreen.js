@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Constants from 'expo-constants';
 import { useAuth } from '../auth/AuthContext';
@@ -15,9 +15,44 @@ const APPEARANCE = [
 export default function SettingsScreen({ navigation }) {
   const { colors, mode, setMode } = useTheme();
   const { haptics, setHaptics } = usePrefs();
-  const { signOut } = useAuth();
+  const { signOut, deleteAccount } = useAuth();
   const styles = useThemedStyles(makeStyles);
   const version = Constants.expoConfig?.version || '1.0.0';
+
+  function confirmDelete() {
+    Alert.alert(
+      'Delete your account?',
+      'This is permanent. Your profile is erased, live duels are cancelled and every stake is refunded. Finished duels stay in your friends’ history under an anonymous name.',
+      [
+        { text: 'Keep my account', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: askPassword },
+      ]
+    );
+  }
+
+  function askPassword() {
+    if (Platform.OS !== 'ios') {
+      Alert.alert('Not available', 'Account deletion is currently iOS-only — contact support.');
+      return;
+    }
+    Alert.prompt(
+      'Confirm with your password',
+      'Enter your password to permanently delete this account.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete forever',
+          style: 'destructive',
+          onPress: (password) => {
+            deleteAccount(password || '').catch((e) =>
+              Alert.alert('Couldn’t delete', e?.message || 'Check your password and try again.')
+            );
+          },
+        },
+      ],
+      'secure-text'
+    );
+  }
 
   return (
     <Screen scroll>
@@ -57,6 +92,16 @@ export default function SettingsScreen({ navigation }) {
             <Ionicons name="lock-closed-outline" size={18} color={colors.accent} />
           </View>
           <Text style={[styles.rowLabel, { flex: 1 }]}>Change password</Text>
+          <Ionicons name="chevron-forward" size={18} color={colors.placeholder} />
+        </Pressable>
+        <Pressable onPress={confirmDelete} style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.bgElevated }]}>
+          <View style={[styles.rowIcon, { backgroundColor: colors.dangerSoft }]}>
+            <Ionicons name="trash-outline" size={18} color={colors.danger} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.rowLabel, { color: colors.danger }]}>Delete account</Text>
+            <Text style={styles.rowSub}>Permanent — live duels cancel, stakes refund</Text>
+          </View>
           <Ionicons name="chevron-forward" size={18} color={colors.placeholder} />
         </Pressable>
       </Card>

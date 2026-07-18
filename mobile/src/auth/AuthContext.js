@@ -62,6 +62,16 @@ export function AuthProvider({ children }) {
     });
   }
 
+  // Apple-required account deletion: server anonymizes the account, cancels
+  // live duels with refunds, and kills every login token — then we clear
+  // local state exactly like a sign-out.
+  async function deleteAccount(password) {
+    await apiRequest('/api/me', { method: 'DELETE', token, body: { password } });
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    setToken(null);
+    setUser(null);
+  }
+
   // Re-pull /api/me (coin balance rides the user object) after anything that
   // moves coins: staking a duel, results landing, the wallet screen opening.
   async function refreshUser() {
@@ -89,7 +99,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, signUp, signIn, signOut, changePassword, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, loading, signUp, signIn, signOut, changePassword, deleteAccount, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

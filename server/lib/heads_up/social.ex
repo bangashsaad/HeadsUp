@@ -29,7 +29,7 @@ defmodule HeadsUp.Social do
 
       users =
         from(u in User,
-          where: u.id != ^current_user.id and ilike(u.username, ^pattern),
+          where: u.id != ^current_user.id and ilike(u.username, ^pattern) and is_nil(u.deleted_at),
           # Exact matches first (citext makes this case-insensitive), then A–Z.
           order_by: [desc: fragment("? = ?", u.username, ^trimmed), asc: u.username],
           limit: ^limit
@@ -161,6 +161,14 @@ defmodule HeadsUp.Social do
       {id, ""} -> friends?(user, id)
       _ -> false
     end
+  end
+
+  @doc "Removes every friendship (accepted or pending) involving the user — account deletion."
+  def delete_all_friendships(%User{id: id}) do
+    from(f in Friendship, where: f.requester_id == ^id or f.addressee_id == ^id)
+    |> Repo.delete_all()
+
+    :ok
   end
 
   def friends?(%User{id: id}, other_id) do

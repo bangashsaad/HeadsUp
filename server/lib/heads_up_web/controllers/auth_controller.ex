@@ -59,6 +59,17 @@ defmodule HeadsUpWeb.AuthController do
 
   def change_password(_conn, _params), do: {:error, "current_password and password are required"}
 
+  # DELETE /api/me  { "password" }  (requires auth) — Apple-required account
+  # deletion. Anonymize-and-scrub; live duels evacuated with refunds.
+  def delete_account(conn, %{"password" => password}) do
+    case Accounts.delete_account(conn.assigns.current_user, password) do
+      {:ok, _ghost} -> send_resp(conn, :no_content, "")
+      {:error, :invalid_current_password} -> {:error, "Password is incorrect"}
+    end
+  end
+
+  def delete_account(_conn, _params), do: {:error, "password is required"}
+
   # PUT /api/me/push_token  { "push_token": "ExponentPushToken[...]" | null }
   def push_token(conn, params) do
     case Accounts.update_push_token(conn.assigns.current_user, params["push_token"]) do

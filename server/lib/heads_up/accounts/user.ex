@@ -11,6 +11,9 @@ defmodule HeadsUp.Accounts.User do
     field :hashed_password, :string, redact: true
     # Expo push token for this user's device (one device per user for the beta).
     field :push_token, :string, redact: true
+    # Set when the account is deleted (anonymized): blocks login, hides from
+    # search. The row survives so opponents' history and the ledger stay whole.
+    field :deleted_at, :utc_datetime
 
     has_many :tokens, HeadsUp.Accounts.UserToken
 

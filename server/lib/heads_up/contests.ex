@@ -775,6 +775,31 @@ defmodule HeadsUp.Contests do
     |> Repo.one()
   end
 
+  @doc """
+  Pulls a user out of every LIVE duel — account deletion's first act, run
+  while they still have their identity. Their own pending challenges are
+  cancelled (stakes home), invites they're sitting on are declined (group
+  collapse rules apply), and accepted/drafting duels are cancelled outright
+  with everyone refunded — you can't duel a ghost. Drafted (mid-scoring) and
+  settled duels are history: left alone.
+  """
+  def evacuate_user(%User{id: uid} = user) do
+    for duel <- list_duels(user), duel.status in ["pending", "accepted", "drafting"] do
+      cond do
+        duel.status == "pending" and duel.challenger_id == uid ->
+          swept?(fn -> expire_pending(duel.id) end)
+
+        duel.status == "pending" ->
+          swept?(fn -> decline_challenge(user, duel.id) end)
+
+        true ->
+          swept?(fn -> cancel_drafting(duel.id) end)
+      end
+    end
+
+    :ok
+  end
+
   @doc "All seats for a duel, host first, with users preloaded."
   def list_participants(duel_id) do
     from(p in Participant, where: p.duel_id == ^duel_id, order_by: [asc: p.seat], preload: [:user])
