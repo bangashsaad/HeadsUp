@@ -72,6 +72,10 @@ if config_env() == :prod do
   # sending. MAIL_FROM needs a Resend-verified domain for arbitrary inboxes.
   if resend_key = System.get_env("RESEND_API_KEY") do
     config :heads_up, HeadsUp.Mailer, adapter: Resend.Swoosh.Adapter, api_key: resend_key
+  else
+    # No key yet: LOG full emails (codes readable via `fly logs`). The default
+    # Local adapter would crash here — prod disables its memory storage.
+    config :heads_up, HeadsUp.Mailer, adapter: Swoosh.Adapters.Logger, level: :info, log_full_email: true
   end
 
   if mail_from = System.get_env("MAIL_FROM") do
