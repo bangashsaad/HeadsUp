@@ -72,6 +72,27 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
+  // Email verification (6-digit codes). Verify refreshes the user so the
+  // "verify your email" banner disappears the moment it lands.
+  async function verifyEmail(code) {
+    const data = await apiRequest('/api/me/verify', { method: 'POST', token, body: { code } });
+    setUser(data.user);
+  }
+
+  function resendVerification() {
+    return apiRequest('/api/me/verify/resend', { method: 'POST', token });
+  }
+
+  // Password reset for the logged-out: request a code, then trade code + new
+  // password. Both unauthenticated.
+  function forgotPassword(email) {
+    return apiRequest('/api/password/forgot', { method: 'POST', body: { email } });
+  }
+
+  function resetPassword({ email, code, password }) {
+    return apiRequest('/api/password/reset', { method: 'POST', body: { email, code, password } });
+  }
+
   // Re-pull /api/me (coin balance rides the user object) after anything that
   // moves coins: staking a duel, results landing, the wallet screen opening.
   async function refreshUser() {
@@ -99,7 +120,23 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, signUp, signIn, signOut, changePassword, deleteAccount, refreshUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        loading,
+        signUp,
+        signIn,
+        signOut,
+        changePassword,
+        deleteAccount,
+        verifyEmail,
+        resendVerification,
+        forgotPassword,
+        resetPassword,
+        refreshUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -14,6 +14,9 @@ defmodule HeadsUp.Accounts.User do
     # Set when the account is deleted (anonymized): blocks login, hides from
     # search. The row survives so opponents' history and the ledger stay whole.
     field :deleted_at, :utc_datetime
+    # Set once the user proves their inbox (6-digit code, or a password reset —
+    # which proves the same thing). Pre-verification-era accounts backfilled.
+    field :email_verified_at, :utc_datetime
 
     has_many :tokens, HeadsUp.Accounts.UserToken
 

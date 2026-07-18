@@ -45,6 +45,8 @@ defmodule HeadsUpWeb.Router do
     get "/hello", HelloController, :index
     post "/register", AuthController, :register
     post "/login", AuthController, :login
+    post "/password/forgot", AuthController, :forgot_password
+    post "/password/reset", AuthController, :reset_password
   end
 
   # API routes that require a valid login token
@@ -54,6 +56,8 @@ defmodule HeadsUpWeb.Router do
     get "/me", AuthController, :me
     put "/me/password", AuthController, :change_password
     delete "/me", AuthController, :delete_account
+    post "/me/verify", AuthController, :verify_email
+    post "/me/verify/resend", AuthController, :resend_verification
     put "/me/push_token", AuthController, :push_token
     delete "/logout", AuthController, :logout
 

@@ -13,6 +13,7 @@ defmodule HeadsUpWeb.AuthController do
       # Idempotency-keyed, and the comeback bonus heals a miss — never fail a
       # fresh registration over its welcome coins.
       _ = Coins.grant_signup(user.id)
+      _ = Accounts.deliver_email_verification(user)
       token = Accounts.create_user_api_token(user)
 
       conn
@@ -69,6 +70,43 @@ defmodule HeadsUpWeb.AuthController do
   end
 
   def delete_account(_conn, _params), do: {:error, "password is required"}
+
+  # POST /api/me/verify  { "code" }  (requires auth)
+  def verify_email(conn, %{"code" => code}) do
+    case Accounts.verify_email(conn.assigns.current_user, to_string(code)) do
+      {:ok, user} -> render(conn, :user, user: user, coins: Coins.balance(user.id))
+      {:error, :invalid_code} -> {:error, "That code is wrong or expired — try a fresh one"}
+      {:error, changeset} -> {:error, changeset}
+    end
+  end
+
+  def verify_email(_conn, _params), do: {:error, "code is required"}
+
+  # POST /api/me/verify/resend  (requires auth)
+  def resend_verification(conn, _params) do
+    _ = Accounts.deliver_email_verification(conn.assigns.current_user)
+    send_resp(conn, :no_content, "")
+  end
+
+  # POST /api/password/forgot  { "email" }  (public; never reveals whether
+  # the email exists)
+  def forgot_password(conn, %{"email" => email}) do
+    _ = Accounts.deliver_password_reset(to_string(email))
+    send_resp(conn, :no_content, "")
+  end
+
+  def forgot_password(_conn, _params), do: {:error, "email is required"}
+
+  # POST /api/password/reset  { "email", "code", "password" }  (public)
+  def reset_password(conn, %{"email" => email, "code" => code, "password" => password}) do
+    case Accounts.reset_password(to_string(email), to_string(code), password) do
+      {:ok, _user} -> send_resp(conn, :no_content, "")
+      {:error, :invalid_code} -> {:error, "That code is wrong or expired — request a new one"}
+      {:error, changeset} -> {:error, changeset}
+    end
+  end
+
+  def reset_password(_conn, _params), do: {:error, "email, code and password are required"}
 
   # PUT /api/me/push_token  { "push_token": "ExponentPushToken[...]" | null }
   def push_token(conn, params) do

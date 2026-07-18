@@ -24,6 +24,25 @@ defmodule HeadsUpWeb.UserAuth do
   @doc """
   Halts with 401 unless a user was found by `fetch_api_user/2`.
   """
+  @doc """
+  Halts with 403 unless the current user's email is verified. Config-gated
+  (`:require_verified_email`) so tests and emergencies can switch it off;
+  pre-verification accounts were backfilled as verified.
+  """
+  def require_verified_email(conn, _opts) do
+    user = conn.assigns[:current_user]
+
+    if not Application.get_env(:heads_up, :require_verified_email, true) or
+         (user && user.email_verified_at) do
+      conn
+    else
+      conn
+      |> put_status(:forbidden)
+      |> Phoenix.Controller.json(%{error: "Verify your email to duel — check your inbox for the code"})
+      |> halt()
+    end
+  end
+
   def require_authenticated_user(conn, _opts) do
     if conn.assigns[:current_user] do
       conn

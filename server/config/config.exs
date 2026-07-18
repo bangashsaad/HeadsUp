@@ -36,6 +36,10 @@ config :phoenix_live_view,
 # at the `config/runtime.exs`.
 config :heads_up, HeadsUp.Mailer, adapter: Swoosh.Adapters.Local
 
+# Unverified emails can browse but not duel. Test env flips this off so the
+# hundreds of pre-existing fixtures don't all need verification ceremony.
+config :heads_up, :require_verified_email, true
+
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",

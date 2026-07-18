@@ -67,6 +67,17 @@ if config_env() == :prod do
 
   config :heads_up, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
+  # Transactional email (verification / password-reset codes) goes live the
+  # moment RESEND_API_KEY is set; without it the Mailer logs instead of
+  # sending. MAIL_FROM needs a Resend-verified domain for arbitrary inboxes.
+  if resend_key = System.get_env("RESEND_API_KEY") do
+    config :heads_up, HeadsUp.Mailer, adapter: Resend.Swoosh.Adapter, api_key: resend_key
+  end
+
+  if mail_from = System.get_env("MAIL_FROM") do
+    config :heads_up, :mail_from, {"HeadsUp", mail_from}
+  end
+
   config :heads_up, HeadsUpWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [

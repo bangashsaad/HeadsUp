@@ -81,6 +81,102 @@ defmodule HeadsUp.Accounts do
     :ok
   end
 
+  # --- email verification + password reset (6-digit codes) ------------------
+
+  @doc "Sends (or re-sends) the email-verification code. Replaces any prior code."
+  def deliver_email_verification(%User{} = user) do
+    code = issue_code(user, "verify_email")
+
+    send_code_email(
+      user.email,
+      "Your verification code",
+      "Your verification code is #{code}. It expires in 15 minutes.\n\nEnter it in the app to unlock challenges."
+    )
+  end
+
+  @doc "Confirms the account's email with a live code. `{:ok, user}` or `{:error, :invalid_code}`."
+  def verify_email(%User{} = user, code) when is_binary(code) do
+    case Repo.one(UserToken.verify_email_code_query(user.id, code, "verify_email")) do
+      nil ->
+        {:error, :invalid_code}
+
+      _token ->
+        Repo.delete_all(UserToken.by_user_and_context_query(user, "verify_email"))
+
+        user
+        |> Ecto.Changeset.change(email_verified_at: DateTime.utc_now() |> DateTime.truncate(:second))
+        |> Repo.update()
+    end
+  end
+
+  @doc """
+  Sends a password-reset code IF the email belongs to a live account. Always
+  returns `:ok` — the response never reveals whether an email exists.
+  """
+  def deliver_password_reset(email) when is_binary(email) do
+    case Repo.get_by(User, email: email) do
+      %User{deleted_at: nil} = user ->
+        code = issue_code(user, "reset_password")
+
+        send_code_email(
+          user.email,
+          "Your password reset code",
+          "Your password reset code is #{code}. It expires in 15 minutes.\n\nIf you didn't ask for this, ignore it — your password is unchanged."
+        )
+
+      _ ->
+        :ok
+    end
+  end
+
+  @doc """
+  Resets the password with a live emailed code, kills every login session,
+  and (since the inbox was just proven) marks the email verified. Returns
+  `{:ok, user}`, `{:error, :invalid_code}`, or `{:error, changeset}`.
+  """
+  def reset_password(email, code, new_password) when is_binary(email) do
+    with %User{deleted_at: nil} = user <- Repo.get_by(User, email: email),
+         %UserToken{} <- Repo.one(UserToken.verify_email_code_query(user.id, code, "reset_password")),
+         {:ok, fresh} <- user |> User.password_changeset(%{"password" => new_password}) |> Repo.update() do
+      Repo.delete_all(UserToken.by_user_and_contexts_query(user, :all))
+
+      fresh
+      |> Ecto.Changeset.change(email_verified_at: DateTime.utc_now() |> DateTime.truncate(:second))
+      |> Repo.update()
+    else
+      {:error, %Ecto.Changeset{} = changeset} -> {:error, changeset}
+      _ -> {:error, :invalid_code}
+    end
+  end
+
+  defp issue_code(user, context) do
+    Repo.delete_all(UserToken.by_user_and_context_query(user, context))
+    {code, token} = UserToken.build_email_code(user, context)
+    Repo.insert!(token)
+    code
+  end
+
+  defp send_code_email(to, subject, body) do
+    sender = Application.get_env(:heads_up, :mail_from, {"HeadsUp", "onboarding@resend.dev"})
+
+    email =
+      Swoosh.Email.new()
+      |> Swoosh.Email.to(to)
+      |> Swoosh.Email.from(sender)
+      |> Swoosh.Email.subject(subject)
+      |> Swoosh.Email.text_body(body)
+
+    case HeadsUp.Mailer.deliver(email) do
+      {:ok, _} ->
+        :ok
+
+      {:error, reason} ->
+        require Logger
+        Logger.warning("mail delivery failed: #{inspect(reason)}")
+        :ok
+    end
+  end
+
   @doc """
   Deletes an account, Apple-style: verify the CURRENT password, then
   anonymize-and-scrub rather than hard-delete — cascades would erase

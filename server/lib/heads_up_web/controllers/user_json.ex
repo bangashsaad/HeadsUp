@@ -17,6 +17,7 @@ defmodule HeadsUpWeb.UserJSON do
       id: user.id,
       username: user.username,
       email: user.email,
+      email_verified: not is_nil(user.email_verified_at),
       inserted_at: user.inserted_at
     }
 

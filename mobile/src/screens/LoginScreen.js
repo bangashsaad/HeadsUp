@@ -53,6 +53,9 @@ export default function LoginScreen({ navigation }) {
       <Text style={styles.link} onPress={() => navigation.navigate('SignUp')}>
         No account? Sign up
       </Text>
+      <Text style={styles.link} onPress={() => navigation.navigate('ForgotPassword')}>
+        Forgot password?
+      </Text>
     </KeyboardAvoidingView>
   );
 }

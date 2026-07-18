@@ -5,7 +5,11 @@ defmodule HeadsUpWeb.DuelController do
   alias HeadsUp.Contests.Duel
   alias HeadsUp.Settlement.Result
 
+  import HeadsUpWeb.UserAuth, only: [require_verified_email: 2]
+
   plug :put_view, json: HeadsUpWeb.DuelJSON
+  # Watching is free; dueling needs a proven inbox (spam-account armor).
+  plug :require_verified_email when action in [:create, :accept, :counter, :rematch, :start]
   action_fallback HeadsUpWeb.FallbackController
 
   # GET /api/duels

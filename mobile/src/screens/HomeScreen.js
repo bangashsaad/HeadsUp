@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View, Pressable, RefreshControl } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
 import { getHome } from '../api/me';
 import { listUpcomingGames } from '../api/sports';
@@ -119,6 +120,17 @@ export default function HomeScreen({ navigation }) {
           <RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={colors.accent} />
         }
       >
+        {user && user.email_verified === false ? (
+          <Pressable
+            onPress={() => navigation.navigate('YouTab', { screen: 'VerifyEmail' })}
+            style={({ pressed }) => [styles.verifyBanner, pressed && { opacity: 0.85 }]}
+          >
+            <Ionicons name="mail-unread-outline" size={16} color={colors.gold} />
+            <Text style={styles.verifyText}>Verify your email to unlock duels — tap to enter your code</Text>
+            <Ionicons name="chevron-forward" size={14} color={colors.gold} />
+          </Pressable>
+        ) : null}
+
         {/* Brand header + season record. The purple glow is a dark-mode device —
             on paper it reads muddy, so light mode stays clean. */}
         <LinearGradient
@@ -440,6 +452,20 @@ function MiniCard({ item, onPress, styles, colors }) {
 
 const makeStyles = (colors) =>
   StyleSheet.create({
+    verifyBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginHorizontal: spacing.lg,
+      marginTop: spacing.md,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 10,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: withAlpha(colors.gold, 0.45),
+      backgroundColor: withAlpha(colors.gold, 0.12),
+    },
+    verifyText: { flex: 1, color: colors.gold, fontSize: 12, fontFamily: fonts.bodyBold },
     headerZone: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.xs },
     brandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     brandRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },

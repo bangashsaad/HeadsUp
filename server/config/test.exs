@@ -45,6 +45,7 @@ config :heads_up, HeadsUpWeb.Endpoint,
 
 # In test we don't send emails
 config :heads_up, HeadsUp.Mailer, adapter: Swoosh.Adapters.Test
+config :heads_up, :require_verified_email, false
 
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false

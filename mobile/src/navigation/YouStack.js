@@ -8,6 +8,7 @@ import SearchScreen from '../screens/SearchScreen';
 import RequestsScreen from '../screens/RequestsScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import CoinHistoryScreen from '../screens/CoinHistoryScreen';
+import VerifyEmailScreen from '../screens/VerifyEmailScreen';
 import { useNavHeader } from '../theme';
 
 const Stack = createNativeStackNavigator();
@@ -28,6 +29,7 @@ export default function YouStack() {
         options={({ route }) => ({ title: route.params?.username || 'Player' })}
       />
       <Stack.Screen name="CoinHistory" component={CoinHistoryScreen} options={{ title: 'Coin Wallet' }} />
+      <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} options={{ title: 'Verify Email' }} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
       <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Change Password' }} />
     </Stack.Navigator>
