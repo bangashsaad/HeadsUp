@@ -142,11 +142,15 @@ defmodule HeadsUp.ContestsSlateTest do
     end
 
     test "a tipped-out day is rejected — no drafting known stat lines", %{a: a, b: b} do
-      today = Slate.today()
-      stub_games([game_on(today, ["AAA", "BBB"], "post"), game_on(today, ["CCC", "DDD"], "in")])
+      # Uses TOMORROW, not today: the default draft time is 30 minutes out, so
+      # running this late in the ET evening would push the draft past midnight
+      # and trip the draft-after-slate guard first. The stub decides what has
+      # tipped, so the day itself is irrelevant to what's under test.
+      tomorrow = Date.add(Slate.today(), 1)
+      stub_games([game_on(tomorrow, ["AAA", "BBB"], "post"), game_on(tomorrow, ["CCC", "DDD"], "in")])
       seed_players(~w(AAA BBB CCC DDD), 30)
 
-      assert {:error, msg} = create(a, b, %{"slate_date" => Date.to_iso8601(today)})
+      assert {:error, msg} = create(a, b, %{"slate_date" => Date.to_iso8601(tomorrow)})
       assert msg =~ "already tipped"
     end
 
