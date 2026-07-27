@@ -1,4 +1,4 @@
-defmodule HeadsUp.Repo.Migrations.CreateSports do
+defmodule Bout.Repo.Migrations.CreateSports do
   use Ecto.Migration
 
   def change do

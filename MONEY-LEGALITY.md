@@ -1,4 +1,4 @@
-# Can HeadsUp Do Real-Money Duels? — Legality Research Brief
+# Can Bout Do Real-Money Duels? — Legality Research Brief
 
 _Compiled 2026-07-09 from four parallel deep-research passes (federal law, state law,
 market precedent, operations) with sources cited throughout. **This is research, not
@@ -11,7 +11,7 @@ payment processors, so it is unavoidable anyway._
 ## The question
 
 > Friends deposit money, agree a stake shown in the duel terms, winner takes the pot,
-> and HeadsUp keeps a small rake. Is this legal?
+> and Bout keeps a small rake. Is this legal?
 
 ## The verdict
 
@@ -79,7 +79,7 @@ the plan.**
     structured as *fantasy/skill contests* under state fantasy statutes, geofenced
     to ~40 eligible jurisdictions, registered/licensed where required (NY approval
     2024). Funded ($14.5M Series B, Oct 2025), 2.3M users. **This is the existence
-    proof for HeadsUp's model — done the legal way.**
+    proof for Bout's model — done the legal way.**
   - **LeagueSafe** — 18 years, zero enforcement, $31M+/season held: a pure
     *custodian* of private-league dues. No rake; flat processing fees only;
     payouts released by **majority vote of the league**, never by LeagueSafe

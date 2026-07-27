@@ -1,4 +1,4 @@
-defmodule HeadsUp.Repo.Migrations.AddSlateDateToDuels do
+defmodule Bout.Repo.Migrations.AddSlateDateToDuels do
   use Ecto.Migration
 
   def change do

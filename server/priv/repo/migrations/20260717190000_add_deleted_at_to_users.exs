@@ -1,4 +1,4 @@
-defmodule HeadsUp.Repo.Migrations.AddDeletedAtToUsers do
+defmodule Bout.Repo.Migrations.AddDeletedAtToUsers do
   use Ecto.Migration
 
   def change do

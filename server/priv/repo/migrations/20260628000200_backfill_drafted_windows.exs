@@ -1,4 +1,4 @@
-defmodule HeadsUp.Repo.Migrations.BackfillDraftedWindows do
+defmodule Bout.Repo.Migrations.BackfillDraftedWindows do
   use Ecto.Migration
 
   # Duels already "drafted" before the scoring-window columns existed have NULL

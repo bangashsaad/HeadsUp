@@ -1,4 +1,4 @@
-defmodule HeadsUp.Repo.Migrations.CreateDrafts do
+defmodule Bout.Repo.Migrations.CreateDrafts do
   use Ecto.Migration
 
   def change do

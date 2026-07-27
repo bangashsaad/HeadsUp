@@ -115,7 +115,7 @@ export default function LiveMatchupScreen({ route, navigation }) {
 
     function shareStandings() {
       Share.share({
-        message: `My ${sides.length}-player Heads Up fantasy duel is live — I'm ${ordinal(myPlace)} of ${sides.length}! 🏀⚾️`,
+        message: `My ${sides.length}-player Bout fantasy duel is live — I'm ${ordinal(myPlace)} of ${sides.length}! 🏀⚾️`,
       }).catch(() => {});
     }
 
@@ -183,7 +183,7 @@ export default function LiveMatchupScreen({ route, navigation }) {
     const scoreLine = `${myT.toFixed(1)} to ${opT.toFixed(1)}`;
     const status = meLeads ? `I'm up ${scoreLine}` : themLead ? `I'm down ${scoreLine}` : `we're tied ${scoreLine}`;
     Share.share({
-      message: `My Heads Up fantasy duel vs ${opponentName} is live — ${status}! 🏀⚾️`,
+      message: `My Bout fantasy duel vs ${opponentName} is live — ${status}! 🏀⚾️`,
     }).catch(() => {});
   }
 

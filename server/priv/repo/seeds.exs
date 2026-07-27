@@ -5,11 +5,11 @@
 # Inside the script, you can read and write to any of your
 # repositories directly:
 #
-#     HeadsUp.Repo.insert!(%HeadsUp.SomeSchema{})
+#     Bout.Repo.insert!(%Bout.SomeSchema{})
 #
 # We recommend using the bang functions (`insert!`, `update!`
 # and so on) as they will fail if something goes wrong.
 
 # Seed the sports player & game pool (idempotent — safe to re-run).
-HeadsUp.Sports.Seeds.run()
-IO.puts("Seeded #{HeadsUp.Sports.count_players()} players.")
+Bout.Sports.Seeds.run()
+IO.puts("Seeded #{Bout.Sports.count_players()} players.")

@@ -2,4 +2,4 @@
 set -eu
 
 cd -P -- "$(dirname -- "$0")"
-exec ./heads_up eval HeadsUp.Release.migrate
+exec ./bout eval Bout.Release.migrate

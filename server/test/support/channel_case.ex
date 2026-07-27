@@ -1,4 +1,4 @@
-defmodule HeadsUpWeb.ChannelCase do
+defmodule BoutWeb.ChannelCase do
   @moduledoc """
   This module defines the test case to be used by channel tests.
 
@@ -12,15 +12,15 @@ defmodule HeadsUpWeb.ChannelCase do
     quote do
       # Import conveniences for testing with channels
       import Phoenix.ChannelTest
-      import HeadsUpWeb.ChannelCase
+      import BoutWeb.ChannelCase
 
       # The default endpoint for testing
-      @endpoint HeadsUpWeb.Endpoint
+      @endpoint BoutWeb.Endpoint
     end
   end
 
   setup tags do
-    HeadsUp.DataCase.setup_sandbox(tags)
+    Bout.DataCase.setup_sandbox(tags)
     :ok
   end
 end

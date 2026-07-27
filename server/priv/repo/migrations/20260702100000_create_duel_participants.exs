@@ -1,4 +1,4 @@
-defmodule HeadsUp.Repo.Migrations.CreateDuelParticipants do
+defmodule Bout.Repo.Migrations.CreateDuelParticipants do
   use Ecto.Migration
 
   # Seats for multiplayer contests (up to 4 players). Seat 0 is the host

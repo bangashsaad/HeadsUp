@@ -114,7 +114,7 @@ export default function SettingsScreen({ navigation }) {
         </View>
         <View style={[styles.aboutRow, { marginTop: spacing.sm }]}>
           <Text style={styles.aboutLabel}>App</Text>
-          <Text style={styles.aboutValue}>Heads Up Fantasy</Text>
+          <Text style={styles.aboutValue}>Bout Fantasy</Text>
         </View>
       </Card>
 

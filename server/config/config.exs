@@ -7,19 +7,19 @@
 # General application configuration
 import Config
 
-config :heads_up,
-  ecto_repos: [HeadsUp.Repo],
+config :bout,
+  ecto_repos: [Bout.Repo],
   generators: [timestamp_type: :utc_datetime]
 
 # Configure the endpoint
-config :heads_up, HeadsUpWeb.Endpoint,
+config :bout, BoutWeb.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [html: HeadsUpWeb.ErrorHTML, json: HeadsUpWeb.ErrorJSON],
+    formats: [html: BoutWeb.ErrorHTML, json: BoutWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: HeadsUp.PubSub,
+  pubsub_server: Bout.PubSub,
   live_view: [signing_salt: "fK9vOwgD"]
 
 # Configure LiveView
@@ -34,16 +34,16 @@ config :phoenix_live_view,
 #
 # For production it's recommended to configure a different adapter
 # at the `config/runtime.exs`.
-config :heads_up, HeadsUp.Mailer, adapter: Swoosh.Adapters.Local
+config :bout, Bout.Mailer, adapter: Swoosh.Adapters.Local
 
 # Unverified emails can browse but not duel. Test env flips this off so the
 # hundreds of pre-existing fixtures don't all need verification ceremony.
-config :heads_up, :require_verified_email, true
+config :bout, :require_verified_email, true
 
 # Configure esbuild (the version is required)
 config :esbuild,
   version: "0.25.4",
-  heads_up: [
+  bout: [
     args:
       ~w(js/app.js --bundle --target=es2022 --outdir=../priv/static/assets/js --external:/fonts/* --external:/images/* --alias:@=.),
     cd: Path.expand("../assets", __DIR__),
@@ -53,7 +53,7 @@ config :esbuild,
 # Configure tailwind (the version is required)
 config :tailwind,
   version: "4.3.0",
-  heads_up: [
+  bout: [
     args: ~w(
       --input=assets/css/app.css
       --output=priv/static/assets/css/app.css
@@ -71,20 +71,20 @@ config :logger, :default_formatter,
 config :phoenix, :json_library, Jason
 
 # Phase 5 scoring + settlement
-config :heads_up, :stats_provider, HeadsUp.Settlement.Stats.Mock
+config :bout, :stats_provider, Bout.Settlement.Stats.Mock
 
 # ESPN feed (Phase 5b WNBA, Phase 7 profiles, Phase 8 MLB). One namespace both
 # the league-aware HTTP client and the live stats providers read. The host roots
-# default in `HeadsUp.Sports.Espn.Client`; the per-sport league path is appended
+# default in `Bout.Sports.Espn.Client`; the per-sport league path is appended
 # there. `req_options` is where tests inject a `Req.Test` plug.
-config :heads_up, HeadsUp.Sports.Espn, req_options: []
+config :bout, Bout.Sports.Espn, req_options: []
 
 # Push notifications via Expo's push service (disabled in test.exs).
-config :heads_up, HeadsUp.Notifications, enabled: true, req_options: []
+config :bout, Bout.Notifications, enabled: true, req_options: []
 # How often the settlement worker sweeps for due duels.
-config :heads_up, :settlement_interval_ms, 60_000
+config :bout, :settlement_interval_ms, 60_000
 # Scoring window length frozen when a draft finishes (24h default).
-config :heads_up, :scoring_window_seconds, 86_400
+config :bout, :scoring_window_seconds, 86_400
 
 # Import environment specific config. This must remain at the bottom
 # of this file so it overrides the configuration defined above.

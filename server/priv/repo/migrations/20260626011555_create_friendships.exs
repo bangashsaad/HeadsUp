@@ -1,4 +1,4 @@
-defmodule HeadsUp.Repo.Migrations.CreateFriendships do
+defmodule Bout.Repo.Migrations.CreateFriendships do
   use Ecto.Migration
 
   def change do

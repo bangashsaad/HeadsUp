@@ -1,9 +1,9 @@
 {
   "expo": {
-    "name": "HeadsUp Fantasy",
+    "name": "Bout Fantasy",
     "slug": "heads-up-fantasy",
     "owner": "saadbangash",
-    "scheme": "headsup",
+    "scheme": "bout",
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/app-icon-1024.png",
@@ -21,14 +21,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.headsupfantasy.app",
+      "bundleIdentifier": "com.boutfantasy.app",
       "associatedDomains": ["applinks:headsup-fantasy.fly.dev"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
-      "package": "com.headsupfantasy.app",
+      "package": "com.boutfantasy.app",
       "adaptiveIcon": {
         "backgroundColor": "#5B3FE0",
         "foregroundImage": "./assets/android-adaptive-foreground-1024.png",

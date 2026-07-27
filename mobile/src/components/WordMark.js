@@ -1,15 +1,16 @@
 import { View, Text } from 'react-native';
 import { useTheme, fonts } from '../theme';
 
-// The brand lockup: HEADS(text)UP(lime) in Archivo Black italic, with the
-// "FANTASY DUELS" tag underneath when `tag` is true.
+// The brand lockup: BOUT in Archivo Black italic with a lime full stop —
+// "settle it, end of discussion". (HEADS|UP split its color across a compound
+// word; BOUT is one word, so the period carries the accent instead.)
 export default function WordMark({ size = 21, tag = true, style }) {
   const { colors } = useTheme();
   return (
     <View style={style}>
       <Text style={{ fontFamily: fonts.display, fontSize: size, letterSpacing: -0.5, lineHeight: size * 1.05 }}>
-        <Text style={{ color: colors.text }}>HEADS</Text>
-        <Text style={{ color: colors.accent }}>UP</Text>
+        <Text style={{ color: colors.text }}>BOUT</Text>
+        <Text style={{ color: colors.accent }}>.</Text>
       </Text>
       {tag ? (
         <Text

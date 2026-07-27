@@ -125,8 +125,8 @@ export default function DuelDetailScreen({ route, navigation }) {
             ? 'The challenge is on the table.'
             : `We draft ${formatDateTime(duel.draft_starts_at)}.`;
     const matchup = group
-      ? `⚔️ Heads Up group duel — ${duel.party_size} players, ${SPORT_LABEL[duel.sport] || duel.sport}. ${stage}`
-      : `⚔️ Heads Up fantasy duel: me vs ${duel.opponent.username} — ${SPORT_LABEL[duel.sport] || duel.sport}. ${stage}`;
+      ? `⚔️ Bout group duel — ${duel.party_size} players, ${SPORT_LABEL[duel.sport] || duel.sport}. ${stage}`
+      : `⚔️ Bout fantasy duel: me vs ${duel.opponent.username} — ${SPORT_LABEL[duel.sport] || duel.sport}. ${stage}`;
     Share.share({ message: matchup }).catch(() => {});
   }
 
