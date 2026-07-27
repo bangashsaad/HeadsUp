@@ -1,4 +1,4 @@
-defmodule Bout.Repo.Migrations.CreateDuels do
+defmodule HeadsUp.Repo.Migrations.CreateDuels do
   use Ecto.Migration
 
   def change do

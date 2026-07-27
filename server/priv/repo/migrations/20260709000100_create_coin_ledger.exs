@@ -1,4 +1,4 @@
-defmodule Bout.Repo.Migrations.CreateCoinLedger do
+defmodule HeadsUp.Repo.Migrations.CreateCoinLedger do
   use Ecto.Migration
 
   @moduledoc """

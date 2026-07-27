@@ -1,4 +1,4 @@
-defmodule Bout.Repo.Migrations.AddPushTokenToUsers do
+defmodule HeadsUp.Repo.Migrations.AddPushTokenToUsers do
   use Ecto.Migration
 
   def change do

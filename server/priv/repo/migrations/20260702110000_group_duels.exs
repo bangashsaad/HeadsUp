@@ -1,4 +1,4 @@
-defmodule Bout.Repo.Migrations.GroupDuels do
+defmodule HeadsUp.Repo.Migrations.GroupDuels do
   use Ecto.Migration
 
   # Group duels (3-4 players) have no single opponent: opponent_id goes NULL

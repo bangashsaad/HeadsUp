@@ -1,4 +1,4 @@
-# Bout Fantasy — Product & Feature Memo
+# Heads Up Fantasy — Product & Feature Memo
 
 > **Purpose of this document:** a self-contained snapshot of everything the app
 > currently does, so a product/market-research collaborator can understand the
@@ -14,7 +14,7 @@
 
 ## 1. What it is (concept)
 
-**Bout Fantasy** is a **1-on-1, head-to-head fantasy sports app**: you
+**Heads Up Fantasy** is a **1-on-1, head-to-head fantasy sports app**: you
 challenge a friend to a quick head-to-head fantasy *duel*, draft a small lineup
 against each other live (snake draft with a ticking clock), and the winner is
 declared **automatically** once the real games finish — scored on **real stats**

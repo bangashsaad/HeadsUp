@@ -1,11 +1,11 @@
 import Config
 
 # Configure your database
-config :bout, Bout.Repo,
+config :heads_up, HeadsUp.Repo,
   username: "postgres",
   password: "postgres",
   hostname: "localhost",
-  database: "bout_dev",
+  database: "heads_up_dev",
   stacktrace: true,
   show_sensitive_data_on_connection_error: true,
   pool_size: 10
@@ -16,7 +16,7 @@ config :bout, Bout.Repo,
 # The watchers configuration can be used to run external
 # watchers to your application. For example, we can use it
 # to bundle .js and .css sources.
-config :bout, BoutWeb.Endpoint,
+config :heads_up, HeadsUpWeb.Endpoint,
   # Binding to loopback ipv4 address prevents access from other machines.
   # Change to `ip: {0, 0, 0, 0}` to allow access from other machines.
   http: [ip: {0, 0, 0, 0}],
@@ -25,8 +25,8 @@ config :bout, BoutWeb.Endpoint,
   debug_errors: true,
   secret_key_base: "cvJqmFljNvkQPOMVfTIugjru1rdzUjTRQomKVPmsNCMFtYrKzsPX+er3WsJqubeA",
   watchers: [
-    esbuild: {Esbuild, :install_and_run, [:bout, ~w(--sourcemap=inline --watch)]},
-    tailwind: {Tailwind, :install_and_run, [:bout, ~w(--watch)]}
+    esbuild: {Esbuild, :install_and_run, [:heads_up, ~w(--sourcemap=inline --watch)]},
+    tailwind: {Tailwind, :install_and_run, [:heads_up, ~w(--watch)]}
   ]
 
 # ## SSL Support
@@ -53,7 +53,7 @@ config :bout, BoutWeb.Endpoint,
 # different ports.
 
 # Reload browser tabs when matching files change.
-config :bout, BoutWeb.Endpoint,
+config :heads_up, HeadsUpWeb.Endpoint,
   live_reload: [
     web_console_logger: true,
     patterns: [
@@ -62,31 +62,31 @@ config :bout, BoutWeb.Endpoint,
       # Gettext translations
       ~r"priv/gettext/.*\.po$",
       # Router, Controllers, LiveViews and LiveComponents
-      ~r"lib/bout_web/router\.ex$",
-      ~r"lib/bout_web/(controllers|live|components)/.*\.(ex|heex)$"
+      ~r"lib/heads_up_web/router\.ex$",
+      ~r"lib/heads_up_web/(controllers|live|components)/.*\.(ex|heex)$"
     ]
   ]
 
 # Enable dev routes for dashboard and mailbox
-config :bout, dev_routes: true
+config :heads_up, dev_routes: true
 
 # Short scoring window in dev so you can watch a duel auto-settle on-device a
 # couple of minutes after drafting (prod uses 24h). The worker still sweeps on
 # its normal interval; `Settlement.settle_duel(id)` force-settles instantly.
-config :bout, :scoring_window_seconds, 120
+config :heads_up, :scoring_window_seconds, 120
 
 # Phase 5b — settle dev duels against the REAL ESPN WNBA feed. (Tests keep the
 # deterministic Mock.) A normal 120s-window draft will find no FINAL games in
 # that tiny window and settle 0–0; to test against a real game night, point the
-# window at a past date: `Bout.DevTools.settle_on_date(duel_id, ~D[2026-06-28])`
-# or `mix bout.settle_on_date <duel_id> 2026-06-28`.
-config :bout, :stats_providers, %{
-  "wnba" => Bout.Settlement.Stats.WnbaEspn,
-  "mlb" => Bout.Settlement.Stats.MlbEspn
+# window at a past date: `HeadsUp.DevTools.settle_on_date(duel_id, ~D[2026-06-28])`
+# or `mix heads_up.settle_on_date <duel_id> 2026-06-28`.
+config :heads_up, :stats_providers, %{
+  "wnba" => HeadsUp.Settlement.Stats.WnbaEspn,
+  "mlb" => HeadsUp.Settlement.Stats.MlbEspn
 }
 
 # Fallback for any sport without a dedicated provider above.
-config :bout, :stats_provider, Bout.Settlement.Stats.WnbaEspn
+config :heads_up, :stats_provider, HeadsUp.Settlement.Stats.WnbaEspn
 
 # Do not include metadata nor timestamps in development logs
 config :logger, :default_formatter, format: "[$level] $message\n"

@@ -1,4 +1,4 @@
-defmodule Bout.Repo.Migrations.AddProjectionToPlayers do
+defmodule HeadsUp.Repo.Migrations.AddProjectionToPlayers do
   use Ecto.Migration
 
   def change do

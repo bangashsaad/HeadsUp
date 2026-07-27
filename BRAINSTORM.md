@@ -1,4 +1,4 @@
-# Bout Fantasy — Brainstorm & Working Doc
+# Heads Up Fantasy — Brainstorm & Working Doc
 
 > **For the Claude agent working in this repo:** this is a living scratchpad for
 > brainstorming and problem-solving — not a spec. Read it for context, help me think

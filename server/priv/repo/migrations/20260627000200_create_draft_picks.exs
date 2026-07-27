@@ -1,4 +1,4 @@
-defmodule Bout.Repo.Migrations.CreateDraftPicks do
+defmodule HeadsUp.Repo.Migrations.CreateDraftPicks do
   use Ecto.Migration
 
   def change do

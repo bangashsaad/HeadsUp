@@ -68,7 +68,7 @@ export default function ProfileScreen({ navigation }) {
 
   function invite() {
     Share.share({
-      message: `Play me 1-on-1 on Bout 🏀⚾️ — draft a lineup, winner takes bragging rights. Add me: my username is ${user?.username}.`,
+      message: `Play me 1-on-1 in Heads Up fantasy 🏀⚾️ — draft a lineup, winner takes bragging rights. Add me: my username is ${user?.username}.`,
     }).catch(() => {});
   }
 

@@ -1,4 +1,4 @@
-defmodule Bout.Repo.Migrations.AddScoringToDuels do
+defmodule HeadsUp.Repo.Migrations.AddScoringToDuels do
   use Ecto.Migration
 
   def change do

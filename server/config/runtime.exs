@@ -12,15 +12,15 @@ import Config
 # If you use `mix release`, you need to explicitly enable the server
 # by passing the PHX_SERVER=true when you start it:
 #
-#     PHX_SERVER=true bin/bout start
+#     PHX_SERVER=true bin/heads_up start
 #
 # Alternatively, you can use `mix phx.gen.release` to generate a `bin/server`
 # script that automatically sets the env var above.
 if System.get_env("PHX_SERVER") do
-  config :bout, BoutWeb.Endpoint, server: true
+  config :heads_up, HeadsUpWeb.Endpoint, server: true
 end
 
-config :bout, BoutWeb.Endpoint,
+config :heads_up, HeadsUpWeb.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
 if config_env() == :prod do
@@ -38,7 +38,7 @@ if config_env() == :prod do
   # matching needs the :https match_fun.
   db_host = URI.parse(database_url).host || ""
 
-  config :bout, Bout.Repo,
+  config :heads_up, HeadsUp.Repo,
     ssl: [
       verify: :verify_peer,
       cacerts: :public_key.cacerts_get(),
@@ -65,24 +65,24 @@ if config_env() == :prod do
 
   host = System.get_env("PHX_HOST") || "example.com"
 
-  config :bout, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
+  config :heads_up, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
 
   # Transactional email (verification / password-reset codes) goes live the
   # moment RESEND_API_KEY is set; without it the Mailer logs instead of
   # sending. MAIL_FROM needs a Resend-verified domain for arbitrary inboxes.
   if resend_key = System.get_env("RESEND_API_KEY") do
-    config :bout, Bout.Mailer, adapter: Resend.Swoosh.Adapter, api_key: resend_key
+    config :heads_up, HeadsUp.Mailer, adapter: Resend.Swoosh.Adapter, api_key: resend_key
   else
     # No key yet: LOG full emails (codes readable via `fly logs`). The default
     # Local adapter would crash here — prod disables its memory storage.
-    config :bout, Bout.Mailer, adapter: Swoosh.Adapters.Logger, level: :info, log_full_email: true
+    config :heads_up, HeadsUp.Mailer, adapter: Swoosh.Adapters.Logger, level: :info, log_full_email: true
   end
 
   if mail_from = System.get_env("MAIL_FROM") do
-    config :bout, :mail_from, {"Bout", mail_from}
+    config :heads_up, :mail_from, {"HeadsUp", mail_from}
   end
 
-  config :bout, BoutWeb.Endpoint,
+  config :heads_up, HeadsUpWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [
       # Enable IPv6 and bind on all interfaces.
@@ -98,7 +98,7 @@ if config_env() == :prod do
   # To get SSL working, you will need to add the `https` key
   # to your endpoint configuration:
   #
-  #     config :bout, BoutWeb.Endpoint,
+  #     config :heads_up, HeadsUpWeb.Endpoint,
   #       https: [
   #         ...,
   #         port: 443,
@@ -120,7 +120,7 @@ if config_env() == :prod do
   # We also recommend setting `force_ssl` in your config/prod.exs,
   # ensuring no data is ever sent via http, always redirecting to https:
   #
-  #     config :bout, BoutWeb.Endpoint,
+  #     config :heads_up, HeadsUpWeb.Endpoint,
   #       force_ssl: [hsts: true]
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
@@ -130,7 +130,7 @@ if config_env() == :prod do
   # In production you need to configure the mailer to use a different adapter.
   # Here is an example configuration for Mailgun:
   #
-  #     config :bout, Bout.Mailer,
+  #     config :heads_up, HeadsUp.Mailer,
   #       adapter: Swoosh.Adapters.Mailgun,
   #       api_key: System.get_env("MAILGUN_API_KEY"),
   #       domain: System.get_env("MAILGUN_DOMAIN")

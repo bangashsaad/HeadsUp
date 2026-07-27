@@ -1,4 +1,4 @@
-defmodule Bout.Repo.Migrations.AddEmailVerifiedToUsers do
+defmodule HeadsUp.Repo.Migrations.AddEmailVerifiedToUsers do
   use Ecto.Migration
 
   def up do

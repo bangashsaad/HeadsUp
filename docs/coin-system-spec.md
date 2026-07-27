@@ -1,4 +1,4 @@
-# Bout Coins — functional spec (v1)
+# HeadsUp Coins — functional spec (v1)
 
 An in-house virtual currency. Free-only for the beta: coins cannot be bought,
 cashed out, or transferred — which keeps them legally inert (no consideration,
@@ -131,7 +131,7 @@ path into `declined` / `cancelled` / `countered` refunds; the one path into
 1. Every `coin_txn`'s entries sum to zero (also DB-enforced at commit).
 2. Every cached balance equals the sum derived from entries.
 3. No wallet's natural balance is negative.
-4. **Escrow reconciliation (new, Bout-specific):** `escrow.duels` balance
+4. **Escrow reconciliation (new, HeadsUp-specific):** `escrow.duels` balance
    == Σ (stake × staked-player-count) over duels in
    `pending | accepted | drafting | drafted`, where staked players are
    derivable from status (1v1 pending: challenger; 1v1 accepted+: both;

@@ -1,4 +1,4 @@
-# Bout
+# HeadsUp
 
 To start your Phoenix server:
 

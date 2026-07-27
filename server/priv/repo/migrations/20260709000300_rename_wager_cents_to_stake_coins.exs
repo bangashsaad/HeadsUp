@@ -1,4 +1,4 @@
-defmodule Bout.Repo.Migrations.RenameWagerCentsToStakeCoins do
+defmodule HeadsUp.Repo.Migrations.RenameWagerCentsToStakeCoins do
   use Ecto.Migration
 
   # The vestigial wager_cents field becomes the duel's coin stake: the uniform

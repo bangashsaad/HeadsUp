@@ -1,4 +1,4 @@
-# Bout Fantasy
+# Heads Up Fantasy
 
 A 1-on-1 fantasy sports app: challenge a friend to a head-to-head fantasy draft.
 (Kalshi-style monetization — a small rake per contest, not on wagers — but **money
@@ -30,7 +30,7 @@ Prereqs already installed on this Mac: Elixir, PostgreSQL 16 (brew service), Nod
 - The app **auto-detects the Mac's IP** from Expo (`mobile/src/api/client.js`) — no
   hardcoded address to update when the network changes.
 - Postgres: `postgresql@16` is on PATH via `~/.zshrc`; a `postgres` superuser role
-  exists so Phoenix connects with default config. Dev DB is `bout_dev`.
+  exists so Phoenix connects with default config. Dev DB is `heads_up_dev`.
 - Seed the player pool: `cd server && mix run priv/repo/seeds.exs` (idempotent).
 
 ## Test accounts (dev DB)
@@ -45,7 +45,7 @@ Prereqs already installed on this Mac: Elixir, PostgreSQL 16 (brew service), Nod
 - **Phase 2 — Sports & player pool:** 3 sports, ~81 seeded players, browse + filter. ✅
 - **Phase 3 — Challenges (duels):** create a challenge with terms (sport, roster size,
   draft time) + per-sport scoring chart; accept / decline / cancel / **counter**. ✅
-- **Coins — in-house currency (free):** double-entry ledger (`Bout.Coins`, adapted
+- **Coins — in-house currency (free):** double-entry ledger (`HeadsUp.Coins`, adapted
   from the Jeb bank app), duel stakes escrowed per lifecycle transition, winner takes
   the pot at settlement. 1,000-coin signup grant + lazy daily comeback bonus; coins
   can't be bought/cashed out/transferred (keeps it legally inert). Spec:

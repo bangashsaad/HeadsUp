@@ -1,4 +1,4 @@
-defmodule Bout.Repo.Migrations.CreateSettlementResults do
+defmodule HeadsUp.Repo.Migrations.CreateSettlementResults do
   use Ecto.Migration
 
   def change do

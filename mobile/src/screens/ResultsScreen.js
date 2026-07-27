@@ -189,7 +189,7 @@ export default function ResultsScreen({ route, navigation }) {
 
     const shareStandings = () =>
       Share.share({
-        message: `I finished ${ordinal(mine?.rank ?? standings.length)} of ${standings.length} in our Bout group fantasy duel! 🏀⚾️`,
+        message: `I finished ${ordinal(mine?.rank ?? standings.length)} of ${standings.length} in our Heads Up group fantasy duel! 🏀⚾️`,
       }).catch(() => {});
 
     function StandRow({ s, last }) {
@@ -284,7 +284,7 @@ export default function ResultsScreen({ route, navigation }) {
   function shareResult() {
     const verb = won ? 'won' : result.my_outcome === 'loss' ? 'lost' : 'tied';
     Share.share({
-      message: `I ${verb} my Bout fantasy duel vs ${opponentName} — ${pn(me.total).toFixed(1)} to ${pn(them.total).toFixed(1)}! 🏀⚾️`,
+      message: `I ${verb} my Heads Up fantasy duel vs ${opponentName} — ${pn(me.total).toFixed(1)} to ${pn(them.total).toFixed(1)}! 🏀⚾️`,
     }).catch(() => {});
   }
 

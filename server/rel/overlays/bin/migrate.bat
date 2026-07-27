@@ -1,1 +1,1 @@
-call "%~dp0\bout" eval Bout.Release.migrate
+call "%~dp0\heads_up" eval HeadsUp.Release.migrate

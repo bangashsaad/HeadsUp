@@ -1,4 +1,4 @@
-defmodule BoutWeb.ConnCase do
+defmodule HeadsUpWeb.ConnCase do
   @moduledoc """
   This module defines the test case to be used by
   tests that require setting up a connection.
@@ -11,7 +11,7 @@ defmodule BoutWeb.ConnCase do
   we enable the SQL sandbox, so changes done to the database
   are reverted at the end of every test. If you are using
   PostgreSQL, you can even run database tests asynchronously
-  by setting `use BoutWeb.ConnCase, async: true`, although
+  by setting `use HeadsUpWeb.ConnCase, async: true`, although
   this option is not recommended for other databases.
   """
 
@@ -20,19 +20,19 @@ defmodule BoutWeb.ConnCase do
   using do
     quote do
       # The default endpoint for testing
-      @endpoint BoutWeb.Endpoint
+      @endpoint HeadsUpWeb.Endpoint
 
-      use BoutWeb, :verified_routes
+      use HeadsUpWeb, :verified_routes
 
       # Import conveniences for testing with connections
       import Plug.Conn
       import Phoenix.ConnTest
-      import BoutWeb.ConnCase
+      import HeadsUpWeb.ConnCase
     end
   end
 
   setup tags do
-    Bout.DataCase.setup_sandbox(tags)
+    HeadsUp.DataCase.setup_sandbox(tags)
     {:ok, conn: Phoenix.ConnTest.build_conn()}
   end
 end

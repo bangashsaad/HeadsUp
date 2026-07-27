@@ -14,10 +14,10 @@ defmodule Mix.Tasks.Coins.Backfill do
   def run(_args) do
     Mix.Task.run("app.start")
 
-    users = Bout.Repo.all(Bout.Accounts.User)
+    users = HeadsUp.Repo.all(HeadsUp.Accounts.User)
 
     for user <- users do
-      {:ok, _} = Bout.Coins.grant_signup(user.id)
+      {:ok, _} = HeadsUp.Coins.grant_signup(user.id)
     end
 
     Mix.shell().info("Backfilled signup grants for #{length(users)} users.")

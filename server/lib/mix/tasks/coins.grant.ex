@@ -12,10 +12,10 @@ defmodule Mix.Tasks.Coins.Grant do
   def run([email, amount]) do
     Mix.Task.run("app.start")
 
-    user = Bout.Repo.get_by!(Bout.Accounts.User, email: email)
-    {:ok, _} = Bout.Coins.grant(user.id, String.to_integer(amount), nil, %{"reason" => "dev_grant"})
+    user = HeadsUp.Repo.get_by!(HeadsUp.Accounts.User, email: email)
+    {:ok, _} = HeadsUp.Coins.grant(user.id, String.to_integer(amount), nil, %{"reason" => "dev_grant"})
 
-    Mix.shell().info("#{user.username} now holds #{Bout.Coins.balance(user.id)} coins.")
+    Mix.shell().info("#{user.username} now holds #{HeadsUp.Coins.balance(user.id)} coins.")
   end
 
   def run(_args), do: Mix.raise("usage: mix coins.grant <email> <amount>")
