@@ -30,7 +30,7 @@
     "android": {
       "package": "com.headsupfantasy.app",
       "adaptiveIcon": {
-        "backgroundColor": "#5B3FE0",
+        "backgroundColor": "#0F1408",
         "foregroundImage": "./assets/android-adaptive-foreground-1024.png",
         "backgroundImage": "./assets/android-adaptive-background-1024.png",
         "monochromeImage": "./assets/android-adaptive-foreground-1024.png"
