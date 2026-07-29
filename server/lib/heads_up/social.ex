@@ -10,7 +10,7 @@ defmodule HeadsUp.Social do
   import Ecto.Query, warn: false
   alias HeadsUp.Repo
   alias HeadsUp.Accounts.User
-  alias HeadsUp.Social.Friendship
+  alias HeadsUp.Social.{Friendship, FriendGroup, FriendGroupMember}
 
   @doc """
   Searches users by username (case-insensitive, partial match), excluding the
@@ -161,6 +161,81 @@ defmodule HeadsUp.Social do
       {id, ""} -> friends?(user, id)
       _ -> false
     end
+  end
+
+  # --- friend groups (private, owner-named) ---------------------------------
+
+  @doc "The user's groups, each with its member ids, ordered by name."
+  def list_friend_groups(%User{id: id}) do
+    from(g in FriendGroup,
+      where: g.owner_id == ^id,
+      order_by: [asc: g.name],
+      preload: [:members]
+    )
+    |> Repo.all()
+    |> Enum.map(&%{id: &1.id, name: &1.name, member_ids: Enum.map(&1.members, fn m -> m.user_id end)})
+  end
+
+  @doc "Creates a group for the owner. Names are unique per owner."
+  def create_friend_group(%User{id: id}, name) do
+    %FriendGroup{}
+    |> FriendGroup.changeset(%{name: name, owner_id: id})
+    |> Repo.insert()
+  end
+
+  @doc "Renames one of the user's own groups."
+  def rename_friend_group(%User{} = user, group_id, name) do
+    with %FriendGroup{} = group <- owned_group(user, group_id) do
+      group |> FriendGroup.changeset(%{name: name}) |> Repo.update()
+    end
+  end
+
+  @doc "Deletes one of the user's own groups (membership rows cascade)."
+  def delete_friend_group(%User{} = user, group_id) do
+    with %FriendGroup{} = group <- owned_group(user, group_id) do
+      Repo.delete(group)
+    end
+  end
+
+  @doc """
+  Replaces a group's membership wholesale. Only accepted friends may be
+  members — anything else in `user_ids` is silently dropped, so a stale
+  client can never smuggle a stranger into a group.
+  """
+  def set_friend_group_members(%User{} = user, group_id, user_ids) do
+    with %FriendGroup{} = group <- owned_group(user, group_id) do
+      friend_ids = user |> list_friends() |> MapSet.new(& &1.id)
+      keep = user_ids |> List.wrap() |> Enum.uniq() |> Enum.filter(&MapSet.member?(friend_ids, &1))
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      Repo.transaction(fn ->
+        Repo.delete_all(from(m in FriendGroupMember, where: m.group_id == ^group.id))
+
+        rows = Enum.map(keep, &%{group_id: group.id, user_id: &1, inserted_at: now})
+        Repo.insert_all(FriendGroupMember, rows)
+
+        %{id: group.id, name: group.name, member_ids: keep}
+      end)
+    end
+  end
+
+  defp owned_group(%User{id: id}, group_id) do
+    case Repo.get(FriendGroup, group_id) do
+      %FriendGroup{owner_id: ^id} = group -> group
+      _ -> {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Account-deletion scrub for groups: drops the user's own groups AND their
+  membership in everyone else's. Needed because deletion anonymizes rather
+  than hard-deletes the row, so the database cascade never fires — without
+  this, private group names and a ghost's rows would outlive the account.
+  """
+  def purge_friend_groups(%User{id: id}) do
+    Repo.delete_all(from(m in FriendGroupMember, where: m.user_id == ^id))
+    Repo.delete_all(from(g in FriendGroup, where: g.owner_id == ^id))
+    :ok
   end
 
   @doc "Removes every friendship (accepted or pending) involving the user — account deletion."

@@ -73,6 +73,12 @@ defmodule HeadsUpWeb.Router do
     # Friends
     get "/users/search", UserController, :search
     get "/users/:id", UserController, :show
+    get "/friend-groups", FriendGroupController, :index
+    post "/friend-groups", FriendGroupController, :create
+    put "/friend-groups/:id", FriendGroupController, :update
+    put "/friend-groups/:id/members", FriendGroupController, :set_members
+    delete "/friend-groups/:id", FriendGroupController, :delete
+
     get "/friends", FriendshipController, :index
     post "/friends", FriendshipController, :create
     get "/friends/requests", FriendshipController, :requests

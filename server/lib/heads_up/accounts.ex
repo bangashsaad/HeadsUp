@@ -229,6 +229,7 @@ defmodule HeadsUp.Accounts do
     # before their identity is scrubbed.
     HeadsUp.Contests.evacuate_user(user)
     HeadsUp.Social.delete_all_friendships(user)
+    HeadsUp.Social.purge_friend_groups(user)
     Repo.delete_all(UserToken.by_user_and_contexts_query(user, :all))
 
     now = DateTime.utc_now() |> DateTime.truncate(:second)
