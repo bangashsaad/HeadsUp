@@ -57,6 +57,56 @@ defmodule HeadsUp.BlockingTest do
              Contests.create_challenge(b, %{"opponent_id" => a.id, "sport" => "wnba", "draft_starts_at" => future()})
   end
 
+  test "blocking cancels a shared live duel and refunds both stakes", %{a: a, b: b} do
+    befriend(a, b)
+    {:ok, _} = HeadsUp.Coins.grant_signup(a.id)
+    {:ok, _} = HeadsUp.Coins.grant_signup(b.id)
+    a_before = HeadsUp.Coins.balance(a.id)
+    b_before = HeadsUp.Coins.balance(b.id)
+
+    {:ok, duel} =
+      Contests.create_challenge(a, %{
+        "opponent_id" => b.id,
+        "sport" => "wnba",
+        "stake_coins" => 100,
+        "draft_starts_at" => future()
+      })
+
+    {:ok, _} = Contests.accept_challenge(b, duel.id)
+    assert HeadsUp.Coins.balance(a.id) == a_before - 100
+
+    {:ok, _} = Social.block_user(a, b.id)
+
+    # You can't be left sitting in a draft room with someone you blocked.
+    assert Repo.get(HeadsUp.Contests.Duel, duel.id).status == "cancelled"
+    assert HeadsUp.Coins.balance(a.id) == a_before
+    assert HeadsUp.Coins.balance(b.id) == b_before
+  end
+
+  test "blocking leaves settled history alone", %{a: a, b: b} do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    duel =
+      Repo.insert!(%HeadsUp.Contests.Duel{
+        challenger_id: a.id,
+        opponent_id: b.id,
+        sport: "wnba",
+        draft_type: "snake",
+        lineup_template: "wnba_5",
+        roster_size: 5,
+        pick_clock_seconds: 30,
+        scoring_rules: %{},
+        stake_coins: 0,
+        draft_starts_at: now,
+        status: "settled",
+        winner_id: a.id,
+        settled_at: now
+      })
+
+    {:ok, _} = Social.block_user(a, b.id)
+    assert Repo.get(HeadsUp.Contests.Duel, duel.id).status == "settled"
+  end
+
   test "unblocking lifts the wall but does not restore the friendship", %{a: a, b: b} do
     befriend(a, b)
     {:ok, _} = Social.block_user(a, b.id)

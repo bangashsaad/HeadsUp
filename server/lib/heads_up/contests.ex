@@ -786,6 +786,35 @@ defmodule HeadsUp.Contests do
   end
 
   @doc """
+  Cancels every LIVE duel these two share, refunding all stakes. Used when one
+  blocks the other: severing the friendship isn't enough if they're sitting in
+  a draft room together, trading picks and reactions. Settled and mid-scoring
+  ("drafted") duels are history and stay.
+  """
+  def cancel_shared_live_duels(user_a_id, user_b_id) do
+    ids =
+      from(d in Duel,
+        join: pa in Participant,
+        on: pa.duel_id == d.id and pa.user_id == ^user_a_id,
+        join: pb in Participant,
+        on: pb.duel_id == d.id and pb.user_id == ^user_b_id,
+        where: d.status in ["pending", "accepted", "drafting"],
+        select: d.id
+      )
+      |> Repo.all()
+      |> Enum.uniq()
+
+    Enum.count(ids, fn id ->
+      swept?(fn ->
+        case Repo.get(Duel, id) do
+          %Duel{status: "pending"} -> expire_pending(id)
+          _ -> cancel_drafting(id)
+        end
+      end)
+    end)
+  end
+
+  @doc """
   Pulls a user out of every LIVE duel — account deletion's first act, run
   while they still have their identity. Their own pending challenges are
   cancelled (stakes home), invites they're sitting on are declined (group

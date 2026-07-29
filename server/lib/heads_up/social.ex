@@ -179,6 +179,10 @@ defmodule HeadsUp.Social do
   notified.
   """
   def block_user(%User{id: id} = user, other_id) when is_integer(other_id) do
+    # Get out of any shared draft room FIRST (stakes refunded) — a block that
+    # leaves you mid-duel with the person you blocked isn't a block.
+    HeadsUp.Contests.cancel_shared_live_duels(id, other_id)
+
     Repo.transaction(fn ->
       from(f in Friendship,
         where:
