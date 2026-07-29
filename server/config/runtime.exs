@@ -70,7 +70,10 @@ if config_env() == :prod do
   # Transactional email (verification / password-reset codes) goes live the
   # moment RESEND_API_KEY is set; without it the Mailer logs instead of
   # sending. MAIL_FROM needs a Resend-verified domain for arbitrary inboxes.
-  if resend_key = System.get_env("RESEND_API_KEY") do
+  # trim/2: a secret pasted into a shell picks up stray newlines and spaces
+  # embarrassingly easily, and the provider just answers 401. Never trust the
+  # raw env value.
+  if resend_key = System.get_env("RESEND_API_KEY") |> to_string() |> String.trim() |> then(&(&1 != "" && &1)) do
     config :heads_up, HeadsUp.Mailer, adapter: Resend.Swoosh.Adapter, api_key: resend_key
   else
     # No key yet: LOG full emails (codes readable via `fly logs`). The default
@@ -78,11 +81,11 @@ if config_env() == :prod do
     config :heads_up, HeadsUp.Mailer, adapter: Swoosh.Adapters.Logger, level: :info, log_full_email: true
   end
 
-  if support_email = System.get_env("SUPPORT_EMAIL") do
+  if support_email = System.get_env("SUPPORT_EMAIL") |> to_string() |> String.trim() |> then(&(&1 != "" && &1)) do
     config :heads_up, :support_email, support_email
   end
 
-  if mail_from = System.get_env("MAIL_FROM") do
+  if mail_from = System.get_env("MAIL_FROM") |> to_string() |> String.trim() |> then(&(&1 != "" && &1)) do
     config :heads_up, :mail_from, {"HeadsUp", mail_from}
   end
 
