@@ -13,7 +13,10 @@ kill_signal = 'SIGTERM'
   release_command = '/app/bin/migrate'
 
 [env]
-  PHX_HOST = 'headsup-fantasy.fly.dev'
+  # Canonical host. fly.dev keeps serving (the app's apiUrl still uses it and
+  # every link shared so far points there), but generated URLs now use the
+  # real domain.
+  PHX_HOST = 'headsupfantasy.com'
   PORT = '8080'
 
 [http_service]

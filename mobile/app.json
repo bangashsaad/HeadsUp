@@ -4,7 +4,7 @@
     "slug": "heads-up-fantasy",
     "owner": "saadbangash",
     "scheme": "headsup",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/app-icon-1024.png",
     "userInterfaceStyle": "automatic",
@@ -22,7 +22,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.headsupfantasy.app",
-      "associatedDomains": ["applinks:headsup-fantasy.fly.dev"],
+      "associatedDomains": ["applinks:headsup-fantasy.fly.dev", "applinks:headsupfantasy.com"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }

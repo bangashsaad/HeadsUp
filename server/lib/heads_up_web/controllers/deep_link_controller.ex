@@ -37,7 +37,9 @@ defmodule HeadsUpWeb.DeepLinkController do
 
   # Self-hosted install page: taps straight into Apple's OTA install flow.
   def install(conn, _params) do
-    manifest = "https://headsup-fantasy.fly.dev/install/manifest.plist"
+    # Built from the REQUEST host so the page works on fly.dev and on
+    # headsupfantasy.com without a second copy.
+    manifest = "#{HeadsUpWeb.Endpoint.url()}/install/manifest.plist"
     itms = "itms-services://?action=download-manifest&url=" <> URI.encode_www_form(manifest)
 
     html(conn, """
