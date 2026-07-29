@@ -64,6 +64,10 @@ export default function FriendsScreen({ navigation }) {
           <ActionTile icon="mail" label="Requests" count={requestCount} onPress={() => navigation.navigate('Requests')} />
         </View>
 
+        <View style={styles.actions}>
+          <ActionTile icon="albums" label="Groups" onPress={() => navigation.navigate('FriendGroups')} />
+        </View>
+
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
         {loading ? (

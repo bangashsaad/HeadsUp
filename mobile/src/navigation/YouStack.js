@@ -9,6 +9,7 @@ import RequestsScreen from '../screens/RequestsScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import CoinHistoryScreen from '../screens/CoinHistoryScreen';
 import VerifyEmailScreen from '../screens/VerifyEmailScreen';
+import FriendGroupsScreen from '../screens/FriendGroupsScreen';
 import { useNavHeader } from '../theme';
 
 const Stack = createNativeStackNavigator();
@@ -30,6 +31,7 @@ export default function YouStack() {
       />
       <Stack.Screen name="CoinHistory" component={CoinHistoryScreen} options={{ title: 'Coin Wallet' }} />
       <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} options={{ title: 'Verify Email' }} />
+      <Stack.Screen name="FriendGroups" component={FriendGroupsScreen} options={{ title: 'Friend Groups' }} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
       <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Change Password' }} />
     </Stack.Navigator>

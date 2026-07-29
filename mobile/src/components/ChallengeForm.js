@@ -22,18 +22,13 @@ function isPlayable(sportsStatus, key) {
   return !st || st.playable;
 }
 
-const PRESETS = [
-  { key: 'quick', label: 'Quick' },
-  { key: 'standard', label: 'Standard' },
-];
+// Roster sizes and clocks match the canonical challenge screen (async cut).
+const ROSTERS = [5, 7];
 
 const CLOCKS = [
+  { secs: 15, label: '15s' },
   { secs: 30, label: '30s' },
   { secs: 60, label: '60s' },
-  { secs: 90, label: '90s' },
-  { secs: 14400, label: '4h' },
-  { secs: 43200, label: '12h' },
-  { secs: 86400, label: '24h' },
 ];
 
 const TIME_OPTIONS = [
@@ -76,8 +71,14 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
   const styles = useThemedStyles(makeStyles);
   const { user, token } = useAuth();
   const [sport, setSport] = useState(initial.sport || 'wnba');
-  const [preset, setPreset] = useState((initial.lineup_template || '').split('_')[1] || 'standard');
-  const [clockSecs, setClockSecs] = useState(initial.pick_clock_seconds || 60);
+  const [roster, setRoster] = useState(() => {
+    const n = parseInt((initial.lineup_template || '').split('_')[1], 10);
+    return ROSTERS.includes(n) ? n : 5;
+  });
+  // A countered async duel falls back to the shortest clock we still offer.
+  const [clockSecs, setClockSecs] = useState(() =>
+    CLOCKS.some((c) => c.secs === initial.pick_clock_seconds) ? initial.pick_clock_seconds : 30
+  );
   const [timeMs, setTimeMs] = useState(TIME_OPTIONS[0].ms);
   const [stake, setStake] = useState(initial.stake_coins || 0);
   const [slates, setSlates] = useState([]); // [{date: 'YYYY-MM-DD', games: n}]
@@ -148,7 +149,7 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
   function handleSubmit() {
     onSubmit({
       sport,
-      lineup_template: `${sport}_${preset}`,
+      lineup_template: `${sport}_${roster}`,
       pick_clock_seconds: clockSecs,
       draft_starts_at: new Date(Date.now() + timeMs).toISOString(),
       stake_coins: stake,
@@ -194,10 +195,10 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
         </>
       ) : null}
 
-      <Text style={styles.label}>Lineup</Text>
+      <Text style={styles.label}>Roster</Text>
       <View style={styles.row}>
-        {PRESETS.map((p) => (
-          <Chip key={p.key} label={p.label} active={preset === p.key} onPress={() => setPreset(p.key)} />
+        {ROSTERS.map((n) => (
+          <Chip key={n} label={`${n} slots`} active={roster === n} onPress={() => setRoster(n)} />
         ))}
       </View>
 

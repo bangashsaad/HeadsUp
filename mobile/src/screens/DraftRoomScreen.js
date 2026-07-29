@@ -630,7 +630,7 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
                   onPress={() => setSheetUid(p.id)}
                   style={({ pressed }) => [styles.seatTab, onClock && styles.seatTabCurrent, pressed && { opacity: 0.85 }]}
                 >
-                  <Avatar name={isMe ? 'You' : p.username} size={28} />
+                  <Avatar name={isMe ? 'You' : p.username} size={players.length >= 5 ? 24 : 28} />
                   <View style={styles.seatTabNameRow}>
                     <View style={[styles.seatTabDot, { backgroundColor: colorFor(p.id) }]} />
                     <Text style={styles.seatTabName} numberOfLines={1}>
@@ -868,7 +868,7 @@ const makeStyles = (colors) =>
     slotCardFilled: { borderColor: colors.accentBorder, backgroundColor: colors.accentSoft },
     slotCardLabel: { color: colors.muted, fontSize: 9, fontFamily: fonts.bodyBlack, letterSpacing: 0.5 },
     slotCardName: { color: colors.text, fontSize: font.caption, fontFamily: fonts.condBold, marginTop: 2, maxWidth: 84 },
-    seatTabs: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
+    seatTabs: { flexDirection: 'row', gap: 6, marginTop: spacing.sm },
     seatTab: {
       flex: 1,
       alignItems: 'center',

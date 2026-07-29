@@ -31,3 +31,25 @@ export function acceptRequest(token, friendshipId) {
 export function deleteRequest(token, friendshipId) {
   return apiRequest(`/api/friends/requests/${friendshipId}`, { method: 'DELETE', token });
 }
+
+// --- friend groups (private, owner-named recipient tabs) -------------------
+
+export function listFriendGroups(token) {
+  return apiRequest('/api/friend-groups', { token });
+}
+
+export function createFriendGroup(token, name) {
+  return apiRequest('/api/friend-groups', { method: 'POST', token, body: { name } });
+}
+
+export function renameFriendGroup(token, id, name) {
+  return apiRequest(`/api/friend-groups/${id}`, { method: 'PUT', token, body: { name } });
+}
+
+export function setFriendGroupMembers(token, id, userIds) {
+  return apiRequest(`/api/friend-groups/${id}/members`, { method: 'PUT', token, body: { user_ids: userIds } });
+}
+
+export function deleteFriendGroup(token, id) {
+  return apiRequest(`/api/friend-groups/${id}`, { method: 'DELETE', token });
+}
