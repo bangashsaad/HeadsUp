@@ -72,6 +72,31 @@ defmodule HeadsUp.Accounts do
 
   def get_user_by_api_token(_), do: nil
 
+  @doc """
+  Slides an active login token's expiry forward. Throttled to once a day per
+  token so an active phone stays logged in indefinitely while an abandoned
+  token still ages out. Silent no-op if the token is already gone.
+  """
+  def refresh_api_token(encoded_token) when is_binary(encoded_token) do
+    with {:ok, query} <- UserToken.refresh_api_token_query(encoded_token) do
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+      cutoff = DateTime.add(now, -86_400, :second)
+
+      from(t in query, where: t.inserted_at < ^cutoff)
+      |> Repo.update_all(set: [inserted_at: now])
+    end
+
+    :ok
+  end
+
+  def refresh_api_token(_), do: :ok
+
+  @doc "Deletes login tokens past their validity window. Returns the count."
+  def prune_expired_tokens do
+    {n, _} = Repo.delete_all(UserToken.expired_api_tokens_query())
+    n
+  end
+
   @doc "Deletes a single API token (logout)."
   def delete_user_api_token(encoded_token) do
     with {:ok, raw} <- Base.url_decode64(encoded_token, padding: false) do

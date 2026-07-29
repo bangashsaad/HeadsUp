@@ -36,6 +36,9 @@ defmodule HeadsUp.Contests do
           to_string(opponent_id) == to_string(challenger.id) ->
             {:error, "you can't challenge yourself"}
 
+          Social.blocked?(challenger, opponent_id) ->
+            {:error, "you can't challenge that player"}
+
           not Social.friends?(challenger, opponent_id) ->
             {:error, "you can only challenge your friends"}
 

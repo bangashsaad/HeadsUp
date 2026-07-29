@@ -78,6 +78,10 @@ if config_env() == :prod do
     config :heads_up, HeadsUp.Mailer, adapter: Swoosh.Adapters.Logger, level: :info, log_full_email: true
   end
 
+  if support_email = System.get_env("SUPPORT_EMAIL") do
+    config :heads_up, :support_email, support_email
+  end
+
   if mail_from = System.get_env("MAIL_FROM") do
     config :heads_up, :mail_from, {"HeadsUp", mail_from}
   end

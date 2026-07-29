@@ -1,8 +1,8 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { Alert, ActivityIndicator, StyleSheet, Text, View, Pressable } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
-import { getUserProfile, sendFriendRequest, acceptRequest } from '../api/social';
+import { getUserProfile, sendFriendRequest, acceptRequest, blockUser } from '../api/social';
 import { notify, NotifyType } from '../haptics';
 import { useTheme, useThemedStyles, spacing, radius, font, fonts } from '../theme';
 import { Screen, Card, Avatar, Badge, Button, EmptyState } from '../components/ui';
@@ -36,6 +36,28 @@ export default function UserProfileScreen({ route }) {
       };
     }, [token, id])
   );
+
+  function confirmBlock() {
+    Alert.alert(
+      `Block ${profile.user.username}?`,
+      "They won't be able to find you, add you, or challenge you — and you won't see them either. Any friendship between you ends. They are not told.",
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await blockUser(token, profile.user.id);
+              navigation.goBack();
+            } catch (e) {
+              Alert.alert("Couldn't block", e.message);
+            }
+          },
+        },
+      ]
+    );
+  }
 
   async function addFriend() {
     setBusy(true);
@@ -136,6 +158,10 @@ export default function UserProfileScreen({ route }) {
       ) : (
         <Text style={styles.note}>You haven't finished a 1v1 against {name} yet.</Text>
       )}
+      <Pressable onPress={confirmBlock} hitSlop={8} style={{ alignSelf: 'center', marginTop: 28 }}>
+        <Text style={styles.blockLink}>Block {profile.user.username}</Text>
+      </Pressable>
+
     </Screen>
   );
 }
@@ -151,6 +177,7 @@ function Stat({ label, value, color, styles }) {
 
 const makeStyles = (colors) =>
   StyleSheet.create({
+    blockLink: { color: colors.placeholder, fontSize: 13, textDecorationLine: 'underline' },
     center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
     head: { alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg },
     username: { color: colors.text, fontSize: 26, fontFamily: fonts.hero, paddingRight: 4 },

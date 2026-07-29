@@ -3,6 +3,10 @@ defmodule HeadsUp.Accounts.UserToken do
   import Ecto.Query
 
   @rand_size 32
+  # A login token is good for 60 days of real use; `touch`ed on every
+  # authenticated request, so an active phone never gets logged out while a
+  # stolen or abandoned token dies on its own.
+  @api_token_validity_days 60
 
   schema "users_tokens" do
     field :token, :binary
@@ -32,6 +36,7 @@ defmodule HeadsUp.Accounts.UserToken do
         query =
           from token in by_token_and_context_query(raw, "api"),
             join: user in assoc(token, :user),
+            where: token.inserted_at > ago(^@api_token_validity_days, "day"),
             select: user
 
         {:ok, query}
@@ -40,6 +45,22 @@ defmodule HeadsUp.Accounts.UserToken do
         :error
     end
   end
+
+  @doc "Slides an active token's expiry forward (called at most daily)."
+  def refresh_api_token_query(encoded_token) do
+    case Base.url_decode64(encoded_token, padding: false) do
+      {:ok, raw} -> {:ok, by_token_and_context_query(raw, "api")}
+      :error -> :error
+    end
+  end
+
+  @doc "Tokens past their validity window — swept so the table can't grow forever."
+  def expired_api_tokens_query do
+    from t in __MODULE__,
+      where: t.context == "api" and t.inserted_at <= ago(^@api_token_validity_days, "day")
+  end
+
+  def api_token_validity_days, do: @api_token_validity_days
 
   @code_validity_minutes 15
 

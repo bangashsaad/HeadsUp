@@ -33,6 +33,11 @@ defmodule HeadsUp.Contests.Janitor do
       counts -> Logger.info("Janitor expired stale duels: #{inspect(counts)}")
     end
 
+    case HeadsUp.Accounts.prune_expired_tokens() do
+      0 -> :ok
+      n -> Logger.info("Janitor pruned #{n} expired login tokens")
+    end
+
     Process.send_after(self(), :sweep, state.interval)
     {:noreply, state}
   end

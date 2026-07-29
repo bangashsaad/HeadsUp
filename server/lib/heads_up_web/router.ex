@@ -34,6 +34,8 @@ defmodule HeadsUpWeb.Router do
     get "/apple-app-site-association", DeepLinkController, :aasa
     get "/d/:id", DeepLinkController, :fallback
     get "/u/:username", DeepLinkController, :fallback
+    get "/privacy", LegalController, :privacy
+    get "/support", LegalController, :support
     get "/install", DeepLinkController, :install
     get "/install/manifest.plist", DeepLinkController, :manifest
   end
@@ -73,6 +75,9 @@ defmodule HeadsUpWeb.Router do
     # Friends
     get "/users/search", UserController, :search
     get "/users/:id", UserController, :show
+    get "/blocks", UserController, :blocked
+    post "/users/:id/block", UserController, :block
+    delete "/users/:id/block", UserController, :unblock
     get "/friend-groups", FriendGroupController, :index
     post "/friend-groups", FriendGroupController, :create
     put "/friend-groups/:id", FriendGroupController, :update

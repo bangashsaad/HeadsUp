@@ -13,6 +13,8 @@ defmodule HeadsUpWeb.UserAuth do
   def fetch_api_user(conn, _opts) do
     with ["Bearer " <> token] <- get_req_header(conn, "authorization"),
          %Accounts.User{} = user <- Accounts.get_user_by_api_token(token) do
+      Accounts.refresh_api_token(token)
+
       conn
       |> assign(:current_user, Accounts.touch_last_seen(user))
       |> assign(:user_token, token)

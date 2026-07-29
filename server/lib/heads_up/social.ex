@@ -10,7 +10,7 @@ defmodule HeadsUp.Social do
   import Ecto.Query, warn: false
   alias HeadsUp.Repo
   alias HeadsUp.Accounts.User
-  alias HeadsUp.Social.{Friendship, FriendGroup, FriendGroupMember}
+  alias HeadsUp.Social.{Block, Friendship, FriendGroup, FriendGroupMember}
 
   @doc """
   Searches users by username (case-insensitive, partial match), excluding the
@@ -27,9 +27,13 @@ defmodule HeadsUp.Social do
       # it can use a database index, so it stays fast as the user base grows.
       pattern = escape_like(trimmed) <> "%"
 
+      hidden = blocked_ids(current_user.id)
+
       users =
         from(u in User,
-          where: u.id != ^current_user.id and ilike(u.username, ^pattern) and is_nil(u.deleted_at),
+          where:
+            u.id != ^current_user.id and ilike(u.username, ^pattern) and is_nil(u.deleted_at) and
+              u.id not in ^hidden,
           # Exact matches first (citext makes this case-insensitive), then A–Z.
           order_by: [desc: fragment("? = ?", u.username, ^trimmed), asc: u.username],
           limit: ^limit
@@ -53,6 +57,9 @@ defmodule HeadsUp.Social do
 
       Repo.get(User, addressee_id) == nil ->
         {:error, :not_found}
+
+      blocked?(current_user, addressee_id) ->
+        {:error, "that request can't be sent"}
 
       existing = get_friendship_between(current_user.id, addressee_id) ->
         case existing.status do
@@ -161,6 +168,94 @@ defmodule HeadsUp.Social do
       {id, ""} -> friends?(user, id)
       _ -> false
     end
+  end
+
+  # --- blocking -------------------------------------------------------------
+
+  @doc """
+  Blocks a user: severs any friendship both ways, drops them from every group,
+  and records the block. Effects are symmetric — neither side can search,
+  friend, or challenge the other afterwards — and the blocked user is never
+  notified.
+  """
+  def block_user(%User{id: id} = user, other_id) when is_integer(other_id) do
+    Repo.transaction(fn ->
+      from(f in Friendship,
+        where:
+          (f.requester_id == ^id and f.addressee_id == ^other_id) or
+            (f.requester_id == ^other_id and f.addressee_id == ^id)
+      )
+      |> Repo.delete_all()
+
+      # Drop them from my groups, and me from theirs.
+      from(m in FriendGroupMember,
+        join: g in FriendGroup,
+        on: g.id == m.group_id,
+        where:
+          (g.owner_id == ^id and m.user_id == ^other_id) or
+            (g.owner_id == ^other_id and m.user_id == ^id)
+      )
+      |> Repo.delete_all()
+
+      %Block{}
+      |> Block.changeset(%{blocker_id: id, blocked_id: other_id})
+      |> Repo.insert(on_conflict: :nothing)
+      |> case do
+        {:ok, _} -> :ok
+        {:error, changeset} -> Repo.rollback(changeset)
+      end
+    end)
+    |> case do
+      {:ok, :ok} -> {:ok, user}
+      other -> other
+    end
+  end
+
+  def block_user(user, other_id) when is_binary(other_id) do
+    case Integer.parse(other_id) do
+      {n, ""} -> block_user(user, n)
+      _ -> {:error, :not_found}
+    end
+  end
+
+  @doc "Lifts a block. Friendship is NOT restored — they can re-add each other."
+  def unblock_user(%User{id: id}, other_id) do
+    {n, _} = Repo.delete_all(from(b in Block, where: b.blocker_id == ^id and b.blocked_id == ^other_id))
+    if n > 0, do: :ok, else: {:error, :not_found}
+  end
+
+  @doc "Everyone this user has blocked (public shape for the settings list)."
+  def list_blocked(%User{id: id}) do
+    from(b in Block, where: b.blocker_id == ^id, join: u in assoc(b, :blocked), select: u, order_by: u.username)
+    |> Repo.all()
+  end
+
+  @doc "True if EITHER user has blocked the other — blocking cuts both ways."
+  def blocked?(%User{id: id}, other_id) when is_integer(other_id) do
+    Repo.exists?(
+      from b in Block,
+        where:
+          (b.blocker_id == ^id and b.blocked_id == ^other_id) or
+            (b.blocker_id == ^other_id and b.blocked_id == ^id)
+    )
+  end
+
+  def blocked?(user, other_id) when is_binary(other_id) do
+    case Integer.parse(other_id) do
+      {n, ""} -> blocked?(user, n)
+      _ -> false
+    end
+  end
+
+  def blocked?(_, _), do: false
+
+  # Ids in ANY block relationship with this user — excluded from search.
+  defp blocked_ids(id) do
+    from(b in Block,
+      where: b.blocker_id == ^id or b.blocked_id == ^id,
+      select: fragment("CASE WHEN ? = ? THEN ? ELSE ? END", b.blocker_id, ^id, b.blocked_id, b.blocker_id)
+    )
+    |> Repo.all()
   end
 
   # --- friend groups (private, owner-named) ---------------------------------

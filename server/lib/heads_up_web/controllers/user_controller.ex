@@ -7,6 +7,25 @@ defmodule HeadsUpWeb.UserController do
   action_fallback HeadsUpWeb.FallbackController
 
   # GET /api/users/search?q=...
+  # POST /api/users/:id/block   DELETE /api/users/:id/block
+  def block(conn, %{"id" => id}) do
+    with {:ok, _} <- HeadsUp.Social.block_user(conn.assigns.current_user, id) do
+      send_resp(conn, :no_content, "")
+    end
+  end
+
+  def unblock(conn, %{"id" => id}) do
+    with :ok <- HeadsUp.Social.unblock_user(conn.assigns.current_user, String.to_integer(id)) do
+      send_resp(conn, :no_content, "")
+    end
+  end
+
+  # GET /api/blocks
+  def blocked(conn, _params) do
+    users = HeadsUp.Social.list_blocked(conn.assigns.current_user)
+    json(conn, %{blocked: Enum.map(users, &HeadsUpWeb.PublicUserJSON.public/1)})
+  end
+
   def search(conn, params) do
     query = Map.get(params, "q", "")
     results = Social.search_users(query, conn.assigns.current_user)

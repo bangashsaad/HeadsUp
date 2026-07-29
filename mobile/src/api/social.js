@@ -53,3 +53,17 @@ export function setFriendGroupMembers(token, id, userIds) {
 export function deleteFriendGroup(token, id) {
   return apiRequest(`/api/friend-groups/${id}`, { method: 'DELETE', token });
 }
+
+// --- blocking --------------------------------------------------------------
+
+export function blockUser(token, userId) {
+  return apiRequest(`/api/users/${userId}/block`, { method: 'POST', token });
+}
+
+export function unblockUser(token, userId) {
+  return apiRequest(`/api/users/${userId}/block`, { method: 'DELETE', token });
+}
+
+export function listBlocked(token) {
+  return apiRequest('/api/blocks', { token });
+}

@@ -10,6 +10,9 @@ defmodule HeadsUpWeb.DuelController do
   plug :put_view, json: HeadsUpWeb.DuelJSON
   # Watching is free; dueling needs a proven inbox (spam-account armor).
   plug :require_verified_email when action in [:create, :accept, :counter, :rematch, :start]
+  # Each challenge pushes a notification to someone else — worth a ceiling.
+  plug HeadsUpWeb.Plugs.RateLimit,
+       [limit: 30, window_ms: 3_600_000, key: "challenge"] when action in [:create, :counter, :rematch]
   action_fallback HeadsUpWeb.FallbackController
 
   # GET /api/duels

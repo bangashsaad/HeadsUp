@@ -7,6 +7,9 @@ defmodule HeadsUp.Application do
 
   @impl true
   def start(_type, _args) do
+    # ETS table for the rate limiter (see HeadsUpWeb.Plugs.RateLimit).
+    HeadsUpWeb.Plugs.RateLimit.init_table()
+
     children = [
       HeadsUpWeb.Telemetry,
       HeadsUp.Repo,

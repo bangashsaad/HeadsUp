@@ -5,6 +5,23 @@ defmodule HeadsUpWeb.AuthController do
   alias HeadsUp.Coins
 
   plug :put_view, json: HeadsUpWeb.UserJSON
+
+  # Public endpoints, once signup is open to strangers: credential stuffing,
+  # mass account creation, and reset-email floods are the obvious three.
+  plug HeadsUpWeb.Plugs.RateLimit, [limit: 10, window_ms: 60_000, key: "login"] when action == :login
+  plug HeadsUpWeb.Plugs.RateLimit, [limit: 5, window_ms: 3_600_000, key: "register"] when action == :register
+
+  plug HeadsUpWeb.Plugs.RateLimit,
+       [limit: 5, window_ms: 900_000, key: "password_forgot"] when action == :forgot_password
+
+  plug HeadsUpWeb.Plugs.RateLimit,
+       [limit: 10, window_ms: 900_000, key: "password_reset"] when action == :reset_password
+
+  # Authenticated but still abusable: code guessing and resend spam.
+  plug HeadsUpWeb.Plugs.RateLimit, [limit: 10, window_ms: 900_000, key: "verify"] when action == :verify_email
+
+  plug HeadsUpWeb.Plugs.RateLimit,
+       [limit: 4, window_ms: 900_000, key: "verify_resend"] when action == :resend_verification
   action_fallback HeadsUpWeb.FallbackController
 
   # POST /api/register  { "username", "email", "password" }

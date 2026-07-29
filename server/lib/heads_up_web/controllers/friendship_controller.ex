@@ -4,6 +4,8 @@ defmodule HeadsUpWeb.FriendshipController do
   alias HeadsUp.Social
 
   plug :put_view, json: HeadsUpWeb.FriendshipJSON
+  plug HeadsUpWeb.Plugs.RateLimit, [limit: 30, window_ms: 3_600_000, key: "friend_req"] when action == :create
+
   action_fallback HeadsUpWeb.FallbackController
 
   # GET /api/friends  -> my accepted friends

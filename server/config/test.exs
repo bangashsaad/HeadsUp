@@ -12,6 +12,9 @@ config :heads_up, :stats_provider, HeadsUp.Settlement.Stats.Mock
 config :heads_up, :stats_providers, %{}
 config :heads_up, :simulated_stats_ok, true
 
+# Tests hit auth endpoints far faster than any human.
+config :heads_up, :rate_limiting_enabled, false
+
 # No real pushes from tests; Notifications tests exercise deliver/4 directly
 # with a Req.Test plug.
 config :heads_up, HeadsUp.Notifications, enabled: false, req_options: []
