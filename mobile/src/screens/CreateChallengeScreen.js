@@ -198,8 +198,25 @@ export default function CreateChallengeScreen({ navigation }) {
   }
 
   const effectiveStake = stake === -1 ? Math.max(0, parseInt(customStake, 10) || 0) : stake;
-  const stakeLabel = stake === -1 ? `◎ ${effectiveStake.toLocaleString()}` : stake === 0 ? 'PRIDE' : `◎ ${stake}`;
+  const stakeLabel =
+    stake === -1 ? `◎ ${effectiveStake.toLocaleString()}` : stake === 0 ? 'FRIENDLY' : `◎ ${stake}`;
   const stakeAffordable = effectiveStake <= balance;
+
+  // Leaving the custom sheet without a usable amount reverts to Friendly, so
+  // the footer can never advertise "◎ 0" as a custom stake.
+  function closeCustom() {
+    setCustomOpen(false);
+    const n = parseInt(customStake, 10) || 0;
+    if (n < 1 || n > balance) {
+      setStake(0);
+      setCustomStake('');
+    }
+  }
+
+  // BUG GUARD: a thin slate can leave NO roster size viable for the current
+  // table (pick 4 rivals on a big slate, then switch to a one-game night).
+  // Without this the CTA stayed live and the server rejected the send.
+  const anyRosterFits = ROSTERS.some((size) => rosterOk(size));
 
   async function send() {
     if (selected.length === 0) return;
@@ -250,8 +267,13 @@ export default function CreateChallengeScreen({ navigation }) {
     );
   }
 
-  const cta =
-    selected.length === 0 ? 'PICK WHO GETS IT' : selected.length === 1 ? 'SEND TO 1' : `SEND TO ${selected.length}`;
+  const cta = !anyRosterFits
+    ? 'SLATE TOO SMALL'
+    : selected.length === 0
+      ? 'PICK WHO GETS IT'
+      : selected.length === 1
+        ? 'SEND TO 1'
+        : `SEND TO ${selected.length}`;
 
   return (
     <Screen padded={false} edges={['bottom']}>
@@ -334,7 +356,12 @@ export default function CreateChallengeScreen({ navigation }) {
           </Row>
         </View>
 
-        {slatePlayers != null && !rosterOk(7) ? (
+        {slatePlayers != null && !anyRosterFits ? (
+          <Text style={[styles.note, { color: colors.danger }]}>
+            {slateLabel(slateDate || '')} can't field a draft for {drafters} players. Pick a bigger slate, or drop a
+            rival.
+          </Text>
+        ) : slatePlayers != null && !rosterOk(7) ? (
           <Text style={styles.note}>
             {slateLabel(slateDate || '')} has {slate?.upcoming ?? 0} game{(slate?.upcoming ?? 0) === 1 ? '' : 's'} — not
             enough players for every roster size. Pick a bigger slate for deeper drafts.
@@ -419,7 +446,7 @@ export default function CreateChallengeScreen({ navigation }) {
           variant={selected.length ? 'primary' : 'outline'}
           onPress={send}
           loading={submitting}
-          disabled={selected.length === 0}
+          disabled={selected.length === 0 || !anyRosterFits}
         />
       </View>
 
@@ -436,7 +463,7 @@ export default function CreateChallengeScreen({ navigation }) {
 
       <CustomStakeModal
         visible={customOpen}
-        onClose={() => setCustomOpen(false)}
+        onClose={closeCustom}
         value={customStake}
         onChange={setCustomStake}
         balance={balance}
