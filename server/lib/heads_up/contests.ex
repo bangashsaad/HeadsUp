@@ -477,7 +477,7 @@ defmodule HeadsUp.Contests do
   # roster_size is DERIVED from the lineup template so pick count always matches.
   defp build_attrs(challenger, attrs) do
     sport = attrs["sport"]
-    template = attrs["lineup_template"] || "#{sport}_standard"
+    template = attrs["lineup_template"] || Lineup.default_template(sport)
 
     attrs
     |> Map.put("challenger_id", challenger.id)
@@ -581,6 +581,13 @@ defmodule HeadsUp.Contests do
         end
     end
   end
+
+  @doc """
+  Draftable players for a sport on a set of teams — the number the create-time
+  slate guard compares against `roster_size x drafters x 2`. Public so the
+  challenge screen can grey out roster sizes a slate can't fill.
+  """
+  def slate_player_count(sport, teams), do: slate_pool_count(sport, teams)
 
   defp slate_pool_count(_sport, []), do: 0
 

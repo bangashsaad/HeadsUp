@@ -20,8 +20,21 @@ defmodule HeadsUpWeb.GameController do
   def slates(conn, %{"sport" => sport}) do
     slates =
       case HeadsUp.Sports.Slate.upcoming(sport) do
-        {:ok, days} -> Enum.map(days, &%{date: &1.date, games: &1.games, upcoming: &1.upcoming})
-        {:error, _} -> []
+        {:ok, days} ->
+          Enum.map(days, fn d ->
+            %{
+              date: d.date,
+              games: d.games,
+              upcoming: d.upcoming,
+              # Draftable bodies on that slate. The client mirrors the
+              # create-time guard (roster x drafters x 2) to grey out roster
+              # sizes the night can't support, instead of failing on send.
+              players: HeadsUp.Contests.slate_player_count(sport, d.upcoming_teams)
+            }
+          end)
+
+        {:error, _} ->
+          []
       end
 
     json(conn, %{sport: sport, slates: slates})

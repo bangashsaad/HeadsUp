@@ -81,6 +81,32 @@ defmodule HeadsUp.Accounts do
     :ok
   end
 
+  # --- presence (last-seen, no socket) --------------------------------------
+
+  @online_window_seconds 300
+  @stamp_every_seconds 60
+
+  @doc "True if the user was active within the last #{@online_window_seconds}s."
+  def online?(%User{last_seen_at: %DateTime{} = seen}),
+    do: DateTime.diff(DateTime.utc_now(), seen) <= @online_window_seconds
+
+  def online?(_), do: false
+
+  @doc """
+  Records activity for the "online" dot. Throttled to one write per
+  #{@stamp_every_seconds}s per user so a chatty client can't hammer the row.
+  """
+  def touch_last_seen(%User{} = user) do
+    now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+    if is_nil(user.last_seen_at) or DateTime.diff(now, user.last_seen_at) >= @stamp_every_seconds do
+      from(u in User, where: u.id == ^user.id) |> Repo.update_all(set: [last_seen_at: now])
+      %{user | last_seen_at: now}
+    else
+      user
+    end
+  end
+
   # --- email verification + password reset (6-digit codes) ------------------
 
   @doc "Sends (or re-sends) the email-verification code. Replaces any prior code."

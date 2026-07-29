@@ -69,7 +69,58 @@ defmodule HeadsUp.Drafts.Lineup do
     %{key: "UTIL1", label: "UTIL", eligible: @wnba_util}
   ]
 
+  # --- canonical roster shapes (challenge-screen spec) --------------------
+  # Sizes 5 and 7, each ending in a single FLEX. Basketball is GUARD/FORWARD
+  # (centers ride the FLEX — the league only has ~24 of them); baseball is
+  # PITCHER/INFIELD/OUTFIELD with catchers counted as infield, since these
+  # shapes have no dedicated C slot.
+  @bball_flex @wnba_util
+  @mlb_infield ~w(C 1B 2B 3B SS)
+  @mlb_pitcher ~w(SP RP)
+
+  @bball_5 [
+    %{key: "G1", label: "GUARD", eligible: @wnba_g},
+    %{key: "G2", label: "GUARD", eligible: @wnba_g},
+    %{key: "F1", label: "FORWARD", eligible: @wnba_f},
+    %{key: "F2", label: "FORWARD", eligible: @wnba_f},
+    %{key: "FLEX1", label: "FLEX", eligible: @bball_flex}
+  ]
+
+  @bball_7 [
+    %{key: "G1", label: "GUARD", eligible: @wnba_g},
+    %{key: "G2", label: "GUARD", eligible: @wnba_g},
+    %{key: "G3", label: "GUARD", eligible: @wnba_g},
+    %{key: "F1", label: "FORWARD", eligible: @wnba_f},
+    %{key: "F2", label: "FORWARD", eligible: @wnba_f},
+    %{key: "F3", label: "FORWARD", eligible: @wnba_f},
+    %{key: "FLEX1", label: "FLEX", eligible: @bball_flex}
+  ]
+
+  @mlb_5 [
+    %{key: "P1", label: "PITCHER", eligible: @mlb_pitcher},
+    %{key: "IF1", label: "INFIELD", eligible: @mlb_infield},
+    %{key: "IF2", label: "INFIELD", eligible: @mlb_infield},
+    %{key: "OF1", label: "OUTFIELD", eligible: ["OF"]},
+    %{key: "FLEX1", label: "FLEX", eligible: @mlb_hitter}
+  ]
+
+  @mlb_7 [
+    %{key: "P1", label: "PITCHER", eligible: @mlb_pitcher},
+    %{key: "P2", label: "PITCHER", eligible: @mlb_pitcher},
+    %{key: "IF1", label: "INFIELD", eligible: @mlb_infield},
+    %{key: "IF2", label: "INFIELD", eligible: @mlb_infield},
+    %{key: "OF1", label: "OUTFIELD", eligible: ["OF"]},
+    %{key: "OF2", label: "OUTFIELD", eligible: ["OF"]},
+    %{key: "FLEX1", label: "FLEX", eligible: @mlb_hitter}
+  ]
+
   @templates %{
+    "wnba_5" => @bball_5,
+    "wnba_7" => @bball_7,
+    "nba_5" => @bball_5,
+    "nba_7" => @bball_7,
+    "mlb_5" => @mlb_5,
+    "mlb_7" => @mlb_7,
     "nfl_quick" => [
       %{key: "QB1", label: "QB", eligible: ["QB"]},
       %{key: "RB1", label: "RB", eligible: ["RB"]},
@@ -112,6 +163,22 @@ defmodule HeadsUp.Drafts.Lineup do
   @doc "All known template keys, e.g. `[\"nfl_quick\", \"nba_standard\", ...]`."
   @spec templates() :: [String.t()]
   def templates, do: Map.keys(@templates)
+
+  @doc """
+  The default template for a sport: the canonical 5-slot shape where one
+  exists, else the legacy `_standard` preset (NFL, until its shapes land).
+  """
+  @spec default_template(String.t()) :: String.t()
+  def default_template(sport) do
+    sized = "#{sport}_5"
+    if Map.has_key?(@templates, sized), do: sized, else: "#{sport}_standard"
+  end
+
+  @doc "Canonical roster sizes offered for a sport, smallest first (e.g. [5, 7])."
+  @spec sizes_for(String.t()) :: [pos_integer()]
+  def sizes_for(sport) do
+    for n <- [5, 7], Map.has_key?(@templates, "#{sport}_#{n}"), do: n
+  end
 
   @doc "Template keys available for a sport (e.g. `\"nba\"` -> the two nba_* keys)."
   @spec templates_for(String.t()) :: [String.t()]

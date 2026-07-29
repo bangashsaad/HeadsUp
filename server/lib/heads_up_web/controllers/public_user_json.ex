@@ -17,7 +17,7 @@ defmodule HeadsUpWeb.PublicUserJSON do
   end
 
   def public(user) do
-    %{id: user.id, username: user.username}
+    %{id: user.id, username: user.username, online: HeadsUp.Accounts.online?(user)}
   end
 
   @doc """

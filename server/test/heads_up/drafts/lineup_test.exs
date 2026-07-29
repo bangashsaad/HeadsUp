@@ -4,23 +4,50 @@ defmodule HeadsUp.Drafts.LineupTest do
   alias HeadsUp.Drafts.Lineup
 
   describe "templates/0 and templates_for/1" do
-    test "exposes all eight presets" do
+    test "exposes the canonical 5/7 shapes plus the legacy presets" do
       assert Enum.sort(Lineup.templates()) == [
+               "mlb_5",
+               "mlb_7",
                "mlb_quick",
                "mlb_standard",
+               "nba_5",
+               "nba_7",
                "nba_quick",
                "nba_standard",
                "nfl_quick",
                "nfl_standard",
+               "wnba_5",
+               "wnba_7",
                "wnba_quick",
                "wnba_standard"
              ]
     end
 
     test "filters by sport" do
-      assert Lineup.templates_for("wnba") == ["wnba_quick", "wnba_standard"]
+      assert Lineup.templates_for("wnba") == ["wnba_5", "wnba_7", "wnba_quick", "wnba_standard"]
       assert Lineup.templates_for("nfl") == ["nfl_quick", "nfl_standard"]
       assert Lineup.templates_for("xxx") == []
+    end
+
+    test "canonical shapes: sizes 5 and 7, each ending in one FLEX" do
+      for sport <- ~w(wnba nba mlb), size <- [5, 7] do
+        slots = Lineup.slots("#{sport}_#{size}")
+        assert length(slots) == size
+        assert List.last(slots).label == "FLEX"
+        assert Enum.count(slots, &(&1.label == "FLEX")) == 1
+      end
+
+      assert Enum.map(Lineup.slots("wnba_5"), & &1.label) == ~w(GUARD GUARD FORWARD FORWARD FLEX)
+      assert Enum.map(Lineup.slots("mlb_7"), & &1.label) ==
+               ~w(PITCHER PITCHER INFIELD INFIELD OUTFIELD OUTFIELD FLEX)
+    end
+
+    test "default_template/1 prefers the 5-slot shape, falling back for NFL" do
+      assert Lineup.default_template("wnba") == "wnba_5"
+      assert Lineup.default_template("mlb") == "mlb_5"
+      assert Lineup.default_template("nfl") == "nfl_standard"
+      assert Lineup.sizes_for("wnba") == [5, 7]
+      assert Lineup.sizes_for("nfl") == []
     end
 
     test "wnba uses the coarse G/F/C scheme (the ESPN feed only emits G/F/C)" do

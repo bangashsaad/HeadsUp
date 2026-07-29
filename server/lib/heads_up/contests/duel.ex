@@ -13,7 +13,11 @@ defmodule HeadsUp.Contests.Duel do
   # drafting = live draft underway; drafted = draft done, awaiting scoring;
   # settled = stats totaled, winner declared (Phase 5).
   @statuses ~w(pending accepted declined countered cancelled drafting drafted settled)
-  @pick_clocks [30, 60, 90, 14_400, 43_200, 86_400]
+  # Offered on new challenges (async was cut with the canonical redesign).
+  @pick_clocks [15, 30, 60]
+  # Still accepted so pre-redesign duels — and rematches cloning them — remain
+  # valid. Never shown in the picker.
+  @legacy_pick_clocks [90, 14_400, 43_200, 86_400]
 
   schema "duels" do
     field :sport, :string
@@ -99,7 +103,7 @@ defmodule HeadsUp.Contests.Duel do
     |> validate_inclusion(:sport, @sports)
     |> validate_inclusion(:draft_type, @draft_types)
     |> validate_inclusion(:status, @statuses)
-    |> validate_inclusion(:pick_clock_seconds, @pick_clocks)
+    |> validate_inclusion(:pick_clock_seconds, @pick_clocks ++ @legacy_pick_clocks)
     |> validate_inclusion(:lineup_template, Lineup.templates())
     |> validate_number(:roster_size, greater_than_or_equal_to: 1, less_than_or_equal_to: 15)
     |> validate_number(:stake_coins,

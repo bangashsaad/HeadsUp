@@ -14,7 +14,7 @@ defmodule HeadsUp.Contests.Participant do
   alias HeadsUp.Contests.Duel
 
   @statuses ~w(invited accepted declined)
-  @max_seat 3
+  @max_seat 4
 
   schema "duel_participants" do
     field :seat, :integer
