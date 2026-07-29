@@ -70,7 +70,19 @@ config :logger, :default_formatter,
 # Use Jason for JSON parsing in Phoenix
 config :phoenix, :json_library, Jason
 
-# Phase 5 scoring + settlement
+# Phase 5 scoring + settlement.
+#
+# REAL stats are the default for every env (prod included) — this map used to
+# live only in dev.exs, so production silently inherited the Mock fallback and
+# settled duels on simulated numbers. Test overrides both keys back to Mock.
+config :heads_up, :stats_providers, %{
+  "wnba" => HeadsUp.Settlement.Stats.WnbaEspn,
+  "mlb" => HeadsUp.Settlement.Stats.MlbEspn
+}
+
+# Fallback for a sport with no dedicated provider. Season gating keeps NBA/NFL
+# uncreatable today, and Settlement warns loudly if this is ever reached with
+# real users, so a missing provider can't quietly fake a settlement again.
 config :heads_up, :stats_provider, HeadsUp.Settlement.Stats.Mock
 
 # ESPN feed (Phase 5b WNBA, Phase 7 profiles, Phase 8 MLB). One namespace both

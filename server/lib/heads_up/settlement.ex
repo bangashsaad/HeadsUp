@@ -326,7 +326,23 @@ defmodule HeadsUp.Settlement do
   # Per-sport stats provider: a `:stats_providers` sport=>module map wins, else
   # the single `:stats_provider` default (the Mock in test/base config).
   defp provider(sport) do
-    Application.get_env(:heads_up, :stats_providers, %{})
-    |> Map.get(sport) || Application.get_env(:heads_up, :stats_provider, HeadsUp.Settlement.Stats.Mock)
+    chosen =
+      Application.get_env(:heads_up, :stats_providers, %{})
+      |> Map.get(sport) || Application.get_env(:heads_up, :stats_provider, HeadsUp.Settlement.Stats.Mock)
+
+    warn_if_simulated(sport, chosen)
+    chosen
   end
+
+  # Settling real users' duels on fabricated numbers is the worst silent
+  # failure this system has; if it ever happens again it says so.
+  defp warn_if_simulated(sport, HeadsUp.Settlement.Stats.Mock) do
+    unless Application.get_env(:heads_up, :dev_routes, false) or
+             Application.get_env(:heads_up, :simulated_stats_ok, false) do
+      require Logger
+      Logger.error("SIMULATED STATS: #{sport} has no real provider — settling on mock numbers")
+    end
+  end
+
+  defp warn_if_simulated(_sport, _provider), do: :ok
 end

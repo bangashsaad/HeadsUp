@@ -7,6 +7,10 @@ config :heads_up, :settlement_interval_ms, 3_600_000
 # Same deal for the stale-duel janitor: tests call Contests.expire_stale/1.
 config :heads_up, :janitor_interval_ms, 3_600_000
 config :heads_up, :stats_provider, HeadsUp.Settlement.Stats.Mock
+# Clear the real per-sport map inherited from config.exs — tests must never
+# reach the live ESPN feed.
+config :heads_up, :stats_providers, %{}
+config :heads_up, :simulated_stats_ok, true
 
 # No real pushes from tests; Notifications tests exercise deliver/4 directly
 # with a Req.Test plug.
