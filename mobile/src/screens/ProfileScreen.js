@@ -40,7 +40,7 @@ export default function ProfileScreen({ navigation }) {
   const styles = useThemedStyles(makeStyles);
   const [stats, setStats] = useState(null);
   const [trophies, setTrophies] = useState([]);
-  const [crew, setCrew] = useState([]);
+  const [standings, setStandings] = useState([]);
   const [requestCount, setRequestCount] = useState(0);
   const [openTrophy, setOpenTrophy] = useState(null);
 
@@ -55,7 +55,7 @@ export default function ProfileScreen({ navigation }) {
         .then((r) => active && setTrophies(r.achievements || []))
         .catch(() => {});
       getLeaderboard(token)
-        .then((r) => active && setCrew(r.leaderboard || []))
+        .then((r) => active && setStandings(r.leaderboard || []))
         .catch(() => {});
       listRequests(token)
         .then((r) => active && setRequestCount((r.requests || []).length))
@@ -84,7 +84,7 @@ export default function ProfileScreen({ navigation }) {
   const h2hById = new Map(h2h.map((r) => [String(r.opponent.id), r]));
   const winPct = rec ? Math.round((rec.win_pct || 0) * (rec.win_pct <= 1 ? 100 : 1)) : null;
   const ptDiff = rec ? Math.round(((rec.points_for || 0) - (rec.points_against || 0)) * 10) / 10 : 0;
-  const myRank = crew.find((r) => String(r.user?.id) === String(user?.id))?.rank;
+  const myRank = standings.find((r) => String(r.user?.id) === String(user?.id))?.rank;
   const earned = trophies.filter((t) => t.earned).length;
 
   return (
@@ -121,7 +121,7 @@ export default function ProfileScreen({ navigation }) {
                 ) : null}
                 {myRank ? (
                   <View style={styles.idChip}>
-                    <Text style={[styles.idChipText, { color: colors.muted }]}>#{myRank} OF CREW</Text>
+                    <Text style={[styles.idChipText, { color: colors.muted }]}>#{myRank} OF FRIENDS</Text>
                   </View>
                 ) : null}
               </View>
@@ -163,18 +163,18 @@ export default function ProfileScreen({ navigation }) {
         ) : null}
 
         <View style={{ paddingHorizontal: spacing.lg }}>
-          {/* The crew */}
+          {/* Standings among friends */}
           <SectionHeader hint={requestCount > 0 ? `${requestCount} REQUEST${requestCount > 1 ? 'S' : ''}` : undefined}>
-            The crew
+            Friend standings
           </SectionHeader>
-          {crew.length === 0 ? (
+          {standings.length === 0 ? (
             <Card>
-              <Text style={styles.emptyCrew}>No crew yet. Add friends and the standings show up here.</Text>
+              <Text style={styles.emptyStandings}>No friends yet. Add some and the standings show up here.</Text>
               <Button title="Add friends" size="sm" full={false} style={{ marginTop: spacing.md, alignSelf: 'flex-start' }} onPress={() => navigation.navigate('Search')} />
             </Card>
           ) : (
             <View style={{ gap: 7 }}>
-              {crew.map((r) => {
+              {standings.map((r) => {
                 const isMe = String(r.user?.id) === String(user?.id);
                 const vs = h2hById.get(String(r.user?.id));
                 return (
@@ -182,27 +182,27 @@ export default function ProfileScreen({ navigation }) {
                     key={r.user?.id ?? r.rank}
                     disabled={isMe}
                     onPress={() => navigation.navigate('UserProfile', { id: r.user.id, username: r.user.username })}
-                    style={({ pressed }) => [styles.crewRow, isMe && styles.crewRowMe, pressed && { opacity: 0.8 }]}
+                    style={({ pressed }) => [styles.standingRow, isMe && styles.standingRowMe, pressed && { opacity: 0.8 }]}
                   >
                     <CondTitle size={15} color={RANK_COLOR(colors, r.rank)} style={{ width: 20 }}>
                       {r.rank}
                     </CondTitle>
                     <Avatar name={isMe ? user?.username : r.user?.username} size={30} />
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.crewName, isMe && { color: colors.accent }]} numberOfLines={1}>
+                      <Text style={[styles.standingName, isMe && { color: colors.accent }]} numberOfLines={1}>
                         {isMe ? `${user?.username} · you` : r.user?.username}
                       </Text>
-                      <Text style={styles.crewSub} numberOfLines={1}>
+                      <Text style={styles.standingSub} numberOfLines={1}>
                         {isMe
                           ? myRank === 1
-                            ? 'Top of the crew — defend it'
+                            ? 'Top of the standings — defend it'
                             : 'Climb the board — win a duel'
                           : vs
                             ? `Your record vs: ${vs.wins}–${vs.losses}${vs.ties ? `–${vs.ties}` : ''}`
                             : 'No duels yet — call them out'}
                       </Text>
                     </View>
-                    <Text style={styles.crewRec}>
+                    <Text style={styles.standingRec}>
                       {r.wins}–{r.losses}
                       {r.ties ? `–${r.ties}` : ''}
                     </Text>
@@ -214,7 +214,7 @@ export default function ProfileScreen({ navigation }) {
 
           {/* Menu */}
           <Card padded={false} style={{ marginTop: spacing.lg }}>
-            <Row icon="people-outline" label="Manage the crew" sublabel="Friends, search, invites" onPress={() => navigation.navigate('Friends')} />
+            <Row icon="people-outline" label="Manage friends" sublabel="Friends, search, invites" onPress={() => navigation.navigate('Friends')} />
             <View style={styles.menuDivider} />
             <Row icon="mail-unread-outline" label="Friend requests" count={requestCount} onPress={() => navigation.navigate('Requests')} />
             <View style={styles.menuDivider} />
@@ -309,8 +309,8 @@ const makeStyles = (colors) =>
     trophyTileOff: { borderColor: colors.border, backgroundColor: colors.card, opacity: 0.55 },
     trophyTitle: { color: colors.text, fontSize: 9, fontFamily: fonts.bodyExtra, maxWidth: 78, textAlign: 'center' },
     trophySub: { color: colors.placeholder, fontSize: 8, fontFamily: fonts.bodyBlack, letterSpacing: 0.5 },
-    emptyCrew: { color: colors.muted, fontSize: font.small, lineHeight: 19, fontFamily: fonts.body },
-    crewRow: {
+    emptyStandings: { color: colors.muted, fontSize: font.small, lineHeight: 19, fontFamily: fonts.body },
+    standingRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
@@ -321,10 +321,10 @@ const makeStyles = (colors) =>
       paddingVertical: 10,
       paddingHorizontal: 12,
     },
-    crewRowMe: { backgroundColor: withAlpha(colors.accent, 0.06), borderColor: withAlpha(colors.accent, 0.45) },
-    crewName: { color: colors.text, fontSize: 13, fontFamily: fonts.bodyBold },
-    crewSub: { color: colors.muted, fontSize: 10, marginTop: 1, fontFamily: fonts.body },
-    crewRec: { color: colors.text, fontFamily: fonts.heroUpright, fontSize: 15 },
+    standingRowMe: { backgroundColor: withAlpha(colors.accent, 0.06), borderColor: withAlpha(colors.accent, 0.45) },
+    standingName: { color: colors.text, fontSize: 13, fontFamily: fonts.bodyBold },
+    standingSub: { color: colors.muted, fontSize: 10, marginTop: 1, fontFamily: fonts.body },
+    standingRec: { color: colors.text, fontFamily: fonts.heroUpright, fontSize: 15 },
     row: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg, paddingVertical: spacing.md },
     rowIcon: { width: 34, height: 34, borderRadius: 10, backgroundColor: colors.accentSoft, alignItems: 'center', justifyContent: 'center', marginRight: spacing.md },
     rowLabel: { color: colors.text, fontSize: font.bodyLg, fontFamily: fonts.bodySemi },

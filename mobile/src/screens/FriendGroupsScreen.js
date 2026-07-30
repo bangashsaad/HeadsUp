@@ -17,7 +17,7 @@ import { Screen, Avatar, Button, EmptyState, SkeletonList } from '../components/
 
 const NAME_MAX = 20;
 
-// Private buckets of friends ("CREW", "WORK") that become the recipient tabs
+// Private buckets of friends ("COLLEGE", "WORK") that become the recipient tabs
 // on the challenge screen. Nobody sees the group they're in.
 export default function FriendGroupsScreen() {
   const { token } = useAuth();
@@ -205,7 +205,7 @@ export default function FriendGroupsScreen() {
             <TextInput
               value={draftName}
               onChangeText={(t) => setDraftName(t.slice(0, NAME_MAX))}
-              placeholder="Crew"
+              placeholder="College"
               placeholderTextColor={colors.placeholder}
               style={styles.input}
               autoFocus

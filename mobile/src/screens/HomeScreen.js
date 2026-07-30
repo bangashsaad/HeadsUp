@@ -218,9 +218,7 @@ export default function HomeScreen({ navigation }) {
           friends={home?.friends || []}
           styles={styles}
           colors={colors}
-          onChallenge={(f) =>
-            navigation.navigate('DuelsTab', { screen: 'CreateChallenge', initial: false, params: { preselect: f.id } })
-          }
+          onOpen={(f) => navigation.navigate('UserProfile', { id: f.id, username: f.username })}
           onAdd={() => navigation.navigate('YouTab', { screen: 'Search', initial: false })}
         />
 
@@ -463,14 +461,14 @@ function MiniCard({ item, onPress, styles, colors }) {
 // Who's around, online first. The point isn't a directory — it's turning
 // presence into a duel: tap a face and you land in the challenge flow with
 // them already picked.
-function FriendStrip({ friends, styles, colors, onChallenge, onAdd }) {
+function FriendStrip({ friends, styles, colors, onOpen, onAdd }) {
   const online = friends.filter((f) => f.online).length;
 
   return (
     <View style={styles.stripWrap}>
       <View style={styles.stripHead}>
         <Kicker size={9} tracking={2}>
-          {online > 0 ? `${online} around right now` : 'Your crew'}
+          {online > 0 ? `${online} around right now` : 'Your friends'}
         </Kicker>
       </View>
 
@@ -479,7 +477,7 @@ function FriendStrip({ friends, styles, colors, onChallenge, onAdd }) {
           {friends.map((f) => (
             <Pressable
               key={f.id}
-              onPress={() => onChallenge(f)}
+              onPress={() => onOpen(f)}
               style={({ pressed }) => [styles.stripItem, pressed && { opacity: 0.7 }]}
             >
               <View>

@@ -40,7 +40,13 @@ defmodule HeadsUpWeb.UserController do
     with {id, ""} <- Integer.parse(to_string(raw_id)),
          {:ok, profile} <- Social.public_profile(viewer, id) do
       vs_you = Enum.find(Stats.head_to_head(viewer.id), &(&1.opponent.id == id))
-      render(conn, :profile, profile: profile, record: Stats.record_for(id), vs_you: vs_you)
+
+      render(conn, :profile,
+        profile: profile,
+        record: Stats.record_for(id),
+        vs_you: vs_you,
+        history: Stats.history_vs(viewer.id, id)
+      )
     else
       _ -> {:error, :not_found}
     end

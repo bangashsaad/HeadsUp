@@ -11,7 +11,7 @@ import { Screen, Card, Avatar, Badge, Button, EmptyState } from '../components/u
 // (challenge seats, live standings, results). Shows their record, your
 // head-to-head, and the friend action — how you add someone you just met
 // in a group duel.
-export default function UserProfileScreen({ route }) {
+export default function UserProfileScreen({ route, navigation }) {
   const { id, username: usernameParam } = route.params;
   const { token } = useAuth();
   const { colors } = useTheme();
@@ -106,6 +106,18 @@ export default function UserProfileScreen({ route }) {
   const name = profile.user.username || usernameParam;
   const r = profile.record;
   const vs = profile.vs_you;
+  const history = profile.history || [];
+
+  // Jumps to the challenge form with this player already picked. Goes through
+  // the Duels tab because the profile is also reachable from the You tab,
+  // which has no challenge form of its own.
+  function challenge() {
+    navigation.navigate('DuelsTab', {
+      screen: 'CreateChallenge',
+      initial: false,
+      params: { preselect: profile.user.id },
+    });
+  }
 
   return (
     <Screen scroll>
@@ -158,12 +170,60 @@ export default function UserProfileScreen({ route }) {
       ) : (
         <Text style={styles.note}>You haven't finished a 1v1 against {name} yet.</Text>
       )}
+
+      <View style={styles.challengeWrap}>
+        <Button title={`Challenge ${name}`} icon="flash" onPress={challenge} />
+      </View>
+
+      {history.length > 0 ? (
+        <Card style={styles.historyCard}>
+          <Text style={styles.cardHead}>PREVIOUS DUELS</Text>
+          {history.map((h, i) => (
+            <View key={i} style={[styles.historyRow, i > 0 && styles.historyDivider]}>
+              <View style={[styles.pill, { backgroundColor: outcomeTint(h.outcome, colors) }]}>
+                <Text style={[styles.pillText, { color: outcomeColor(h.outcome, colors) }]}>
+                  {h.outcome === 'win' ? 'W' : h.outcome === 'loss' ? 'L' : 'T'}
+                </Text>
+              </View>
+              <Text style={styles.historyScore}>
+                {fmtPoints(h.points_for)} <Text style={styles.vsMuted}>–</Text> {fmtPoints(h.points_against)}
+              </Text>
+              <Text style={styles.historyDate}>{fmtDate(h.settled_at)}</Text>
+            </View>
+          ))}
+        </Card>
+      ) : null}
+
       <Pressable onPress={confirmBlock} hitSlop={8} style={{ alignSelf: 'center', marginTop: 28 }}>
         <Text style={styles.blockLink}>Block {profile.user.username}</Text>
       </Pressable>
 
     </Screen>
   );
+}
+
+function fmtPoints(n) {
+  if (n == null) return '—';
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function outcomeColor(outcome, colors) {
+  if (outcome === 'win') return colors.accent;
+  if (outcome === 'loss') return colors.danger;
+  return colors.muted;
+}
+
+function outcomeTint(outcome, colors) {
+  if (outcome === 'win') return colors.accentSoft;
+  if (outcome === 'loss') return colors.dangerSoft || colors.cardElevated;
+  return colors.cardElevated;
 }
 
 function Stat({ label, value, color, styles }) {
@@ -191,5 +251,13 @@ const makeStyles = (colors) =>
     streak: { color: colors.muted, fontSize: font.small, textAlign: 'center', marginTop: spacing.md },
     vsLine: { color: colors.text, fontSize: 24, fontFamily: fonts.hero, textAlign: 'center', paddingRight: 4 },
     vsMuted: { color: colors.muted, fontSize: font.small, fontWeight: '400' },
+    challengeWrap: { marginTop: spacing.lg },
+    historyCard: { marginTop: spacing.lg, paddingVertical: spacing.md },
+    historyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
+    historyDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderSubtle },
+    pill: { width: 26, height: 26, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
+    pillText: { fontSize: font.caption, fontFamily: fonts.bodyBlack },
+    historyScore: { flex: 1, color: colors.text, fontSize: font.body, fontWeight: '700', marginLeft: spacing.md },
+    historyDate: { color: colors.muted, fontSize: font.small },
     note: { color: colors.placeholder, fontSize: font.caption, textAlign: 'center', marginTop: spacing.lg },
   });

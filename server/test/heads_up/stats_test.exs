@@ -35,6 +35,23 @@ defmodule HeadsUp.StatsTest do
     assert r.recent == ["T", "W"]
   end
 
+  test "history_vs lists only the duels between those two, newest first", %{a: a, b: b, c: c} do
+    settled(a, b, a, 100.0, 80.0, ts(1))
+    settled(a, b, b, 60.0, 90.0, ts(2))
+    settled(a, c, a, 70.0, 40.0, ts(3))
+
+    assert [newest, oldest] = Stats.history_vs(a.id, b.id)
+    assert %{outcome: :loss, pf: 60.0, pa: 90.0} = newest
+    assert %{outcome: :win, pf: 100.0, pa: 80.0} = oldest
+    assert DateTime.compare(newest.settled_at, oldest.settled_at) == :gt
+  end
+
+  test "history_vs respects the limit", %{a: a, b: b} do
+    for i <- 1..4, do: settled(a, b, a, 100.0, 80.0, ts(i))
+
+    assert length(Stats.history_vs(a.id, b.id, 2)) == 2
+  end
+
   test "head_to_head groups by opponent", %{a: a, b: b, c: c} do
     settled(a, b, a, 100.0, 80.0, ts(1))
     settled(a, b, a, 100.0, 90.0, ts(2))

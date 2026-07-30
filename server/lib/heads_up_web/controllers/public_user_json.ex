@@ -25,14 +25,19 @@ defmodule HeadsUpWeb.PublicUserJSON do
   friendship id for accept flows), their overall record, and your
   head-to-head vs them (nil if you've never played).
   """
-  def profile(%{profile: profile, record: record, vs_you: vs_you}) do
+  def profile(%{profile: profile, record: record, vs_you: vs_you} = assigns) do
     %{
       profile: %{
         user: public(profile.user),
         relationship: profile.relationship,
         friendship_id: profile.friendship_id,
         record: record_slice(record),
-        vs_you: vs_you && record_slice(vs_you)
+        vs_you: vs_you && record_slice(vs_you),
+        # The individual duels behind that head-to-head record.
+        history:
+          Enum.map(assigns[:history] || [], fn h ->
+            %{outcome: h.outcome, points_for: h.pf, points_against: h.pa, settled_at: h.settled_at}
+          end)
       }
     }
   end

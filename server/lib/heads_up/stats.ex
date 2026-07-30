@@ -38,6 +38,23 @@ defmodule HeadsUp.Stats do
   end
 
   @doc """
+  The settled duels these two have played against each other, newest first.
+  Same row shape as the head-to-head aggregate, so the profile screen can show
+  the receipts behind the record rather than just the tally.
+  """
+  def history_vs(user_id, opponent_id, limit \\ 5) do
+    {duels, results} = settled_with_results([user_id])
+
+    duels
+    |> rows_for(user_id, results)
+    |> Enum.filter(&(&1.opponent && &1.opponent.id == opponent_id))
+    |> Enum.take(limit)
+    |> Enum.map(fn row ->
+      Map.take(row, [:outcome, :pf, :pa, :settled_at])
+    end)
+  end
+
+  @doc """
   Standings among the user and their friends, ranked by wins then win %. Each
   person's record counts ALL their settled duels (not only ones vs the viewer).
   """
