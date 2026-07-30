@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   ActivityIndicator,
   Animated,
   Easing,
@@ -534,6 +535,25 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
 
   function pick(player) {
     if (!isMyTurn || complete) return;
+
+    if (player.injury?.status === 'out') {
+      const why = player.injury.detail ? ` (${player.injury.detail})` : '';
+      const back = player.injury.return_date ? `\n\nExpected back ${player.injury.return_date}.` : '';
+      Alert.alert(
+        `${player.name} is ${player.injury.label}`,
+        `They aren't playing on this slate${why}, so they'd score zero.${back}`,
+        [
+          { text: 'Pick someone else', style: 'cancel' },
+          { text: 'Draft anyway', style: 'destructive', onPress: () => commitPick(player) },
+        ]
+      );
+      return;
+    }
+
+    commitPick(player);
+  }
+
+  function commitPick(player) {
     impact(ImpactStyle.Medium);
     setError(null);
     conn
@@ -730,10 +750,20 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
                 <Text style={styles.playerName} numberOfLines={1}>
                   {item.name}
                 </Text>
-                <Text style={styles.playerMeta} numberOfLines={1}>
-                  {item.position} · {item.team}
-                  {nextGameLabel(item.next_game_at) ? ` · ${nextGameLabel(item.next_game_at)}` : ''}
-                </Text>
+                <View style={styles.metaRow}>
+                  {item.injury ? (
+                    <View style={[styles.injBadge, item.injury.status === 'out' ? styles.injOut : styles.injGtd]}>
+                      <Text style={[styles.injText, { color: item.injury.status === 'out' ? colors.danger : colors.gold }]}>
+                        {item.injury.label}
+                      </Text>
+                    </View>
+                  ) : null}
+                  <Text style={styles.playerMeta} numberOfLines={1}>
+                    {item.position} · {item.team}
+                    {item.injury?.detail ? ` · ${item.injury.detail}` : ''}
+                    {!item.injury && nextGameLabel(item.next_game_at) ? ` · ${nextGameLabel(item.next_game_at)}` : ''}
+                  </Text>
+                </View>
               </View>
               <Pressable
                 onPress={() => navigation.navigate('PlayerProfile', { id: item.id, name: item.name, team: item.team, position: item.position })}
@@ -799,6 +829,11 @@ function FlashSlotCard({ slot, pick, tint, styles, colors }) {
 
 const makeStyles = (colors) =>
   StyleSheet.create({
+    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 },
+    injBadge: { paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, borderWidth: 1 },
+    injOut: { backgroundColor: colors.dangerSoft, borderColor: colors.dangerBorder },
+    injGtd: { backgroundColor: withAlpha(colors.gold, 0.15), borderColor: withAlpha(colors.gold, 0.45) },
+    injText: { fontSize: 8.5, fontFamily: fonts.bodyBlack, letterSpacing: 0.5 },
     center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
     dim: { color: colors.muted, marginTop: 12, textAlign: 'center', fontFamily: fonts.body, fontSize: 12.5 },
 

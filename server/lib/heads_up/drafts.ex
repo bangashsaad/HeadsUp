@@ -168,10 +168,7 @@ defmodule HeadsUp.Drafts do
     # Headshot built in Elixir, not SQL — the ESPN URL contains a "?", which
     # Ecto would read as a query placeholder.
     |> Map.new(fn p ->
-      {p.id,
-       p
-       |> Map.put(:headshot_url, HeadsUp.Sports.Headshot.for_player(p))
-       |> Map.delete(:external_id)}
+      {p.id, Map.put(p, :headshot_url, HeadsUp.Sports.Headshot.for_player(p))}
     end)
   end
 

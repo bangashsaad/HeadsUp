@@ -232,12 +232,30 @@ defmodule HeadsUp.Drafts.Server do
         end
 
       %{ok: false} ->
-        pool
+        Map.new(pool, fn {id, p} -> {id, Map.delete(p, :external_id)} end)
     end
   end
 
+  # Stamp each player with their next game AND their injury status. Projection
+  # is a season average, so an injured star still tops the board — without this
+  # the highest-projection pick can be a guaranteed zero.
   defp annotate(pool, next_game_at) do
-    Map.new(pool, fn {id, p} -> {id, Map.put(p, :next_game_at, Map.get(next_game_at, p.team))} end)
+    report = injury_report(pool)
+
+    Map.new(pool, fn {id, p} ->
+      {id,
+       p
+       |> Map.put(:next_game_at, Map.get(next_game_at, p.team))
+       |> Map.put(:injury, Map.get(report, p.external_id))
+       |> Map.delete(:external_id)}
+    end)
+  end
+
+  defp injury_report(pool) do
+    case Enum.at(pool, 0) do
+      {_id, %{sport: sport}} -> HeadsUp.Sports.Injuries.for_sport(sport)
+      _ -> %{}
+    end
   end
 
   # --- calls --------------------------------------------------------------

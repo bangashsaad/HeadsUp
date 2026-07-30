@@ -52,6 +52,10 @@ defmodule HeadsUp.Sports.Espn.Client do
   @spec summary(String.t(), String.t() | integer()) :: {:ok, map()} | {:error, term()}
   def summary(sport, event_id), do: get(sport, "/summary", event: to_string(event_id))
 
+  @doc "League-wide injury report (per-team lists of athlete statuses)."
+  @spec injuries(String.t()) :: {:ok, map()} | {:error, term()}
+  def injuries(sport), do: get(sport, "/injuries", [])
+
   @doc "All teams in the league."
   @spec teams(String.t()) :: {:ok, map()} | {:error, term()}
   def teams(sport), do: get(sport, "/teams", [])

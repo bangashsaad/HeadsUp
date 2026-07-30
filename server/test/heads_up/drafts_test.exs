@@ -191,6 +191,41 @@ defmodule HeadsUp.DraftsTest do
       assert AutoPick.pick(available, [], @slots, [3, 2]) == {:ok, 3, "SF1"}
     end
 
+    test "a healthy player beats a higher-projection injured one" do
+      # The real trap: projection is a SEASON average, so an injured star still
+      # tops the board. Auto-pick must not hand the user a guaranteed zero.
+      available = [
+        %{id: 1, position: "PG", projection: 36.6, injury: %{status: :out, label: "OUT"}},
+        %{id: 2, position: "SG", projection: 30.0, injury: %{status: :questionable, label: "GTD"}},
+        %{id: 3, position: "SF", projection: 22.0, injury: nil}
+      ]
+
+      assert AutoPick.pick(available, [], @slots) == {:ok, 3, "SF1"}
+    end
+
+    test "questionable outranks out when no fully healthy player fits" do
+      available = [
+        %{id: 1, position: "PG", projection: 40.0, injury: %{status: :out, label: "OUT"}},
+        %{id: 2, position: "PG", projection: 10.0, injury: %{status: :questionable, label: "GTD"}}
+      ]
+
+      assert AutoPick.pick(available, [], @slots) == {:ok, 2, "PG1"}
+    end
+
+    test "an injured player is still taken as a last resort — a filled slot beats an empty one" do
+      available = [%{id: 1, position: "PG", projection: 36.6, injury: %{status: :out, label: "OUT"}}]
+      assert AutoPick.pick(available, [], @slots) == {:ok, 1, "PG1"}
+    end
+
+    test "an explicitly queued player wins even if injured — that was a human choice" do
+      available = [
+        %{id: 1, position: "PG", projection: 36.6, injury: %{status: :out, label: "OUT"}},
+        %{id: 2, position: "SG", projection: 22.0, injury: nil}
+      ]
+
+      assert AutoPick.pick(available, [], @slots, [1]) == {:ok, 1, "PG1"}
+    end
+
     test "an already-drafted (unavailable) queued id is skipped" do
       available = [%{id: 1, position: "PG", projection: 99.0}]
       # 99 is queued but gone; fall back to available rank
