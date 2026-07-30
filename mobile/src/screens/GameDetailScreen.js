@@ -240,9 +240,18 @@ function BoxScoreView({ game, sport, token, styles, colors, scheme }) {
               const c = teamColor(r.team);
               return (
                 <View key={`${r.name}-${i}`} style={[styles.heatCard, { borderColor: withAlpha(c, 0.35) }]}>
-                  <View style={[styles.heatAv, { backgroundColor: withAlpha(c, 0.22), borderColor: withAlpha(c, 0.5) }]}>
-                    <Text style={styles.heatIni}>{initials(r.name)}</Text>
-                  </View>
+                  {r.headshot_url ? (
+                    <PlayerAvatar
+                      uri={r.headshot_url}
+                      name={r.name}
+                      size={38}
+                      style={{ borderWidth: 1, borderColor: withAlpha(c, 0.5) }}
+                    />
+                  ) : (
+                    <View style={[styles.heatAv, { backgroundColor: withAlpha(c, 0.22), borderColor: withAlpha(c, 0.5) }]}>
+                      <Text style={styles.heatIni}>{initials(r.name)}</Text>
+                    </View>
+                  )}
                   <Text style={styles.heatName} numberOfLines={1}>
                     {r.name}
                   </Text>

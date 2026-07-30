@@ -89,6 +89,9 @@ defmodule HeadsUp.Sports.BoxScore do
       %{
         name: name,
         position: get_in(a, ["athlete", "position", "abbreviation"]),
+        # Box-score rows come straight from ESPN, not our players table, so
+        # they carry their own athlete id — enough to show a face here too.
+        headshot_url: HeadsUp.Sports.Headshot.url(sport, to_string(get_in(a, ["athlete", "id"]) || "")),
         starter: a["starter"] == true,
         stats: stats,
         fantasy: Float.round(Engine.player_points(fantasy_line(sport, labels, stats), Scoring.default_rules(sport)) * 1.0, 1)
