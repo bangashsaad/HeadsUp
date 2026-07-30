@@ -5,6 +5,7 @@ import { getPlayerProfile } from '../api/sports';
 import { useTheme, useThemedStyles, spacing, radius, font, fonts } from '../theme';
 import { Screen, Card, Avatar, Badge, EmptyState, SkeletonList } from '../components/ui';
 import PlayerAvatar from '../components/PlayerAvatar';
+import InjuryBadge from '../components/InjuryBadge';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -49,6 +50,7 @@ export default function PlayerProfileScreen({ route }) {
         name={name || profile?.player?.name || '?'}
         size={64}
       />
+      <InjuryBadge injury={profile?.player?.injury} style={{ marginTop: 8 }} />
       <View style={{ marginLeft: spacing.lg, flex: 1 }}>
         <Text style={styles.name}>{name || profile?.player?.name}</Text>
         <Text style={styles.sub}>

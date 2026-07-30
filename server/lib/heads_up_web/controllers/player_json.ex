@@ -18,6 +18,8 @@ defmodule HeadsUpWeb.PlayerJSON do
       team: player.team,
       position: player.position,
       headshot_url: HeadsUp.Sports.Headshot.for_player(player),
+      # Same cached report the draft board reads — a hash lookup, no extra call.
+      injury: HeadsUp.Sports.Injuries.for_player(player),
       projection: player.projection
     }
   end

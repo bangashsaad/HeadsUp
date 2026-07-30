@@ -28,6 +28,7 @@ import { useTheme, useThemedStyles, spacing, radius, font, fonts, withAlpha } fr
 import { Avatar, Button, Chip, SearchInput, EmptyState, GhostText, Pulse, Kicker, CondTitle, DisplayTitle } from '../components/ui';
 import PlayerAvatar from '../components/PlayerAvatar';
 import { shortName } from '../utils/names';
+import InjuryBadge from '../components/InjuryBadge';
 
 const SPORT_EMOJI = { nfl: '🏈', nba: '🏀', wnba: '🏀', mlb: '⚾️' };
 
@@ -751,13 +752,7 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
                   {item.name}
                 </Text>
                 <View style={styles.metaRow}>
-                  {item.injury ? (
-                    <View style={[styles.injBadge, item.injury.status === 'out' ? styles.injOut : styles.injGtd]}>
-                      <Text style={[styles.injText, { color: item.injury.status === 'out' ? colors.danger : colors.gold }]}>
-                        {item.injury.label}
-                      </Text>
-                    </View>
-                  ) : null}
+                  <InjuryBadge injury={item.injury} />
                   <Text style={styles.playerMeta} numberOfLines={1}>
                     {item.position} · {item.team}
                     {item.injury?.detail ? ` · ${item.injury.detail}` : ''}
@@ -830,10 +825,6 @@ function FlashSlotCard({ slot, pick, tint, styles, colors }) {
 const makeStyles = (colors) =>
   StyleSheet.create({
     metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 1 },
-    injBadge: { paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, borderWidth: 1 },
-    injOut: { backgroundColor: colors.dangerSoft, borderColor: colors.dangerBorder },
-    injGtd: { backgroundColor: withAlpha(colors.gold, 0.15), borderColor: withAlpha(colors.gold, 0.45) },
-    injText: { fontSize: 8.5, fontFamily: fonts.bodyBlack, letterSpacing: 0.5 },
     center: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
     dim: { color: colors.muted, marginTop: 12, textAlign: 'center', fontFamily: fonts.body, fontSize: 12.5 },
 

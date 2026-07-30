@@ -38,6 +38,14 @@ defmodule HeadsUp.Sports.Injuries do
     end
   end
 
+  @doc "This player's injury entry, or nil. Reads the same cached report."
+  def for_player(%{sport: sport, external_id: external_id})
+      when is_binary(sport) and is_binary(external_id) do
+    sport |> for_sport() |> Map.get(external_id)
+  end
+
+  def for_player(_), do: nil
+
   defp cached(sport) do
     key = {__MODULE__, sport}
 

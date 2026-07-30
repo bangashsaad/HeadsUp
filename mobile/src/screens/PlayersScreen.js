@@ -5,6 +5,7 @@ import { listPlayers } from '../api/sports';
 import { useThemedStyles, spacing, radius, font } from '../theme';
 import { Screen, Avatar, EmptyState, SkeletonList, SearchInput, Chip, FadeIn } from '../components/ui';
 import PlayerAvatar from '../components/PlayerAvatar';
+import InjuryBadge from '../components/InjuryBadge';
 
 export default function PlayersScreen({ route }) {
   const { sport } = route.params;
@@ -76,7 +77,13 @@ export default function PlayersScreen({ route }) {
               <PlayerAvatar uri={item.headshot_url} name={item.name} size={40} />
               <View style={{ flex: 1, marginLeft: spacing.md }}>
                 <Text style={styles.name}>{item.name}</Text>
-                <Text style={styles.meta}>{item.team}</Text>
+                <View style={styles.metaRow}>
+                  <InjuryBadge injury={item.injury} />
+                  <Text style={styles.meta}>
+                    {item.team}
+                    {item.injury?.detail ? ` · ${item.injury.detail}` : ''}
+                  </Text>
+                </View>
               </View>
               {item.projection != null ? (
                 <View style={styles.projWrap}>
@@ -98,6 +105,7 @@ export default function PlayersScreen({ route }) {
 
 const makeStyles = (colors) =>
   StyleSheet.create({
+    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 2 },
     header: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
     chips: { paddingVertical: spacing.md, gap: spacing.sm },
     error: { color: colors.danger, textAlign: 'center', marginVertical: spacing.md },

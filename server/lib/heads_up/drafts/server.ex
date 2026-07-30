@@ -232,7 +232,7 @@ defmodule HeadsUp.Drafts.Server do
         end
 
       %{ok: false} ->
-        Map.new(pool, fn {id, p} -> {id, Map.delete(p, :external_id)} end)
+        pool
     end
   end
 
@@ -246,8 +246,7 @@ defmodule HeadsUp.Drafts.Server do
       {id,
        p
        |> Map.put(:next_game_at, Map.get(next_game_at, p.team))
-       |> Map.put(:injury, Map.get(report, p.external_id))
-       |> Map.delete(:external_id)}
+       |> Map.put(:injury, Map.get(report, p.external_id))}
     end)
   end
 
@@ -314,6 +313,18 @@ defmodule HeadsUp.Drafts.Server do
   # --- clock timeout ------------------------------------------------------
 
   @impl true
+  # Fresh injury report landed from the async refresh. Merge ONLY the injury
+  # field onto the pool we already hold — rebuilding it here could change who's
+  # draftable mid-draft, which this deliberately cannot.
+  def handle_info({:injuries_refreshed, report}, state) do
+    available =
+      Map.new(state.available, fn {id, p} ->
+        {id, Map.put(p, :injury, Map.get(report, p[:external_id]))}
+      end)
+
+    {:noreply, tap_broadcast(%{state | available: available}, "pool_updated", %{})}
+  end
+
   def handle_info({:clock_expired, pick_no}, %{phase: :active, clock_owner_pick: pick_no} = state) do
     uid = state.current_picker_id
 
