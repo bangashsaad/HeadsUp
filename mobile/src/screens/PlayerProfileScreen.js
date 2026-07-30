@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { getPlayerProfile } from '../api/sports';
 import { useTheme, useThemedStyles, spacing, radius, font, fonts } from '../theme';
 import { Screen, Card, Avatar, Badge, EmptyState, SkeletonList } from '../components/ui';
+import PlayerAvatar from '../components/PlayerAvatar';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -43,7 +44,11 @@ export default function PlayerProfileScreen({ route }) {
 
   const header = (
     <View style={styles.header}>
-      <Avatar name={name || profile?.player?.name || '?'} size={64} />
+      <PlayerAvatar
+        uri={profile?.player?.headshot_url}
+        name={name || profile?.player?.name || '?'}
+        size={64}
+      />
       <View style={{ marginLeft: spacing.lg, flex: 1 }}>
         <Text style={styles.name}>{name || profile?.player?.name}</Text>
         <Text style={styles.sub}>

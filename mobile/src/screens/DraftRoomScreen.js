@@ -25,6 +25,7 @@ import DraftOrderDots from '../components/DraftOrderDots';
 import RosterSheet from '../components/RosterSheet';
 import { useTheme, useThemedStyles, spacing, radius, font, fonts, withAlpha } from '../theme';
 import { Avatar, Button, Chip, SearchInput, EmptyState, GhostText, Pulse, Kicker, CondTitle, DisplayTitle } from '../components/ui';
+import PlayerAvatar from '../components/PlayerAvatar';
 import { shortName } from '../utils/names';
 
 const SPORT_EMOJI = { nfl: '🏈', nba: '🏀', wnba: '🏀', mlb: '⚾️' };
@@ -36,6 +37,10 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 // The trash-talk menu. Must match the server's whitelist exactly — off-menu
 // emojis are dropped silently by the channel.
 const REACTION_EMOJIS = ['🔥', '😂', '😭', '🥶', '💀', '👑'];
+
+// The coin's spin and the overlay's lifetime must be the SAME number, or the
+// coin freezes on screen after it lands.
+const FLIP_MS = 1300;
 
 // One UNIQUE color per seat (name-hash tints can collide — two players both
 // lime was unreadable). You are always the accent; everyone else gets a
@@ -121,7 +126,7 @@ export default function DraftRoomScreen({ route, navigation }) {
     prevPhase.current = ph;
     if (prev === 'lobby' && ph !== 'lobby' && ph !== 'cancelled') {
       setFlipping(true);
-      const t = setTimeout(() => setFlipping(false), 1600);
+      const t = setTimeout(() => setFlipping(false), FLIP_MS);
       return () => clearTimeout(t);
     }
   }, [state?.phase]);
@@ -262,7 +267,7 @@ function FlipOverlay() {
   const spin = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(spin, { toValue: 1, duration: 1300, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    Animated.timing(spin, { toValue: 1, duration: FLIP_MS, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   }, [spin]);
 
   return (
@@ -270,10 +275,13 @@ function FlipOverlay() {
       <Animated.View
         style={[
           styles.coin,
+          // backfaceVisibility: without it the H renders MIRRORED on every
+          // reverse half-turn — four backwards flashes per flip.
+          { backfaceVisibility: 'hidden' },
           { transform: [{ rotateY: spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '1440deg'] }) }] },
         ]}
       >
-        <View style={styles.coinInner}>
+        <View style={[styles.coinInner, { backfaceVisibility: 'hidden' }]}>
           <Text style={{ fontFamily: fonts.display, fontSize: 26, color: colors.accent }}>H</Text>
         </View>
       </Animated.View>
@@ -717,7 +725,7 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
                 pressed && isMyTurn && { transform: [{ scale: 0.98 }] },
               ]}
             >
-              <Avatar name={item.name} size={36} />
+              <PlayerAvatar uri={item.headshot_url} name={item.name} size={36} />
               <View style={{ flex: 1, marginLeft: 10, minWidth: 0 }}>
                 <Text style={styles.playerName} numberOfLines={1}>
                   {item.name}

@@ -36,6 +36,7 @@ defmodule HeadsUpWeb.LiveJSON do
             name: info[:name],
             team: info[:team],
             position: info[:position],
+            headshot_url: info[:headshot_url],
             slot: p.slot,
             points: p.points,
             stat_line: p.stat_line,

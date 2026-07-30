@@ -160,11 +160,19 @@ defmodule HeadsUp.Drafts do
         team: p.team,
         position: p.position,
         sport: p.sport,
-        projection: p.projection
+        projection: p.projection,
+        external_id: p.external_id
       }
     )
     |> Repo.all()
-    |> Map.new(fn p -> {p.id, p} end)
+    # Headshot built in Elixir, not SQL — the ESPN URL contains a "?", which
+    # Ecto would read as a query placeholder.
+    |> Map.new(fn p ->
+      {p.id,
+       p
+       |> Map.put(:headshot_url, HeadsUp.Sports.Headshot.for_player(p))
+       |> Map.delete(:external_id)}
+    end)
   end
 
   # --- pure snake / draw helpers (no DB; injectable rng for tests) ---------

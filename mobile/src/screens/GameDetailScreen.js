@@ -9,6 +9,7 @@ import { teamColor, initials } from '../utils/teamArt';
 import ScoreFlash from '../components/ScoreFlash';
 import { useTheme, useThemedStyles, spacing, fonts, font, withAlpha } from '../theme';
 import { Screen, Card, Avatar, SkeletonList, SectionHeader, GhostText, Kicker, BlinkDot, CondTitle } from '../components/ui';
+import PlayerAvatar from '../components/PlayerAvatar';
 
 const GROUP_LABEL = { batting: 'BATTING', pitching: 'PITCHING', '': 'BOX SCORE' };
 const fan = (v) => Number(v) || 0;
@@ -385,7 +386,7 @@ function RosterView({ game, sport, token, navigation, styles, colors, scheme }) 
                 onPress={() => openPlayer(p)}
                 style={({ pressed }) => [styles.row, i < players.length - 1 && styles.divider, pressed && { backgroundColor: colors.bgElevated }]}
               >
-                <Avatar name={p.name} size={36} />
+                <PlayerAvatar uri={p.headshot_url} name={p.name} size={36} />
                 <View style={{ flex: 1, marginLeft: spacing.md }}>
                   <Text style={styles.name}>{p.name}</Text>
                   <Text style={styles.meta}>{p.position}</Text>

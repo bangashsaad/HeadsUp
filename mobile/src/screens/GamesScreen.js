@@ -40,7 +40,7 @@ function pastDays(n = 7) {
   for (let i = 1; i <= n; i++) {
     const d = new Date(nowEt.getTime() - i * 24 * 3600 * 1000);
     const iso = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
-    const label = i === 1 ? 'Yda' : `${MON[d.getUTCMonth()]} ${d.getUTCDate()}`;
+    const label = `${MON[d.getUTCMonth()]} ${d.getUTCDate()}`;
     out.push({ iso, label });
   }
   return out;

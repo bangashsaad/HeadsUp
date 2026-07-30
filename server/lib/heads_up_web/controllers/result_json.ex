@@ -11,6 +11,28 @@ defmodule HeadsUpWeb.ResultJSON do
     %{result: data(result, duel, uid)}
   end
 
+  # player_id => headshot, resolved at render time. The frozen breakdown has no
+  # photo field (it predates them) and back-filling stored results would mean
+  # rewriting history for a purely cosmetic value.
+  defp headshots(%Result{breakdown: breakdown}) do
+    ids =
+      ((breakdown["standings"] || []) ++ [breakdown["challenger"], breakdown["opponent"]])
+      |> Enum.reject(&is_nil/1)
+      |> Enum.flat_map(&(&1["players"] || []))
+      |> Enum.map(& &1["player_id"])
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+
+    if ids == [] do
+      %{}
+    else
+      import Ecto.Query
+
+      HeadsUp.Repo.all(from p in HeadsUp.Sports.Player, where: p.id in ^ids)
+      |> Map.new(&{&1.id, HeadsUp.Sports.Headshot.for_player(&1)})
+    end
+  end
+
   def data(%Result{} = result, %Duel{} = duel, uid) do
     outcome =
       cond do
@@ -20,6 +42,7 @@ defmodule HeadsUpWeb.ResultJSON do
       end
 
     coins = coin_outcome(result, duel, uid)
+    shots = headshots(result)
 
     %{
       duel_id: duel.id,
@@ -32,9 +55,9 @@ defmodule HeadsUpWeb.ResultJSON do
       pot_coins: coins.pot,
       my_coin_delta: coins.delta,
       # Ranked standings (all contests; the only shape group duels have).
-      standings: standings(result, duel, uid),
-      challenger: lineup(result.breakdown["challenger"], duel.challenger_id, uid),
-      opponent: lineup(result.breakdown["opponent"], duel.opponent_id, uid)
+      standings: standings(result, duel, uid, shots),
+      challenger: lineup(result.breakdown["challenger"], duel.challenger_id, uid, shots),
+      opponent: lineup(result.breakdown["opponent"], duel.opponent_id, uid, shots)
     }
   end
 
@@ -60,7 +83,7 @@ defmodule HeadsUpWeb.ResultJSON do
   end
 
   # Standings stored at settle time, joined to usernames via the duel's seats.
-  defp standings(%Result{breakdown: breakdown}, duel, uid) do
+  defp standings(%Result{breakdown: breakdown}, duel, uid, shots) do
     names =
       case duel.participants do
         seats when is_list(seats) -> for p <- seats, p.user, into: %{}, do: {p.user_id, p.user.username}
@@ -69,13 +92,13 @@ defmodule HeadsUpWeb.ResultJSON do
 
     for s <- breakdown["standings"] || [] do
       s
-      |> lineup(s["user_id"], uid)
+      |> lineup(s["user_id"], uid, shots)
       |> Map.put(:rank, s["rank"])
       |> Map.put(:username, Map.get(names, s["user_id"]))
     end
   end
 
-  defp lineup(role, user_id, uid) do
+  defp lineup(role, user_id, uid, shots) do
     role = role || %{}
 
     players =
@@ -85,6 +108,7 @@ defmodule HeadsUpWeb.ResultJSON do
           name: p["name"],
           team: p["team"],
           position: p["position"],
+          headshot_url: Map.get(shots, p["player_id"]),
           slot: p["slot"],
           points: round1(p["points"]),
           stat_line: p["stat_line"] || %{}

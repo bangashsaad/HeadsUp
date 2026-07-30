@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext';
 import { searchPlayers, getPlayerProfile } from '../api/sports';
 import { useTheme, useThemedStyles, spacing, radius, font, fonts } from '../theme';
 import { Screen, Card, Avatar, SearchInput } from '../components/ui';
+import PlayerAvatar from '../components/PlayerAvatar';
 
 export default function CompareScreen() {
   const { token } = useAuth();
@@ -57,7 +58,7 @@ function Slot({ player, onPick, onClear, token, styles, colors }) {
         <Pressable onPress={onClear} hitSlop={8} style={styles.clear}>
           <Ionicons name="close-circle" size={20} color={colors.placeholder} />
         </Pressable>
-        <Avatar name={player.name} size={56} />
+        <PlayerAvatar uri={player.headshot_url} name={player.name} size={56} />
         <Text style={styles.slotName} numberOfLines={1}>
           {player.name}
         </Text>

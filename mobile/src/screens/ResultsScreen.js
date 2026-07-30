@@ -9,6 +9,7 @@ import ConfettiBurst from '../components/ConfettiBurst';
 import { notify, NotifyType } from '../haptics';
 import { useTheme, useThemedStyles, spacing, radius, font, fonts, withAlpha } from '../theme';
 import { Screen, Card, Avatar, Button, EmptyState, GhostText, Kicker, DisplayTitle, CondTitle, Pulse } from '../components/ui';
+import PlayerAvatar from '../components/PlayerAvatar';
 
 const ordinal = (n) => (n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`);
 const medal = (rank) => (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : String(rank));
@@ -165,6 +166,7 @@ export default function ResultsScreen({ route, navigation }) {
             <View style={styles.slotChip}>
               <Text style={styles.slotText}>{p.slot}</Text>
             </View>
+            <PlayerAvatar uri={p.headshot_url} name={p.name} size={28} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={styles.playerName} numberOfLines={1}>
                 {p.name}

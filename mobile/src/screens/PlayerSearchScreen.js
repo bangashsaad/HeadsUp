@@ -5,6 +5,7 @@ import { useAuth } from '../auth/AuthContext';
 import { searchPlayers } from '../api/sports';
 import { useTheme, useThemedStyles, spacing, radius, font, fonts } from '../theme';
 import { Screen, Avatar, Badge, EmptyState, SearchInput, SkeletonList } from '../components/ui';
+import PlayerAvatar from '../components/PlayerAvatar';
 
 const SPORT = { wnba: { label: 'WNBA', tone: 'info' }, mlb: { label: 'MLB', tone: 'warning' }, nba: { label: 'NBA', tone: 'info' }, nfl: { label: 'NFL', tone: 'neutral' } };
 
@@ -72,7 +73,7 @@ export default function PlayerSearchScreen({ navigation }) {
                 onPress={() => navigation.navigate('PlayerProfile', { id: item.id, name: item.name, team: item.team, position: item.position })}
                 style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.card }]}
               >
-                <Avatar name={item.name} size={40} />
+                <PlayerAvatar uri={item.headshot_url} name={item.name} size={40} />
                 <View style={{ flex: 1, marginLeft: spacing.md }}>
                   <Text style={styles.name}>{item.name}</Text>
                   <View style={styles.metaRow}>

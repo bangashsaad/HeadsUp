@@ -134,7 +134,17 @@ defmodule HeadsUp.Settlement do
          leader_id: leader_id,
          games: provider.live_games(window),
          team_states: provider.team_states(window),
-         players_by_id: Map.new(players, &{&1.id, %{name: &1.name, team: &1.team, position: &1.position}}),
+         players_by_id:
+           Map.new(
+             players,
+             &{&1.id,
+              %{
+                name: &1.name,
+                team: &1.team,
+                position: &1.position,
+                headshot_url: HeadsUp.Sports.Headshot.for_player(&1)
+              }}
+           ),
          users_by_id: live_users(duel)
        }}
     else

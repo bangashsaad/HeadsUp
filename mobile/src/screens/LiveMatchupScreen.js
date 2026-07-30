@@ -8,6 +8,7 @@ import { ApiError } from '../api/client';
 import { notify, NotifyType } from '../haptics';
 import { useTheme, useThemedStyles, spacing, radius, font, fonts, withAlpha } from '../theme';
 import { Screen, Card, Avatar, Badge, Button, GhostText, Kicker, CondTitle } from '../components/ui';
+import PlayerAvatar from '../components/PlayerAvatar';
 
 const pts = (v) => (Number(v) || 0).toFixed(1);
 
@@ -263,6 +264,7 @@ function Five({ title, side, mine, styles, colors }) {
             <View style={styles.slotChip}>
               <Text style={styles.slotText}>{p.slot}</Text>
             </View>
+            <PlayerAvatar uri={p.headshot_url} name={p.name || 'Player'} size={28} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={styles.playerName} numberOfLines={1}>
                 {p.name || 'Player'}

@@ -4,6 +4,7 @@ import { useAuth } from '../auth/AuthContext';
 import { listPlayers } from '../api/sports';
 import { useThemedStyles, spacing, radius, font } from '../theme';
 import { Screen, Avatar, EmptyState, SkeletonList, SearchInput, Chip, FadeIn } from '../components/ui';
+import PlayerAvatar from '../components/PlayerAvatar';
 
 export default function PlayersScreen({ route }) {
   const { sport } = route.params;
@@ -72,7 +73,7 @@ export default function PlayersScreen({ route }) {
             <FadeIn index={index}>
               <View style={styles.row}>
               <Text style={styles.rank}>{index + 1}</Text>
-              <Avatar name={item.name} size={40} />
+              <PlayerAvatar uri={item.headshot_url} name={item.name} size={40} />
               <View style={{ flex: 1, marginLeft: spacing.md }}>
                 <Text style={styles.name}>{item.name}</Text>
                 <Text style={styles.meta}>{item.team}</Text>
