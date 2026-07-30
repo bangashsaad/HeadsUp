@@ -91,6 +91,16 @@ if config_env() == :prod do
 
   config :heads_up, HeadsUpWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
+    # EVERY host we answer on must be listed. Phoenix otherwise validates the
+    # socket's Origin against `url[:host]` alone, so moving the canonical host
+    # to the real domain silently killed live drafts for apps still pointing at
+    # fly.dev — the app's apiUrl, i.e. all of them. Never drop the old host
+    # while a released build still dials it.
+    check_origin: [
+      "https://headsupfantasy.com",
+      "https://www.headsupfantasy.com",
+      "https://headsup-fantasy.fly.dev"
+    ],
     http: [
       # Enable IPv6 and bind on all interfaces.
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
