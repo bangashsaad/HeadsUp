@@ -83,7 +83,86 @@ defmodule HeadsUp.Sports.Schedule do
       # ESPN's primary team color as bare hex ("78BE20") — the mobile scoreboard
       # tints cards/glows with it.
       color: team["color"],
-      score: competitor["score"]
+      score: competitor["score"],
+      # Matchup preview: the season record, plus whichever pre-game story the
+      # sport actually turns on. Baseball lives and dies by the probable
+      # starter; basketball has no such lever, so it gets team leaders.
+      record: record_summary(competitor),
+      probable: probable(competitor),
+      leaders: leaders(competitor)
     }
+  end
+
+  # MLB's probable starting pitcher — the single most useful pre-game fact in
+  # baseball, and the reason a "list of players" reads as useless there.
+  defp probable(competitor) do
+    with [p | _] <- List.wrap(competitor["probables"]),
+         athlete when is_map(athlete) <- p["athlete"] do
+      stats = Map.new(List.wrap(p["statistics"]), &{&1["abbreviation"], &1["displayValue"]})
+
+      %{
+        id: to_string(athlete["id"] || ""),
+        name: athlete["displayName"] || athlete["fullName"],
+        short_name: athlete["shortName"],
+        # ESPN sends position as a nested object in most feeds but as a bare
+        # string on probables — handle both rather than crashing the schedule.
+        position: position_abbrev(athlete["position"]),
+        jersey: athlete["jersey"],
+        headshot_url: athlete["headshot"],
+        # "7-8 · 3.72 ERA" is the whole story at a glance.
+        line: pitcher_line(stats)
+      }
+    else
+      _ -> nil
+    end
+  end
+
+  defp record_summary(competitor) do
+    case List.wrap(competitor["records"]) do
+      [%{"summary" => summary} | _] -> summary
+      _ -> nil
+    end
+  end
+
+  defp position_abbrev(%{"abbreviation" => abbrev}), do: abbrev
+  defp position_abbrev(pos) when is_binary(pos), do: pos
+  defp position_abbrev(_), do: nil
+
+  defp pitcher_line(stats) do
+    wl =
+      case {stats["W"], stats["L"]} do
+        {w, l} when is_binary(w) and is_binary(l) -> "#{w}-#{l}"
+        _ -> nil
+      end
+
+    era = if stats["ERA"], do: "#{stats["ERA"]} ERA"
+
+    [wl, era] |> Enum.reject(&is_nil/1) |> Enum.join(" · ")
+  end
+
+  # Basketball's equivalent: who leads this team in points / boards / assists.
+  defp leaders(competitor) do
+    competitor
+    |> Map.get("leaders")
+    |> List.wrap()
+    # RAT is ESPN's blended "rating" line — too long for a preview row.
+    |> Enum.reject(&(&1["abbreviation"] in [nil, "RAT"]))
+    |> Enum.flat_map(fn cat ->
+      case List.wrap(cat["leaders"]) do
+        [top | _] ->
+          [
+            %{
+              category: cat["abbreviation"],
+              name: get_in(top, ["athlete", "shortName"]) || get_in(top, ["athlete", "displayName"]),
+              value: top["displayValue"],
+              headshot_url: get_in(top, ["athlete", "headshot"])
+            }
+          ]
+
+        _ ->
+          []
+      end
+    end)
+    |> Enum.take(3)
   end
 end

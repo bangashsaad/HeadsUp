@@ -426,6 +426,8 @@ function RosterView({ game, sport, token, navigation, styles, colors, scheme }) 
         colors={colors}
         scheme={scheme}
       />
+      <MatchupPreview away={game.away} home={game.home} sport={sport} styles={styles} colors={colors} />
+
       <Kicker size={9} tracking={2} style={{ textAlign: 'center', marginBottom: spacing.sm }}>
         Scout both rosters before tip
       </Kicker>
@@ -451,8 +453,110 @@ function tipLabel(iso) {
   return `${h}:${String(m).padStart(2, '0')} ${ap}`;
 }
 
+// Pre-game preview. Baseball turns on the probable starter, so that's the
+// headline; basketball has no equivalent lever, so it shows each side's
+// statistical leaders instead. Renders nothing when ESPN has neither, rather
+// than leaving an empty shell on screen.
+function MatchupPreview({ away, home, sport, styles, colors }) {
+  const pitchers = away?.probable || home?.probable;
+  const leaders = (away?.leaders || []).length > 0 || (home?.leaders || []).length > 0;
+  if (!pitchers && !leaders) return null;
+
+  if (pitchers) {
+    return (
+      <View style={{ marginBottom: spacing.md }}>
+        <SectionHeader style={{ marginTop: 0 }}>Probable starters</SectionHeader>
+        <Card padded={false}>
+          <View style={styles.spRow}>
+            <Starter side={away} styles={styles} colors={colors} />
+            <GhostText size={15} color={colors.textFaint} strokeWidth={1}>
+              VS
+            </GhostText>
+            <Starter side={home} styles={styles} colors={colors} align="flex-end" />
+          </View>
+        </Card>
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ marginBottom: spacing.md }}>
+      <SectionHeader style={{ marginTop: 0 }}>Team leaders</SectionHeader>
+      <Card padded={false}>
+        <LeaderBlock side={away} styles={styles} colors={colors} />
+        <View style={styles.divider} />
+        <LeaderBlock side={home} styles={styles} colors={colors} last />
+      </Card>
+    </View>
+  );
+}
+
+function Starter({ side, styles, colors, align = 'flex-start' }) {
+  const p = side?.probable;
+  return (
+    <View style={[styles.spCol, { alignItems: align }]}>
+      <Text style={styles.spTeam}>
+        {side?.abbrev}
+        {side?.record ? ` · ${side.record}` : ''}
+      </Text>
+      {p ? (
+        <>
+          <PlayerAvatar uri={p.headshot_url} name={p.name} size={46} style={{ marginVertical: 6 }} />
+          <Text style={styles.spName} numberOfLines={1}>
+            {p.short_name || p.name}
+          </Text>
+          <Text style={styles.spLine} numberOfLines={1}>
+            {p.line || p.position || 'SP'}
+          </Text>
+        </>
+      ) : (
+        <Text style={[styles.spLine, { marginTop: 14 }]}>Starter TBA</Text>
+      )}
+    </View>
+  );
+}
+
+function LeaderBlock({ side, styles, colors, last }) {
+  const list = side?.leaders || [];
+  return (
+    <View style={[styles.ldBlock, !last && { paddingBottom: 12 }]}>
+      <Text style={styles.spTeam}>
+        {side?.abbrev}
+        {side?.record ? ` · ${side.record}` : ''}
+      </Text>
+      {list.length === 0 ? (
+        <Text style={styles.spLine}>No leaders posted yet.</Text>
+      ) : (
+        <View style={styles.ldRow}>
+          {list.map((l) => (
+            <View key={l.category} style={styles.ldItem}>
+              <Text style={styles.ldCat}>{l.category}</Text>
+              <Text style={styles.ldName} numberOfLines={1}>
+                {l.name}
+              </Text>
+              <CondTitle size={16} color={colors.accent}>
+                {l.value}
+              </CondTitle>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
 const makeStyles = (colors) =>
   StyleSheet.create({
+    spRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, gap: 10 },
+    spCol: { flex: 1, minWidth: 0 },
+    spTeam: { color: colors.muted, fontSize: 9.5, fontFamily: fonts.bodyExtra, letterSpacing: 1.5 },
+    spName: { color: colors.text, fontSize: 14, fontFamily: fonts.bodyBold },
+    spLine: { color: colors.accent, fontSize: 11.5, fontFamily: fonts.condBold, letterSpacing: 0.4, marginTop: 1 },
+    ldBlock: { paddingHorizontal: 14, paddingTop: 12 },
+    ldRow: { flexDirection: 'row', gap: 10, marginTop: 8 },
+    ldItem: { flex: 1, minWidth: 0 },
+    ldCat: { color: colors.placeholder, fontSize: 8.5, fontFamily: fonts.bodyBlack, letterSpacing: 1 },
+    ldName: { color: colors.text, fontSize: 12, fontFamily: fonts.bodyBold, marginTop: 2 },
     // hero
     hero: {
       borderRadius: 20,
