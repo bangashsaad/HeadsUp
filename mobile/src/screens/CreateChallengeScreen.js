@@ -60,7 +60,9 @@ const isPlayable = (status, key) => {
   return !st || st.playable;
 };
 
-export default function CreateChallengeScreen({ navigation }) {
+export default function CreateChallengeScreen({ navigation, route }) {
+  // Tapping a face on Home's friend strip lands here with them already picked.
+  const preselect = route?.params?.preselect;
   const { token, user, refreshUser } = useAuth();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -93,8 +95,12 @@ export default function CreateChallengeScreen({ navigation }) {
     (async () => {
       try {
         const [f, g] = await Promise.all([listFriends(token), listFriendGroups(token).catch(() => ({ groups: [] }))]);
-        setFriends(f.friends || []);
+        const list = f.friends || [];
+        setFriends(list);
         setGroups(g.groups || []);
+        // Only honour it if they're really a friend — a stale param shouldn't
+        // put a phantom id into the selection.
+        if (preselect && list.some((x) => x.id === preselect)) setSelected([preselect]);
       } catch (e) {
         setError(e.message);
       } finally {

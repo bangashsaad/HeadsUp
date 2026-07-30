@@ -8,7 +8,8 @@ defmodule HeadsUpWeb.HomeJSON do
       draft_ready: duels(s.draft_ready, uid),
       awaiting: duels(s.awaiting, uid),
       recent_results: duels(s.recent_results, uid),
-      record: record(s.record)
+      record: record(s.record),
+      friends: Enum.map(s.friends, &HeadsUpWeb.PublicUserJSON.public/1)
     }
   end
 

@@ -31,8 +31,22 @@ defmodule HeadsUp.Home do
       draft_ready: Enum.filter(duels, &(&1.status in ["accepted", "drafting"])),
       awaiting: Enum.filter(duels, &(&1.status == "drafted")),
       recent_results: duels |> Enum.filter(&(&1.status == "settled")) |> Enum.take(3),
-      record: Stats.record_for(id)
+      record: Stats.record_for(id),
+      # Who's around right now. Online first, then A-Z, so the people you can
+      # actually get a duel out of are the ones you see.
+      friends: friends_by_presence(user)
     }
+  end
+
+  # Capped: the strip is a prompt to start a duel, not a directory. The full
+  # list still lives behind Add Friends.
+  @strip_limit 12
+
+  defp friends_by_presence(user) do
+    user
+    |> HeadsUp.Social.list_friends()
+    |> Enum.sort_by(&{!HeadsUp.Accounts.online?(&1), String.downcase(&1.username)})
+    |> Enum.take(@strip_limit)
   end
 
   defp my_seat_status(duel, user_id) do

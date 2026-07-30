@@ -214,6 +214,16 @@ export default function HomeScreen({ navigation }) {
           </View>
         </LinearGradient>
 
+        <FriendStrip
+          friends={home?.friends || []}
+          styles={styles}
+          colors={colors}
+          onChallenge={(f) =>
+            navigation.navigate('DuelsTab', { screen: 'CreateChallenge', initial: false, params: { preselect: f.id } })
+          }
+          onAdd={() => navigation.navigate('YouTab', { screen: 'Search', initial: false })}
+        />
+
         <View style={{ paddingHorizontal: spacing.lg }}>
           <SectionHeader hint={queue.length > 0 ? `${queue.length} PENDING` : 'ALL QUIET'}>Your move</SectionHeader>
         </View>
@@ -450,8 +460,81 @@ function MiniCard({ item, onPress, styles, colors }) {
   );
 }
 
+// Who's around, online first. The point isn't a directory — it's turning
+// presence into a duel: tap a face and you land in the challenge flow with
+// them already picked.
+function FriendStrip({ friends, styles, colors, onChallenge, onAdd }) {
+  const online = friends.filter((f) => f.online).length;
+
+  return (
+    <View style={styles.stripWrap}>
+      <View style={styles.stripHead}>
+        <Kicker size={9} tracking={2}>
+          {online > 0 ? `${online} around right now` : 'Your crew'}
+        </Kicker>
+      </View>
+
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0 }}>
+        <View style={styles.stripRow}>
+          {friends.map((f) => (
+            <Pressable
+              key={f.id}
+              onPress={() => onChallenge(f)}
+              style={({ pressed }) => [styles.stripItem, pressed && { opacity: 0.7 }]}
+            >
+              <View>
+                <Avatar name={f.username} size={46} />
+                {f.online ? <View style={styles.stripDot} /> : null}
+              </View>
+              <Text style={[styles.stripName, f.online && { color: colors.text }]} numberOfLines={1}>
+                {f.username}
+              </Text>
+            </Pressable>
+          ))}
+
+          <Pressable onPress={onAdd} style={({ pressed }) => [styles.stripItem, pressed && { opacity: 0.7 }]}>
+            <View style={styles.stripAdd}>
+              <Ionicons name="person-add" size={19} color={colors.accent} />
+            </View>
+            <Text style={styles.stripName} numberOfLines={1}>
+              Add
+            </Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
 const makeStyles = (colors) =>
   StyleSheet.create({
+    stripWrap: { marginTop: spacing.xs, marginBottom: spacing.md },
+    stripHead: { paddingHorizontal: spacing.lg, marginBottom: 7 },
+    stripRow: { flexDirection: 'row', gap: 14, paddingHorizontal: spacing.lg },
+    stripItem: { alignItems: 'center', width: 56 },
+    stripName: { color: colors.muted, fontSize: 10.5, fontFamily: fonts.bodyBold, marginTop: 5 },
+    stripDot: {
+      position: 'absolute',
+      right: -1,
+      bottom: -1,
+      width: 13,
+      height: 13,
+      borderRadius: 7,
+      backgroundColor: '#39D98A',
+      borderWidth: 2.5,
+      borderColor: colors.bg,
+    },
+    stripAdd: {
+      width: 46,
+      height: 46,
+      borderRadius: 23,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: colors.accentBorder,
+      backgroundColor: colors.accentSoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     verifyBanner: {
       flexDirection: 'row',
       alignItems: 'center',
