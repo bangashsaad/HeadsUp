@@ -30,6 +30,48 @@ defmodule HeadsUp.Sports.ProfileTest do
     end
   end
 
+  # NFL gamelogs. ESPN varies the columns by position, so a quarterback and a
+  # pass-catcher exercise the two different tile sets.
+  defmodule NflQbStub do
+    def gamelog("nfl", _athlete_id) do
+      {:ok,
+       %{
+         "names" => ~w(completions passingAttempts passingYards completionPct yardsPerPassAttempt passingTouchdowns interceptions longPassing sacks QBRating adjQBR rushingAttempts rushingYards yardsPerRushAttempt rushingTouchdowns longRushing),
+         "events" => %{
+           "601" => %{"gameDate" => "2025-12-14T18:00Z", "atVs" => "vs", "gameResult" => "L", "opponent" => %{"abbreviation" => "LAC"}},
+           "602" => %{"gameDate" => "2025-11-27T18:00Z", "atVs" => "@", "gameResult" => "W", "opponent" => %{"abbreviation" => "DAL"}}
+         },
+         "seasonTypes" => [
+           %{
+             "categories" => [
+               %{
+                 "events" => [
+                   %{"eventId" => "601", "stats" => ~w(16 28 189 57.1 6.8 0 1 26 5 62.9 56.1 2 15 7.5 1 12)},
+                   %{"eventId" => "602", "stats" => ~w(23 34 261 67.6 7.7 4 0 42 1 130.2 88.0 5 29 5.8 0 12)}
+                 ]
+               }
+             ]
+           }
+         ]
+       }}
+    end
+  end
+
+  defmodule NflSkillStub do
+    def gamelog("nfl", _athlete_id) do
+      {:ok,
+       %{
+         "names" => ~w(receptions receivingTargets receivingYards yardsPerReception receivingTouchdowns longReception rushingAttempts rushingYards yardsPerRushAttempt longRushing rushingTouchdowns fumbles fumblesLost fumblesForced kicksBlocked),
+         "events" => %{
+           "701" => %{"gameDate" => "2025-12-14T18:00Z", "atVs" => "vs", "gameResult" => "W", "opponent" => %{"abbreviation" => "KC"}}
+         },
+         "seasonTypes" => [
+           %{"categories" => [%{"events" => [%{"eventId" => "701", "stats" => ~w(5 8 49 9.8 1 22 2 11 5.5 9 0 0 0 0 0)}]}]}
+         ]
+       }}
+    end
+  end
+
   # MLB batting gamelog (reads by stable machine `names`).
   defmodule MlbStub do
     def gamelog("mlb", _athlete_id) do
@@ -107,5 +149,51 @@ defmodule HeadsUp.Sports.ProfileTest do
   test "a player with a name-slug id reports no data, no network" do
     nba = %Player{id: 2, sport: "nba", external_id: "lebron-james", name: "LeBron James", team: "LAL", position: "SF"}
     assert {:ok, %{available: false, games: []}} = Profile.for_player(nba)
+  end
+
+  describe "football profiles" do
+    test "a quarterback gets passing tiles" do
+      player = %Player{id: 10, sport: "nfl", external_id: "3139477", name: "Patrick Mahomes", position: "QB"}
+
+      assert {:ok, prof} = Profile.for_player(player, client: NflQbStub)
+      assert prof.available
+      assert prof.season.games_played == 2
+
+      labels = Enum.map(prof.season.tiles, & &1.label)
+      assert labels == ["PASS YDS", "TD", "INT", "FPG"]
+
+      by = Map.new(prof.season.tiles, &{&1.label, &1.value})
+      # (189 + 261) / 2
+      assert by["PASS YDS"] == "225.0"
+      # 4 passing + 1 rushing
+      assert by["TD"] == "5"
+      assert by["INT"] == "1"
+      # (13.1 + 29.3) / 2
+      assert by["FPG"] == "21.2"
+    end
+
+    test "a pass-catcher gets receiving tiles instead" do
+      player = %Player{id: 11, sport: "nfl", external_id: "15847", name: "Skill Guy", position: "WR"}
+
+      assert {:ok, prof} = Profile.for_player(player, client: NflSkillStub)
+
+      by = Map.new(prof.season.tiles, &{&1.label, &1.value})
+      assert Enum.map(prof.season.tiles, & &1.label) == ["REC", "YDS", "TD", "FPG"]
+      assert by["REC"] == "5.0"
+      # 49 receiving + 11 rushing
+      assert by["YDS"] == "60.0"
+      assert by["TD"] == "1"
+    end
+
+    test "every stat family the gamelog knows about can build tiles" do
+      # A family with no tiles/2 clause raises FunctionClauseError the moment
+      # someone opens that sport's player profile, which is how football
+      # shipped broken once. Keep the two in lockstep.
+      for sport <- ~w(wnba nba mlb nfl xxx) do
+        family = HeadsUp.Sports.Gamelog.family(sport)
+        assert family in [:basketball, :baseball, :football, :other],
+               "#{sport} maps to #{inspect(family)}, which Profile.tiles/2 does not handle"
+      end
+    end
   end
 end

@@ -84,7 +84,33 @@ defmodule HeadsUp.Sports.Profile do
     if pitcher?(games), do: pitcher_tiles(games), else: batter_tiles(games)
   end
 
+  # Football splits the same way baseball does: the tiles that matter for a
+  # quarterback are not the ones that matter for a pass-catcher.
+  defp tiles(:football, games) do
+    if passer?(games), do: qb_tiles(games), else: skill_tiles(games)
+  end
+
   defp tiles(:other, games), do: [tile("FPG", num(favg(games, & &1.fantasy)))]
+
+  defp passer?(games), do: Enum.count(games, &(&1.box.role == "QB")) > div(length(games), 2)
+
+  defp qb_tiles(games) do
+    [
+      tile("PASS YDS", num(favg(games, &(&1.box.passing_yards * 1.0)))),
+      tile("TD", Integer.to_string(sum(games, &(&1.box.passing_td + &1.box.rushing_td)))),
+      tile("INT", Integer.to_string(sum(games, & &1.box.interceptions))),
+      tile("FPG", num(favg(games, & &1.fantasy)))
+    ]
+  end
+
+  defp skill_tiles(games) do
+    [
+      tile("REC", num(favg(games, &(&1.box.receptions * 1.0)))),
+      tile("YDS", num(favg(games, &((&1.box.receiving_yards + &1.box.rushing_yards) * 1.0)))),
+      tile("TD", Integer.to_string(sum(games, &(&1.box.receiving_td + &1.box.rushing_td)))),
+      tile("FPG", num(favg(games, & &1.fantasy)))
+    ]
+  end
 
   defp pitcher?(games) do
     Enum.count(games, &(&1.box.role == "P")) >= Enum.count(games, &(&1.box.role != "P"))
