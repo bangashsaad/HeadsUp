@@ -65,21 +65,47 @@ defmodule HeadsUp.Sports.BoxScore do
         |> Map.get("linescores")
         |> List.wrap()
         |> Enum.map(&(&1["displayValue"] || to_string(&1["value"] || ""))),
-      groups: t |> Map.get("statistics") |> List.wrap() |> Enum.map(&group(sport, &1))
+      groups:
+        t
+        |> Map.get("statistics")
+        |> List.wrap()
+        |> Enum.filter(&scoreable_group?(sport, &1))
+        |> Enum.map(&group(sport, &1))
     }
   end
+
+  # ESPN ships ten football tables; six of them (defense, returns, kicking,
+  # punting) cannot score a point under the @nfl chart, so they are dropped
+  # rather than rendered as dead weight on a fantasy screen. Other sports keep
+  # every table they publish.
+  @nfl_groups ~w(passing rushing receiving fumbles)
+
+  defp blank_to_nil(v) when is_binary(v), do: if(String.trim(v) == "", do: nil, else: v)
+  defp blank_to_nil(_), do: nil
+
+  defp scoreable_group?("nfl", g), do: (g["name"] || "") in @nfl_groups
+  defp scoreable_group?(_sport, _g), do: true
 
   defp group(sport, g) do
     labels = g["labels"] || []
+    table = g["name"] || ""
 
     %{
-      type: g["type"] || "",
+      # Football tables carry their heading in "name" ("passing") while the
+      # other sports use "type"; without the fallback every football table
+      # would render unlabeled.
+      type: blank_to_nil(g["type"]) || table,
       columns: labels,
-      rows: g |> Map.get("athletes") |> List.wrap() |> Enum.map(&row(sport, labels, &1)) |> Enum.reject(&is_nil/1)
+      rows:
+        g
+        |> Map.get("athletes")
+        |> List.wrap()
+        |> Enum.map(&row(sport, labels, &1, table))
+        |> Enum.reject(&is_nil/1)
     }
   end
 
-  defp row(sport, labels, a) do
+  defp row(sport, labels, a, table) do
     name = get_in(a, ["athlete", "displayName"])
     stats = a["stats"] || []
 
@@ -94,18 +120,54 @@ defmodule HeadsUp.Sports.BoxScore do
         headshot_url: HeadsUp.Sports.Headshot.url(sport, to_string(get_in(a, ["athlete", "id"]) || "")),
         starter: a["starter"] == true,
         stats: stats,
-        fantasy: Float.round(Engine.player_points(fantasy_line(sport, labels, stats), Scoring.default_rules(sport)) * 1.0, 1)
+        # The ESPN athlete id and the scoring categories behind `fantasy`.
+        # Settlement re-joins on the id and sums the categories across tables,
+        # so the box score you read and the duel score you're paid come from
+        # one parse rather than two that can drift.
+        external_id: to_string(get_in(a, ["athlete", "id"]) || ""),
+        line: fantasy_line(sport, labels, stats, table),
+        fantasy:
+          Float.round(
+            Engine.player_points(fantasy_line(sport, labels, stats, table), Scoring.default_rules(sport)) * 1.0,
+            1
+          )
       }
     end
   end
 
   # --- fantasy line from the box-score columns ----------------------------
 
-  defp fantasy_line(sport, labels, stats) do
+  defp fantasy_line(sport, labels, stats, table) do
     case Gamelog.family(sport) do
       :basketball -> basketball_line(labels, stats)
       :baseball -> baseball_line(labels, stats)
+      :football -> football_line(table, labels, stats)
       :other -> %{}
+    end
+  end
+
+  # A football row's fantasy is the contribution of THAT table, because ESPN
+  # lists a dual-threat player once per table. "YDS" and "TD" mean different
+  # things in each, so the table name is what disambiguates them — reading by
+  # label alone would score a rushing touchdown as a passing one.
+  defp football_line(table, labels, stats) do
+    g = fn l -> Parse.to_int(Parse.stat_value(labels, stats, l)) end
+
+    case table do
+      "passing" ->
+        %{"passing_yards" => g.("YDS"), "passing_td" => g.("TD"), "interception" => g.("INT")}
+
+      "rushing" ->
+        %{"rushing_yards" => g.("YDS"), "rushing_td" => g.("TD")}
+
+      "receiving" ->
+        %{"reception" => g.("REC"), "receiving_yards" => g.("YDS"), "receiving_td" => g.("TD")}
+
+      "fumbles" ->
+        %{"fumble_lost" => g.("LOST")}
+
+      _ ->
+        %{}
     end
   end
 

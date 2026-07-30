@@ -14,6 +14,8 @@ defmodule HeadsUp.Drafts.LineupTest do
                "nba_7",
                "nba_quick",
                "nba_standard",
+               "nfl_5",
+               "nfl_7",
                "nfl_quick",
                "nfl_standard",
                "wnba_5",
@@ -25,12 +27,12 @@ defmodule HeadsUp.Drafts.LineupTest do
 
     test "filters by sport" do
       assert Lineup.templates_for("wnba") == ["wnba_5", "wnba_7", "wnba_quick", "wnba_standard"]
-      assert Lineup.templates_for("nfl") == ["nfl_quick", "nfl_standard"]
+      assert Lineup.templates_for("nfl") == ["nfl_5", "nfl_7", "nfl_quick", "nfl_standard"]
       assert Lineup.templates_for("xxx") == []
     end
 
     test "canonical shapes: sizes 5 and 7, each ending in one FLEX" do
-      for sport <- ~w(wnba nba mlb), size <- [5, 7] do
+      for sport <- ~w(wnba nba mlb nfl), size <- [5, 7] do
         slots = Lineup.slots("#{sport}_#{size}")
         assert length(slots) == size
         assert List.last(slots).label == "FLEX"
@@ -40,14 +42,27 @@ defmodule HeadsUp.Drafts.LineupTest do
       assert Enum.map(Lineup.slots("wnba_5"), & &1.label) == ~w(GUARD GUARD FORWARD FORWARD FLEX)
       assert Enum.map(Lineup.slots("mlb_7"), & &1.label) ==
                ~w(PITCHER PITCHER INFIELD INFIELD OUTFIELD OUTFIELD FLEX)
+
+      assert Enum.map(Lineup.slots("nfl_5"), & &1.label) == ~w(QB RB WR WR FLEX)
+      assert Enum.map(Lineup.slots("nfl_7"), & &1.label) == ~w(QB RB RB WR WR TE FLEX)
     end
 
-    test "default_template/1 prefers the 5-slot shape, falling back for NFL" do
+    test "default_template/1 prefers the 5-slot shape for every live sport" do
       assert Lineup.default_template("wnba") == "wnba_5"
       assert Lineup.default_template("mlb") == "mlb_5"
-      assert Lineup.default_template("nfl") == "nfl_standard"
+      assert Lineup.default_template("nfl") == "nfl_5"
       assert Lineup.sizes_for("wnba") == [5, 7]
-      assert Lineup.sizes_for("nfl") == []
+      assert Lineup.sizes_for("nfl") == [5, 7]
+      # A sport with no canonical shape still falls back to its legacy preset.
+      assert Lineup.default_template("xxx") == "xxx_standard"
+    end
+
+    test "the NFL FLEX takes any skill position but never a quarterback" do
+      slots = Lineup.slots("nfl_5")
+
+      assert Lineup.can_fill?(slots, ~w(QB1 RB1 WR1 WR2), "TE") == {:ok, "FLEX1"}
+      assert Lineup.can_fill?(slots, ~w(QB1 RB1 WR1 WR2), "RB") == {:ok, "FLEX1"}
+      assert Lineup.can_fill?(slots, ~w(QB1 RB1 WR1 WR2), "QB") == :error
     end
 
     test "wnba uses the coarse G/F/C scheme (the ESPN feed only emits G/F/C)" do

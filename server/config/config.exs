@@ -77,7 +77,8 @@ config :phoenix, :json_library, Jason
 # settled duels on simulated numbers. Test overrides both keys back to Mock.
 config :heads_up, :stats_providers, %{
   "wnba" => HeadsUp.Settlement.Stats.WnbaEspn,
-  "mlb" => HeadsUp.Settlement.Stats.MlbEspn
+  "mlb" => HeadsUp.Settlement.Stats.MlbEspn,
+  "nfl" => HeadsUp.Settlement.Stats.NflEspn
 }
 
 # Fallback for a sport with no dedicated provider. Season gating keeps NBA/NFL

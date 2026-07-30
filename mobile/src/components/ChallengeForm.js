@@ -5,13 +5,14 @@ import { listSlates } from '../api/sports';
 import { useThemedStyles, spacing, font, fonts } from '../theme';
 import { Chip, Button } from './ui';
 
-// WNBA + MLB are live (real ESPN rosters/stats); NBA/NFL use placeholder pools
-// until their seasons + feeds are wired, so the in-season pair leads.
+// WNBA, MLB and NFL are live (real ESPN rosters/stats); NBA still uses a
+// placeholder pool until its season + feed are wired, so the live ones lead.
+// Off-season sports are dimmed by isPlayable below, not removed.
 const SPORTS = [
   { key: 'wnba', label: '🏀 WNBA' },
   { key: 'mlb', label: '⚾️ Baseball' },
-  { key: 'nba', label: '🏀 Basketball' },
   { key: 'nfl', label: '🏈 Football' },
+  { key: 'nba', label: '🏀 Basketball' },
 ];
 
 // Off-season sports can't be picked (no games in the window = nothing to

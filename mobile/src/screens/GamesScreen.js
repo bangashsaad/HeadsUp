@@ -15,6 +15,7 @@ const MON = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT
 const SPORTS = [
   { key: 'wnba', label: 'WNBA' },
   { key: 'mlb', label: 'MLB' },
+  { key: 'nfl', label: 'NFL' },
 ];
 
 // Shift a UTC instant to ET wall-clock (UTC-4 all WNBA season), read via getUTC*.

@@ -356,7 +356,9 @@ defmodule HeadsUp.Drafts.ServerTest do
     for {pos, pi} <- Enum.with_index(positions), n <- 1..3 do
       Repo.insert!(%Player{
         sport: "wnba",
-        external_id: "test-#{pos}-#{n}",
+        # Numeric, like every real ESPN athlete: draft_pool/1 offers only
+        # real athletes, since a slug-id player cannot be scored.
+        external_id: "#{8_100_000 + pi * 10 + n}",
         name: "#{pos} Player #{n}",
         team: "TST",
         position: pos,

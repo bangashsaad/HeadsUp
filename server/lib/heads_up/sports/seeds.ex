@@ -162,9 +162,17 @@ defmodule HeadsUp.Sports.Seeds do
 
   # ESPN rosters are usually a flat athlete list; tolerate the grouped
   # `[%{"items" => [...]}]` shape some endpoints return.
+  #
+  # The NFL feed groups by unit (offense/defense/specialTeam) AND ships three
+  # groups of people who cannot play this week — injured reserve, suspended, and
+  # the practice squad. Drafting one of those is a guaranteed zero, so they never
+  # enter the pool. Flat feeds have no groups and are unaffected.
+  @skip_groups ~w(injuredReserveOrOut suspended practiceSquad)
+
   defp athletes_from(body) do
     (body["athletes"] || [])
     |> Enum.flat_map(fn
+      %{"position" => group, "items" => _} when group in @skip_groups -> []
       %{"items" => items} when is_list(items) -> items
       athlete when is_map(athlete) -> [athlete]
       _ -> []
@@ -175,8 +183,12 @@ defmodule HeadsUp.Sports.Seeds do
     id = athlete["id"]
     name = athlete["displayName"] || athlete["fullName"]
     pos = get_in(athlete, ["position", "abbreviation"])
+    normalized = normalize_position(sport, pos)
 
-    if is_nil(id) or name in [nil, ""] do
+    # A nil position means the sport has no draftable slot for this player
+    # (football linemen, defenders and kickers), so drop them from the pool
+    # entirely rather than seeding rows that can only ever score 0.0.
+    if is_nil(id) or name in [nil, ""] or is_nil(normalized) do
       nil
     else
       %{
@@ -184,7 +196,7 @@ defmodule HeadsUp.Sports.Seeds do
         external_id: to_string(id),
         name: name,
         team: abbrev,
-        position: normalize_position(sport, pos)
+        position: normalized
       }
     end
   end
@@ -192,7 +204,24 @@ defmodule HeadsUp.Sports.Seeds do
   # Basketball coarsens to G/F/C (the only positions the feed exposes); baseball
   # keeps the granular slot (SP/RP/C/1B/2B/3B/SS/OF/DH) the lineup templates need.
   defp normalize_position("mlb", pos), do: normalize_baseball_position(pos)
+  defp normalize_position("nfl", pos), do: normalize_football_position(pos)
   defp normalize_position(_sport, pos), do: Parse.normalize_position(pos)
+
+  # Football keeps ONLY the four positions the `@nfl` scoring chart can reward.
+  # An offensive lineman or cornerback earns nothing under passing/rushing/
+  # receiving, so returning nil drops them before they reach the draft board.
+  # Fullbacks count as running backs; there is no separate slot for them.
+  defp normalize_football_position(pos) do
+    p = (pos || "") |> to_string() |> String.downcase() |> String.trim()
+
+    cond do
+      p == "qb" or String.contains?(p, "quarterback") -> "QB"
+      p in ~w(rb hb fb) or String.contains?(p, "running back") or String.contains?(p, "halfback") or String.contains?(p, "fullback") -> "RB"
+      p == "wr" or String.contains?(p, "receiver") -> "WR"
+      p == "te" or String.contains?(p, "tight end") -> "TE"
+      true -> nil
+    end
+  end
 
   defp normalize_baseball_position(pos) do
     p = (pos || "") |> to_string() |> String.downcase() |> String.trim()

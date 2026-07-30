@@ -141,7 +141,7 @@ defmodule HeadsUpWeb.DraftChannelTest do
     for {pos, pi} <- Enum.with_index(~w(PG SG SF PF C)), n <- 1..3 do
       Repo.insert!(%HeadsUp.Sports.Player{
         sport: "wnba",
-        external_id: "test-#{pos}-#{n}",
+        external_id: "#{8_200_000 + pi * 10 + n}",
         name: "#{pos} #{n}",
         team: "TST",
         position: pos,

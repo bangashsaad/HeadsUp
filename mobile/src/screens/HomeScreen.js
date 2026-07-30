@@ -34,6 +34,8 @@ function fmtDate(iso) {
   return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
 }
 
+const LIVE_SPORTS = ['wnba', 'mlb', 'nfl'];
+
 export default function HomeScreen({ navigation }) {
   const { token, user, refreshUser } = useAuth();
   const { colors, scheme } = useTheme();
@@ -55,11 +57,12 @@ export default function HomeScreen({ navigation }) {
       setRefreshing(false);
     }
 
-    Promise.all([
-      listUpcomingGames(token, 'wnba').catch(() => ({ games: [] })),
-      listUpcomingGames(token, 'mlb').catch(() => ({ games: [] })),
-    ]).then(([wnba, mlb]) => {
-      setGames([...todays(wnba.games), ...todays(mlb.games)].sort((a, b) => new Date(a.date) - new Date(b.date)));
+    // Every live sport, so the strip carries football once preseason starts.
+    Promise.all(
+      LIVE_SPORTS.map((sport) => listUpcomingGames(token, sport).catch(() => ({ games: [] })))
+    ).then((results) => {
+      const all = results.flatMap((r) => todays(r.games));
+      setGames(all.sort((a, b) => new Date(a.date) - new Date(b.date)));
     });
   }, [token]);
 

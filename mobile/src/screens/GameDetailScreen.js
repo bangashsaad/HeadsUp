@@ -14,6 +14,11 @@ import PlayerAvatar from '../components/PlayerAvatar';
 const GROUP_LABEL = { batting: 'BATTING', pitching: 'PITCHING', '': 'BOX SCORE' };
 const fan = (v) => Number(v) || 0;
 
+// Football joins WNBA and MLB as a live sport, so the per-sport wording is a
+// lookup rather than another nested ternary.
+const LEAGUE_LABEL = { mlb: 'MLB', wnba: 'WNBA', nfl: 'NFL' };
+const START_LABEL = { mlb: 'FIRST PITCH · ET', wnba: 'TIP-OFF · ET', nfl: 'KICKOFF · ET' };
+
 export default function GameDetailScreen({ route, navigation }) {
   const { game, sport = 'wnba' } = route.params;
   const { token } = useAuth();
@@ -59,7 +64,7 @@ function MatchHero({ away, home, state, status, sport, tipTime, styles, colors, 
 
       <View style={styles.heroTop}>
         <Kicker size={9} tracking={2}>
-          {sport === 'mlb' ? 'MLB' : 'WNBA'} · Real game
+          {LEAGUE_LABEL[sport] || 'WNBA'} · Real game
         </Kicker>
         {live ? (
           <View style={styles.liveChip}>
@@ -84,7 +89,7 @@ function MatchHero({ away, home, state, status, sport, tipTime, styles, colors, 
         {pre ? (
           <View style={styles.heroCenterPre}>
             <Text style={styles.tipTime}>{tipTime}</Text>
-            <Text style={styles.tipLabel}>{sport === 'mlb' ? 'FIRST PITCH · ET' : 'TIP-OFF · ET'}</Text>
+            <Text style={styles.tipLabel}>{START_LABEL[sport] || 'TIP-OFF · ET'}</Text>
           </View>
         ) : (
           <View style={styles.heroCenter}>

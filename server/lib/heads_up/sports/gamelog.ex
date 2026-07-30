@@ -24,8 +24,11 @@ defmodule HeadsUp.Sports.Gamelog do
   `Settlement.Engine.player_points/2` scores them directly. Games are newest-first.
 
   Basketball (wnba/nba) reads the box-score by column LABEL (PTS/REB/…).
-  Baseball (mlb) reads by the stable machine `names` array (atBats/homeRuns/…),
-  auto-detecting a pitching vs batting log by the presence of `"innings"`.
+  Baseball (mlb) and football (nfl) read by the stable machine `names` array
+  (atBats/homeRuns/…, passingYards/receptions/…). Baseball auto-detects a
+  pitching vs batting log by the presence of `"innings"`; football reads every
+  category it finds, because ESPN varies the columns by position (a QB log has
+  passing+rushing, a receiver's has receiving+rushing+fumbles).
   """
   alias HeadsUp.Sports.Espn.Parse
   alias HeadsUp.Contests.Scoring
@@ -35,6 +38,7 @@ defmodule HeadsUp.Sports.Gamelog do
   def family("wnba"), do: :basketball
   def family("nba"), do: :basketball
   def family("mlb"), do: :baseball
+  def family("nfl"), do: :football
   def family(_), do: :other
 
   @doc "Normalized per-game list (newest first) parsed from an ESPN gamelog body."
@@ -127,6 +131,100 @@ defmodule HeadsUp.Sports.Gamelog do
     else
       batting(geti)
     end
+  end
+
+  # --- football -----------------------------------------------------------
+
+  # ESPN ships a DIFFERENT column set per position — a QB log has passing and
+  # rushing, a receiver's has receiving, rushing and fumbles. Rather than
+  # branching on role, read every category by name and let the missing ones
+  # come back 0 (`Parse.to_int(nil)` == 0). The role is then inferred from what
+  # actually has volume, which is only used to pick a display line.
+  #
+  # Known feed gap: ESPN omits fumbles from the QB column set, so a quarterback
+  # never loses points for one. Both sides of a duel are scored identically, so
+  # this cannot favor a player — it just makes QBs marginally cheap.
+  defp read(:football, _labels, names, stats) do
+    geti = fn key ->
+      case Enum.find_index(names, &(&1 == key)) do
+        nil -> 0
+        i -> Parse.to_int(Enum.at(stats, i))
+      end
+    end
+
+    pass_yds = geti.("passingYards")
+    pass_td = geti.("passingTouchdowns")
+    ints = geti.("interceptions")
+    rush_yds = geti.("rushingYards")
+    rush_td = geti.("rushingTouchdowns")
+    rec = geti.("receptions")
+    rec_yds = geti.("receivingYards")
+    rec_td = geti.("receivingTouchdowns")
+
+    line = %{
+      "passing_yards" => pass_yds,
+      "passing_td" => pass_td,
+      "interception" => ints,
+      "rushing_yards" => rush_yds,
+      "rushing_td" => rush_td,
+      "reception" => rec,
+      "receiving_yards" => rec_yds,
+      "receiving_td" => rec_td,
+      "fumble_lost" => geti.("fumblesLost")
+    }
+
+    passer? = "passingYards" in names
+
+    box = %{
+      role: if(passer?, do: "QB", else: "SKILL"),
+      completions: geti.("completions"),
+      attempts: geti.("passingAttempts"),
+      passing_yards: pass_yds,
+      passing_td: pass_td,
+      interceptions: ints,
+      carries: geti.("rushingAttempts"),
+      rushing_yards: rush_yds,
+      rushing_td: rush_td,
+      receptions: rec,
+      targets: geti.("receivingTargets"),
+      receiving_yards: rec_yds,
+      receiving_td: rec_td,
+      fumbles_lost: geti.("fumblesLost")
+    }
+
+    {line, box, football_display(passer?, box)}
+  end
+
+  # A stat line reads best when it leads with what the player actually did, so
+  # show the passing line for a quarterback and the touches line for everyone
+  # else, appending the secondary contribution only when it happened.
+  defp football_display(true, box) do
+    base = "#{box.completions}/#{box.attempts} · #{box.passing_yards} YDS · #{box.passing_td} TD"
+    extras = football_extras([{box.interceptions, "INT"}, {box.rushing_td, "RUSH TD"}])
+    Enum.join([base | extras], " · ")
+  end
+
+  defp football_display(false, box) do
+    base =
+      cond do
+        box.receptions > 0 -> "#{box.receptions} REC · #{box.receiving_yards} YDS"
+        box.carries > 0 -> "#{box.carries} CAR · #{box.rushing_yards} YDS"
+        true -> "0 YDS"
+      end
+
+    tds = box.rushing_td + box.receiving_td
+
+    extras =
+      football_extras([{tds, "TD"}]) ++
+        if(box.receptions > 0 and box.carries > 0, do: ["#{box.carries} CAR · #{box.rushing_yards} YDS"], else: [])
+
+    Enum.join([base | extras], " · ")
+  end
+
+  defp football_extras(pairs) do
+    pairs
+    |> Enum.filter(fn {n, _} -> n > 0 end)
+    |> Enum.map(fn {n, lbl} -> "#{n} #{lbl}" end)
   end
 
   defp read(:other, _labels, _names, _stats), do: {%{}, %{role: "?"}, ""}

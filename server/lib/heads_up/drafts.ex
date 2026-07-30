@@ -153,7 +153,12 @@ defmodule HeadsUp.Drafts do
   @doc "The draftable pool for a sport as `%{player_id => player_map}` (with projection)."
   def draft_pool(sport) do
     from(p in Player,
-      where: p.sport == ^sport,
+      # Real ESPN athletes only. A pre-feed placeholder row (slug external_id)
+      # survives `prune_legacy` when an old draft pick still references it, and
+      # every stats provider scores an unknown id as zeros — so leaving one on
+      # the board offers a player who CANNOT score. Old rosters still render;
+      # this filter only governs what is draftable now.
+      where: p.sport == ^sport and fragment("? ~ '^[0-9]+$'", p.external_id),
       select: %{
         id: p.id,
         name: p.name,

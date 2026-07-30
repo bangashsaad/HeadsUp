@@ -240,7 +240,7 @@ defmodule HeadsUp.DraftsTest do
     for i <- 1..n do
       Repo.insert!(%Player{
         sport: "wnba",
-        external_id: "test-wnba-#{i}",
+        external_id: "#{8_300_000 + i}",
         name: "Test Player #{i}",
         team: "TST",
         position: Enum.at(positions, rem(i - 1, 5)),

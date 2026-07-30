@@ -104,6 +104,26 @@ defmodule HeadsUp.Drafts.Lineup do
     %{key: "FLEX1", label: "FLEX", eligible: @mlb_hitter}
   ]
 
+  # Football keeps only the four positions our scoring chart can reward, so
+  # every shape is QB + touches + a FLEX. This mirrors a standard DFS roster.
+  @nfl_5 [
+    %{key: "QB1", label: "QB", eligible: ["QB"]},
+    %{key: "RB1", label: "RB", eligible: ["RB"]},
+    %{key: "WR1", label: "WR", eligible: ["WR"]},
+    %{key: "WR2", label: "WR", eligible: ["WR"]},
+    %{key: "FLEX1", label: "FLEX", eligible: @nfl_flex}
+  ]
+
+  @nfl_7 [
+    %{key: "QB1", label: "QB", eligible: ["QB"]},
+    %{key: "RB1", label: "RB", eligible: ["RB"]},
+    %{key: "RB2", label: "RB", eligible: ["RB"]},
+    %{key: "WR1", label: "WR", eligible: ["WR"]},
+    %{key: "WR2", label: "WR", eligible: ["WR"]},
+    %{key: "TE1", label: "TE", eligible: ["TE"]},
+    %{key: "FLEX1", label: "FLEX", eligible: @nfl_flex}
+  ]
+
   @mlb_7 [
     %{key: "P1", label: "PITCHER", eligible: @mlb_pitcher},
     %{key: "P2", label: "PITCHER", eligible: @mlb_pitcher},
@@ -115,6 +135,8 @@ defmodule HeadsUp.Drafts.Lineup do
   ]
 
   @templates %{
+    "nfl_5" => @nfl_5,
+    "nfl_7" => @nfl_7,
     "wnba_5" => @bball_5,
     "wnba_7" => @bball_7,
     "nba_5" => @bball_5,
@@ -166,7 +188,7 @@ defmodule HeadsUp.Drafts.Lineup do
 
   @doc """
   The default template for a sport: the canonical 5-slot shape where one
-  exists, else the legacy `_standard` preset (NFL, until its shapes land).
+  exists, else the legacy `_standard` preset.
   """
   @spec default_template(String.t()) :: String.t()
   def default_template(sport) do
