@@ -485,7 +485,7 @@ function MatchupPreview({ away, home, sport, styles, colors }) {
       <Card padded={false}>
         <LeaderBlock side={away} styles={styles} colors={colors} />
         <View style={styles.divider} />
-        <LeaderBlock side={home} styles={styles} colors={colors} last />
+        <LeaderBlock side={home} styles={styles} colors={colors} />
       </Card>
     </View>
   );
@@ -516,10 +516,10 @@ function Starter({ side, styles, colors, align = 'flex-start' }) {
   );
 }
 
-function LeaderBlock({ side, styles, colors, last }) {
+function LeaderBlock({ side, styles, colors }) {
   const list = side?.leaders || [];
   return (
-    <View style={[styles.ldBlock, !last && { paddingBottom: 12 }]}>
+    <View style={styles.ldBlock}>
       <Text style={styles.spTeam}>
         {side?.abbrev}
         {side?.record ? ` · ${side.record}` : ''}
@@ -552,7 +552,7 @@ const makeStyles = (colors) =>
     spTeam: { color: colors.muted, fontSize: 9.5, fontFamily: fonts.bodyExtra, letterSpacing: 1.5 },
     spName: { color: colors.text, fontSize: 14, fontFamily: fonts.bodyBold },
     spLine: { color: colors.accent, fontSize: 11.5, fontFamily: fonts.condBold, letterSpacing: 0.4, marginTop: 1 },
-    ldBlock: { paddingHorizontal: 14, paddingTop: 12 },
+    ldBlock: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 15 },
     ldRow: { flexDirection: 'row', gap: 10, marginTop: 8 },
     ldItem: { flex: 1, minWidth: 0 },
     ldCat: { color: colors.placeholder, fontSize: 8.5, fontFamily: fonts.bodyBlack, letterSpacing: 1 },
