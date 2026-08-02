@@ -619,6 +619,19 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
         <PickClock deadline={state.clock_deadline} serverNow={state.server_now} />
       </View>
 
+      {/* Exhibition games rank badly by a season average — starters play a
+          series or two, so the top of the board is often the wrong pick.
+          Say it here, where the decision actually happens. */}
+      {state.preseason && !focused ? (
+        <View style={styles.preseasonNote}>
+          <Ionicons name="alert-circle-outline" size={13} color={colors.purpleText} />
+          <Text style={styles.preseasonText}>
+            Preseason — starters play a series or two. Projections are last season's average, so the top of the
+            board isn't the safe pick.
+          </Text>
+        </View>
+      ) : null}
+
       {!focused && (
         <>
           <DraftOrderDots order={order} pickNumber={state.pick_number} colorFor={colorFor} />
@@ -868,6 +881,19 @@ const makeStyles = (colors) =>
     termChipText: { fontSize: 11, fontFamily: fonts.bodyExtra, color: colors.muted, letterSpacing: 0.5 },
 
     board: { flex: 1, backgroundColor: colors.bg, padding: spacing.md },
+    preseasonNote: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 6,
+      marginTop: spacing.sm,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      borderRadius: radius.sm,
+      borderWidth: 1,
+      borderColor: withAlpha(colors.purpleText, 0.35),
+      backgroundColor: withAlpha(colors.purpleText, 0.08),
+    },
+    preseasonText: { flex: 1, color: colors.purpleText, fontSize: 11, lineHeight: 15 },
     turnCard: {
       flexDirection: 'row',
       alignItems: 'center',

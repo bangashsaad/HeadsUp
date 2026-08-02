@@ -67,4 +67,54 @@ defmodule HeadsUp.Drafts.PoolFilterTest do
   test "reports ok: false for a sport without a live feed" do
     assert %{ok: false, next_game_at: %{}} = PoolFilter.scan("cricket", client: StubClient, now: @now)
   end
+
+  describe "preseason detection" do
+    defmodule PreStub do
+      def scoreboard(_sport, _ymd) do
+        {:ok,
+         %{
+           "events" => [
+             %{
+               "date" => "2026-08-07T00:00Z",
+               "season" => %{"type" => 1, "slug" => "preseason"},
+               "status" => %{"type" => %{"state" => "pre"}},
+               "competitions" => [
+                 %{"competitors" => [%{"team" => %{"abbreviation" => "ARI"}}, %{"team" => %{"abbreviation" => "CAR"}}]}
+               ]
+             }
+           ]
+         }}
+      end
+    end
+
+    defmodule RegularStub do
+      def scoreboard(_sport, _ymd) do
+        {:ok,
+         %{
+           "events" => [
+             %{
+               "date" => "2026-09-13T17:00Z",
+               "season" => %{"type" => 2, "slug" => "regular-season"},
+               "status" => %{"type" => %{"state" => "pre"}},
+               "competitions" => [
+                 %{"competitors" => [%{"team" => %{"abbreviation" => "KC"}}]}
+               ]
+             }
+           ]
+         }}
+      end
+    end
+
+    test "flags an exhibition slate" do
+      assert %{ok: true, preseason: true} = PoolFilter.scan("nfl", client: PreStub, dates: [~D[2026-08-06]])
+    end
+
+    test "a regular-season slate is not flagged" do
+      assert %{ok: true, preseason: false} = PoolFilter.scan("nfl", client: RegularStub, dates: [~D[2026-09-13]])
+    end
+
+    test "an unreadable feed is never reported as preseason" do
+      assert %{ok: false, preseason: false} = PoolFilter.scan("nfl", client: ErrClient, dates: [~D[2026-08-06]])
+    end
+  end
 end

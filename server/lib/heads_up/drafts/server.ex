@@ -81,6 +81,8 @@ defmodule HeadsUp.Drafts.Server do
     players = HeadsUp.Contests.draft_players(duel)
     player_ids = Enum.map(players, & &1.id)
 
+    {pool, preseason} = draftable_pool(duel, slots, length(player_ids))
+
     state = %{
       draft_id: draft_id,
       duel_id: duel.id,
@@ -100,7 +102,10 @@ defmodule HeadsUp.Drafts.Server do
       pick_number: nil,
       total_picks: length(slots) * length(player_ids),
       current_picker_id: nil,
-      available: draftable_pool(duel, slots, length(player_ids)),
+      available: pool,
+      # Exhibition games are ranked badly by a season-average projection, so
+      # the room tells players before they pick, not after.
+      preseason: preseason,
       rosters: Map.new(player_ids, &{&1, %{}}),
       # Per-user priority queue of player_ids (client-authoritative, in-memory);
       # auto-pick prefers it. Never broadcast — it's each player's private plan.
@@ -213,26 +218,29 @@ defmodule HeadsUp.Drafts.Server do
     slate? = match?([_ | _], scan_opts[:dates])
 
     case PoolFilter.scan(sport, scan_opts) do
-      %{ok: true, next_game_at: next} ->
+      %{ok: true, next_game_at: next, preseason: preseason} ->
         filtered = Map.filter(pool, fn {_id, p} -> Map.has_key?(next, p.team) end)
 
-        cond do
-          map_size(filtered) >= length(slots) * nplayers * 2 ->
-            annotate(filtered, next)
+        board =
+          cond do
+            map_size(filtered) >= length(slots) * nplayers * 2 ->
+              annotate(filtered, next)
 
-          # A SLATE board never falls back to the full pool on a healthy
-          # feed: the un-slated players' games may already be running or
-          # done, and the frozen slate window would score those known stat
-          # lines — a cramped honest board beats a hindsight exploit.
-          slate? ->
-            annotate(filtered, next)
+            # A SLATE board never falls back to the full pool on a healthy
+            # feed: the un-slated players' games may already be running or
+            # done, and the frozen slate window would score those known stat
+            # lines — a cramped honest board beats a hindsight exploit.
+            slate? ->
+              annotate(filtered, next)
 
-          true ->
-            annotate(pool, next)
-        end
+            true ->
+              annotate(pool, next)
+          end
+
+        {board, preseason}
 
       %{ok: false} ->
-        pool
+        {pool, false}
     end
   end
 
@@ -550,6 +558,7 @@ defmodule HeadsUp.Drafts.Server do
       clock_deadline: state.deadline && DateTime.to_iso8601(state.deadline),
       server_now: DateTime.to_iso8601(state.now_fun.()),
       slots: state.slots,
+      preseason: Map.get(state, :preseason, false),
       rosters: render_rosters(state),
       picks: state.picks,
       available: render_available(state)

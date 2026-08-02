@@ -10,10 +10,11 @@ defmodule HeadsUp.Drafts.PoolFilter do
     * every draftable player gets annotated with WHEN they play next, so the
       board can show it during the draft.
 
-  `scan/2` returns `%{ok: bool, next_game_at: %{team_abbrev => iso_utc}}` —
-  each team's earliest "pre"-state game across the two days. `ok: false` means
-  the feed couldn't be read (or the sport has no live feed): callers must fail
-  OPEN (a complete board beats a broken draft).
+  `scan/2` returns `%{ok: bool, next_game_at: %{team_abbrev => iso_utc},
+  preseason: bool}` — each team's earliest "pre"-state game across the two days,
+  plus whether those games are exhibition. `ok: false` means the feed couldn't be
+  read (or the sport has no live feed): callers must fail OPEN (a complete board
+  beats a broken draft).
   """
   alias HeadsUp.Sports.Espn.Client
 
@@ -40,12 +41,24 @@ defmodule HeadsUp.Drafts.PoolFilter do
         end
       end)
       |> case do
-        {:ok, events} -> %{ok: true, next_game_at: next_games(events)}
-        :error -> %{ok: false, next_game_at: %{}}
+        {:ok, events} ->
+          %{ok: true, next_game_at: next_games(events), preseason: preseason?(events)}
+
+        :error ->
+          %{ok: false, next_game_at: %{}, preseason: false}
       end
     else
-      %{ok: false, next_game_at: %{}}
+      %{ok: false, next_game_at: %{}, preseason: false}
     end
+  end
+
+  # ESPN season types: 1 = preseason, 2 = regular, 3 = post. Football exhibition
+  # games are the case that matters — starters play a series or two, so a board
+  # ranked by last season's per-game average is actively misleading. The draft
+  # room says so out loud rather than letting people find out by drafting a
+  # starter who takes three snaps.
+  defp preseason?(events) do
+    events != [] and Enum.all?(events, &(get_in(&1, ["season", "type"]) == 1))
   end
 
   # Earliest not-yet-started game per team. ESPN dates are same-format ISO8601
