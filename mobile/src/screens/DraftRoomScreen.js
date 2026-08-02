@@ -40,9 +40,12 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
 // emojis are dropped silently by the channel.
 const REACTION_EMOJIS = ['🔥', '😂', '😭', '🥶', '💀', '👑'];
 
-// The coin's spin and the overlay's lifetime must be the SAME number, or the
-// coin freezes on screen after it lands.
+// The coin's spin. The overlay now closes off the animation's own completion
+// callback rather than a parallel timer, so the two cannot drift apart.
+// FLIP_FAILSAFE_MS only exists because RN pauses animations in the background:
+// without it, backgrounding the app mid-flip strands the coin on screen.
 const FLIP_MS = 1300;
+const FLIP_FAILSAFE_MS = 6000;
 
 // One UNIQUE color per seat (name-hash tints can collide — two players both
 // lime was unreadable). You are always the accent; everyone else gets a
@@ -128,7 +131,7 @@ export default function DraftRoomScreen({ route, navigation }) {
     prevPhase.current = ph;
     if (prev === 'lobby' && ph !== 'lobby' && ph !== 'cancelled') {
       setFlipping(true);
-      const t = setTimeout(() => setFlipping(false), FLIP_MS);
+      const t = setTimeout(() => setFlipping(false), FLIP_FAILSAFE_MS);
       return () => clearTimeout(t);
     }
   }, [state?.phase]);
@@ -175,7 +178,7 @@ export default function DraftRoomScreen({ route, navigation }) {
         myId={myId}
         onDone={(key) => setBursts((b) => b.filter((x) => x.key !== key))}
       />
-      {flipping ? <FlipOverlay /> : null}
+      {flipping ? <FlipOverlay onDone={() => setFlipping(false)} /> : null}
     </View>
   );
 }
@@ -263,28 +266,40 @@ function ReactionBar({ conn }) {
 }
 
 // Spinning coin between "everyone's ready" and "pick 1 is on the clock".
-function FlipOverlay() {
+//
+// A real coin has two faces, and so does this one. Hiding the backface of a
+// SINGLE face is what made the coin strobe: a hidden backface isn't drawn at
+// all while the view is rotated between 90 and 270 degrees, so across a
+// 1440-degree spin the coin vanished for exactly half the animation. Two
+// stacked faces — the back one pre-rotated 180 degrees — mean one of them is
+// always toward the viewer, and neither is ever mirrored.
+function FlipOverlay({ onDone }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const spin = useRef(new Animated.Value(0)).current;
+  const done = useRef(onDone);
+  done.current = onDone;
 
   useEffect(() => {
-    Animated.timing(spin, { toValue: 1, duration: FLIP_MS, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
-  }, [spin]);
+    Animated.timing(spin, {
+      toValue: 1,
+      duration: FLIP_MS,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start(({ finished }) => finished && done.current?.());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const rotateY = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '1440deg'] });
 
   return (
     <View style={styles.flipWrap}>
-      <Animated.View
-        style={[
-          styles.coin,
-          // backfaceVisibility: without it the H renders MIRRORED on every
-          // reverse half-turn — four backwards flashes per flip.
-          { backfaceVisibility: 'hidden' },
-          { transform: [{ rotateY: spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '1440deg'] }) }] },
-        ]}
-      >
-        <View style={[styles.coinInner, { backfaceVisibility: 'hidden' }]}>
-          <Text style={{ fontFamily: fonts.display, fontSize: 26, color: colors.accent }}>H</Text>
+      <Animated.View style={[styles.coin, { transform: [{ perspective: 800 }, { rotateY }] }]}>
+        <View style={styles.coinFace}>
+          <Text style={styles.coinLetter}>H</Text>
+        </View>
+        <View style={[styles.coinFace, styles.coinFaceBack]}>
+          <Text style={styles.coinLetter}>T</Text>
         </View>
       </Animated.View>
       <CondTitle size={22} color={colors.muted} style={{ letterSpacing: 2, marginTop: 22 }}>
@@ -852,14 +867,22 @@ const makeStyles = (colors) =>
       justifyContent: 'center',
       backgroundColor: colors.purple,
     },
-    coinInner: {
-      width: 74,
-      height: 74,
+    coinFace: {
+      position: 'absolute',
+      top: 5,
+      left: 5,
+      right: 5,
+      bottom: 5,
       borderRadius: 37,
       backgroundColor: colors.bg,
       alignItems: 'center',
       justifyContent: 'center',
+      backfaceVisibility: 'hidden',
     },
+    // The reverse side, pre-turned so it faces away at rest and comes around
+    // as the coin spins.
+    coinFaceBack: { transform: [{ rotateY: '180deg' }] },
+    coinLetter: { fontFamily: fonts.display, fontSize: 26, color: colors.accent },
 
     lobby: { flex: 1, backgroundColor: colors.bg, padding: spacing.xl, justifyContent: 'center' },
     faceOff: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: spacing.xl },
