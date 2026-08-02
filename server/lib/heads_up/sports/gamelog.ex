@@ -195,6 +195,8 @@ defmodule HeadsUp.Sports.Gamelog do
     {line, box, football_display(passer?, box)}
   end
 
+  defp read(:other, _labels, _names, _stats), do: {%{}, %{role: "?"}, ""}
+
   # A stat line reads best when it leads with what the player actually did, so
   # show the passing line for a quarterback and the touches line for everyone
   # else, appending the secondary contribution only when it happened.
@@ -226,8 +228,6 @@ defmodule HeadsUp.Sports.Gamelog do
     |> Enum.filter(fn {n, _} -> n > 0 end)
     |> Enum.map(fn {n, lbl} -> "#{n} #{lbl}" end)
   end
-
-  defp read(:other, _labels, _names, _stats), do: {%{}, %{role: "?"}, ""}
 
   defp batting(geti) do
     ab = geti.("atBats")

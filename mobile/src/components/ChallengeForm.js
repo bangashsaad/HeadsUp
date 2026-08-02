@@ -82,8 +82,13 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
   );
   const [timeMs, setTimeMs] = useState(TIME_OPTIONS[0].ms);
   const [stake, setStake] = useState(initial.stake_coins || 0);
-  const [slates, setSlates] = useState([]); // [{date: 'YYYY-MM-DD', games: n}]
-  const [slateDate, setSlateDate] = useState(null);
+  // Slates come in two shapes. Basketball and baseball answer with ET DAYS;
+  // football answers with WEEKS, because a team there plays once and a single
+  // night would offer two teams instead of the league. `slateId` is whichever
+  // identifies the pick — an ISO date, or a week key like "1-2".
+  const [slates, setSlates] = useState([]);
+  const [slateKind, setSlateKind] = useState('day');
+  const [slateId, setSlateId] = useState(null);
 
   const balance = user?.coins ?? 0;
 
@@ -107,18 +112,21 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
   useEffect(() => {
     let live = true;
     setSlates([]);
-    setSlateDate(null);
+    setSlateId(null);
     listSlates(token, sport)
       .then((res) => {
         if (!live) return;
-        const days = res.slates || [];
-        setSlates(days);
+        const kind = res.kind || 'day';
+        const list = res.slates || [];
+        setSlateKind(kind);
+        setSlates(list);
+        const idOf = (s) => (kind === 'week' ? s.key : s.date);
         const fromInitial =
           initial.slate_date && sport === initial.sport
-            ? days.find((d) => d.date === initial.slate_date && pickable(d))
+            ? list.find((s) => s.date === initial.slate_date && pickable(s))
             : null;
-        const first = fromInitial || days.find(pickable);
-        if (first) setSlateDate(first.date);
+        const first = fromInitial || list.find(pickable);
+        if (first) setSlateId(idOf(first));
       })
       .catch(() => {});
     return () => {
@@ -127,13 +135,18 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, sport]);
 
+  const idOf = (s) => (slateKind === 'week' ? s.key : s.date);
+  const selectedSlate = slates.find((s) => idOf(s) === slateId) || null;
+  // A week's first game is what the draft has to beat, not its last.
+  const slateStart = selectedSlate?.date || null;
+
   const anyGated = SPORTS.some((s) => !isPlayable(sportsStatus, s.key));
 
   // The draft has to happen on or before the slate day — dim times past it,
   // and snap back to the first legal one if the pick went stale. If NO time
   // fits (late night: every option crosses into the next ET day), bump the
   // slate forward instead of dead-ending the form.
-  const timeAllowed = (ms) => !slateDate || etDayISO(Date.now() + ms) <= slateDate;
+  const timeAllowed = (ms) => !slateStart || etDayISO(Date.now() + ms) <= slateStart;
 
   useEffect(() => {
     if (timeAllowed(timeMs)) return;
@@ -141,11 +154,11 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
     if (first) {
       setTimeMs(first.ms);
     } else {
-      const next = slates.find((d) => pickable(d) && d.date > slateDate);
-      if (next) setSlateDate(next.date);
+      const next = slates.find((s) => pickable(s) && s.date > slateStart);
+      if (next) setSlateId(idOf(next));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slateDate, slates]);
+  }, [slateStart, slates]);
 
   function handleSubmit() {
     onSubmit({
@@ -154,7 +167,7 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
       pick_clock_seconds: clockSecs,
       draft_starts_at: new Date(Date.now() + timeMs).toISOString(),
       stake_coins: stake,
-      ...(slateDate ? { slate_date: slateDate } : {}),
+      ...(slateId ? (slateKind === 'week' ? { slate_week: slateId } : { slate_date: slateId }) : {}),
     });
   }
 
@@ -175,23 +188,28 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
 
       {slates.some(pickable) ? (
         <>
-          <Text style={styles.label}>Slate — whose games count</Text>
+          <Text style={styles.label}>{slateKind === 'week' ? 'Week — whose games count' : 'Slate — whose games count'}</Text>
           <View style={styles.row}>
             {slates
-              .filter((d) => pickable(d) || d.date === slateDate)
+              .filter((s) => pickable(s) || idOf(s) === slateId)
               .slice(0, 5)
-              .map((d) => (
+              .map((s) => (
                 <Chip
-                  key={d.date}
-                  label={`${slateLabel(d.date)} · ${d.upcoming ?? d.games}`}
-                  active={slateDate === d.date}
-                  onPress={() => setSlateDate(d.date)}
+                  key={idOf(s)}
+                  label={`${slateKind === 'week' ? s.label : slateLabel(s.date)} · ${s.upcoming ?? s.games}`}
+                  active={slateId === idOf(s)}
+                  onPress={() => setSlateId(idOf(s))}
                 />
               ))}
           </View>
           <Text style={styles.gateNote}>
-            You'll only draft players who play {slateDate ? slateLabel(slateDate).toLowerCase() : 'that day'} — scoring
-            covers just that slate.
+            {slateKind === 'week'
+              ? `Football runs by the week — every team plays once. You'll draft from all of ${
+                  selectedSlate?.label?.toLowerCase() || 'that week'
+                }, and it settles after the last game.`
+              : `You'll only draft players who play ${
+                  slateStart ? slateLabel(slateStart).toLowerCase() : 'that day'
+                } — scoring covers just that slate.`}
           </Text>
         </>
       ) : null}

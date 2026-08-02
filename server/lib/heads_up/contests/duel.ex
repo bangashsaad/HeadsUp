@@ -31,10 +31,18 @@ defmodule HeadsUp.Contests.Duel do
     field :lineup_template, :string
     field :status, :string, default: "pending"
 
-    # The ET calendar day whose games this duel drafts from and scores against.
+    # The ET calendar days whose games this duel drafts from and scores against.
     # NULL = legacy behavior (window anchored at draft completion, pool spans
-    # today+tomorrow). Day-shaped for now; NFL will widen this to week slates.
+    # today+tomorrow).
+    #
+    # `slate_dates` is authoritative. `slate_date` is its earliest day, kept so
+    # existing clients and queries that predate week slates keep working.
+    # `slate_kind` is how the days were chosen: "day" for basketball and
+    # baseball, "week" for football — a team there plays once, so a single night
+    # would offer two teams on a Thursday instead of the league.
     field :slate_date, :date
+    field :slate_dates, {:array, :date}
+    field :slate_kind, :string
 
     # Scoring window (frozen when the draft finishes) + denormalized settlement
     # outcome (winner_id nil + status "settled" == a tie). Full per-player
@@ -85,6 +93,8 @@ defmodule HeadsUp.Contests.Duel do
       :lineup_template,
       :status,
       :slate_date,
+      :slate_dates,
+      :slate_kind,
       :challenger_id,
       :opponent_id,
       :parent_duel_id

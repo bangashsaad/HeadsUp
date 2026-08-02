@@ -353,18 +353,26 @@ defmodule HeadsUp.Contests do
     end
   end
 
-  # A slate duel scores exactly its ET calendar day (04:00 UTC → 03:59:59, the
+  # A slate duel scores exactly its ET calendar days (04:00 UTC → 03:59:59, the
   # same EDT convention as WindowScan), no matter when the draft wraps — the
-  # pool filter already blocked drafting anyone whose game had tipped. Legacy
-  # duels keep the anchored-at-completion window.
-  defp scoring_window(%Duel{slate_date: %Date{} = slate}, _now) do
-    window_start = DateTime.new!(slate, ~T[04:00:00], "Etc/UTC")
-    {window_start, DateTime.add(window_start, 86_400 - 1, :second)}
-  end
+  # pool filter already blocked drafting anyone whose game had tipped. A
+  # football week spans several days, so the window runs from its first to its
+  # last. Legacy duels keep the anchored-at-completion window.
+  defp scoring_window(%Duel{slate_dates: [_ | _] = dates}, _now), do: window_across(dates)
+  defp scoring_window(%Duel{slate_date: %Date{} = slate}, _now), do: window_across([slate])
 
   defp scoring_window(_duel, now) do
     window_seconds = Application.get_env(:heads_up, :scoring_window_seconds, 86_400)
     {now, DateTime.add(now, window_seconds, :second)}
+  end
+
+  # First day's 04:00 UTC through the END of the last day, so a Monday-night
+  # kickoff still lands inside a football week.
+  defp window_across(dates) do
+    sorted = Enum.sort(dates, Date)
+    window_start = DateTime.new!(List.first(sorted), ~T[04:00:00], "Etc/UTC")
+    last_start = DateTime.new!(List.last(sorted), ~T[04:00:00], "Etc/UTC")
+    {window_start, DateTime.add(last_start, 86_400 - 1, :second)}
   end
 
   @doc """
@@ -502,11 +510,97 @@ defmodule HeadsUp.Contests do
   # slate = legacy full-pool behavior; a kept date = the board filter's
   # problem later). Rematches and counters flow through here too.
   defp resolve_slate(built, nplayers) do
-    case parse_slate_date(built["slate_date"]) do
-      :absent -> {:ok, Map.put(built, "slate_date", default_slate_date(built, nplayers))}
-      {:ok, date} -> validate_slate(built, date, nplayers)
-      :invalid -> {:error, "that slate date isn't a real date"}
+    if Slate.week_shaped?(built["sport"]) do
+      resolve_week_slate(built, nplayers)
+    else
+      case parse_slate_date(built["slate_date"]) do
+        :absent -> {:ok, put_day_slate(built, default_slate_date(built, nplayers))}
+        {:ok, date} -> validate_slate(built, date, nplayers)
+        :invalid -> {:error, "that slate date isn't a real date"}
+      end
     end
+  end
+
+  # Football is scoped by WEEK: a team plays once, so a single night offers two
+  # teams rather than a league. The client sends `slate_week` ("1-2" = preseason
+  # week 2); the duel stores every ET day that week has games on.
+  defp resolve_week_slate(built, nplayers) do
+    case Slate.weeks(built["sport"]) do
+      {:error, _} ->
+        # Feed down: fail OPEN, same as every other slate path.
+        {:ok, built}
+
+      {:ok, []} ->
+        {:ok, built}
+
+      {:ok, weeks} ->
+        case built["slate_week"] do
+          key when is_binary(key) and key != "" ->
+            case Enum.find(weeks, &(&1.key == key)) do
+              nil -> {:error, "that week isn't open for drafting — pick another"}
+              week -> validate_week(built, week, nplayers)
+            end
+
+          _ ->
+            case Enum.find(weeks, &week_viable?(built, &1, nplayers)) do
+              nil -> {:ok, put_week_slate(built, hd(weeks))}
+              week -> {:ok, put_week_slate(built, week)}
+            end
+        end
+    end
+  end
+
+  defp validate_week(built, week, nplayers) do
+    draft_day = draft_et_date(built["draft_starts_at"])
+    # The bar is the first game still OPEN, not the week's first game — on a
+    # Saturday, Thursday is done but Sunday isn't, and that duel is fine.
+    first_day = week[:first_upcoming_date] || List.first(week.dates)
+
+    cond do
+      week.upcoming == 0 ->
+        {:error, "that week is already underway — pick a later week"}
+
+      draft_day != nil and first_day != nil and Date.compare(draft_day, first_day) == :gt ->
+        {:error, "the draft has to finish before the next game kicks off"}
+
+      not enough_bodies?(built, week, nplayers) ->
+        {:error, "that week is too small for this format — pick a fuller week"}
+
+      true ->
+        {:ok, put_week_slate(built, week)}
+    end
+  end
+
+  defp week_viable?(built, week, nplayers) do
+    draft_day = draft_et_date(built["draft_starts_at"])
+    first_day = week[:first_upcoming_date] || List.first(week.dates)
+
+    week.upcoming > 0 and
+      (draft_day == nil or first_day == nil or Date.compare(draft_day, first_day) != :gt) and
+      enough_bodies?(built, week, nplayers)
+  end
+
+  defp enough_bodies?(built, week, nplayers) do
+    need = (built["roster_size"] || 5) * nplayers * 2
+    slate_pool_count(built["sport"], week.upcoming_teams) >= need
+  end
+
+  # slate_dates is authoritative; slate_date stays as its earliest day so
+  # anything written before week slates keeps reading the right thing.
+  defp put_week_slate(built, week) do
+    built
+    |> Map.put("slate_date", List.first(week.dates))
+    |> Map.put("slate_dates", week.dates)
+    |> Map.put("slate_kind", "week")
+  end
+
+  defp put_day_slate(built, nil), do: built
+
+  defp put_day_slate(built, %Date{} = date) do
+    built
+    |> Map.put("slate_date", date)
+    |> Map.put("slate_dates", [date])
+    |> Map.put("slate_kind", "day")
   end
 
   defp parse_slate_date(nil), do: :absent
@@ -574,13 +668,13 @@ defmodule HeadsUp.Contests do
             need = (built["roster_size"] || 5) * nplayers * 2
 
             if slate_pool_count(sport, teams) >= need do
-              {:ok, Map.put(built, "slate_date", date)}
+              {:ok, put_day_slate(built, date)}
             else
               {:error, "that slate is too small for this format — pick a day with more games"}
             end
 
           {:error, _} ->
-            {:ok, Map.put(built, "slate_date", date)}
+            {:ok, put_day_slate(built, date)}
         end
     end
   end

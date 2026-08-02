@@ -207,12 +207,13 @@ defmodule HeadsUp.Drafts.Server do
     eligible = slots |> Enum.flat_map(& &1.eligible) |> MapSet.new()
     pool = sport |> Drafts.draft_pool() |> Map.filter(fn {_id, p} -> p.position in eligible end)
 
-    # A slate duel scans ONLY its slate day, so the board is exactly "who
-    # plays that day and hasn't tipped yet". Legacy duels keep today+tomorrow.
+    # A slate duel scans ONLY its own days, so the board is exactly "who plays
+    # in this slate and hasn't started yet" — one night for basketball, the
+    # whole Thu-Mon week for football. Legacy duels keep today+tomorrow.
     scan_opts =
-      case Map.get(duel, :slate_date) do
-        %Date{} = slate -> [dates: [slate]]
-        _ -> []
+      case slate_days(duel) do
+        [] -> []
+        days -> [dates: days]
       end
 
     slate? = match?([_ | _], scan_opts[:dates])
@@ -241,6 +242,13 @@ defmodule HeadsUp.Drafts.Server do
 
       %{ok: false} ->
         {pool, false}
+    end
+  end
+
+  defp slate_days(duel) do
+    case Map.get(duel, :slate_dates) do
+      [_ | _] = days -> Enum.sort(days, Date)
+      _ -> duel |> Map.get(:slate_date) |> List.wrap()
     end
   end
 

@@ -14,30 +14,65 @@ defmodule HeadsUpWeb.GameController do
     json(conn, %{sports: HeadsUp.Sports.Season.statuses()})
   end
 
-  # GET /api/sports/:sport/slates — the next week of ET days with game counts.
-  # Drives the challenge form's slate picker; an empty list (feed down or
-  # unsupported sport) hides the picker and the server defaults the slate.
+  # GET /api/sports/:sport/slates — what a duel can be scoped to.
+  #
+  # Two shapes behind one endpoint: football answers with WEEKS (its teams play
+  # once, so a single night is two teams), everything else with ET DAYS. `kind`
+  # tells the client which it got; an empty list (feed down or unsupported
+  # sport) hides the picker and the server defaults the slate.
   def slates(conn, %{"sport" => sport}) do
-    slates =
-      case HeadsUp.Sports.Slate.upcoming(sport) do
-        {:ok, days} ->
-          Enum.map(days, fn d ->
-            %{
-              date: d.date,
-              games: d.games,
-              upcoming: d.upcoming,
-              # Draftable bodies on that slate. The client mirrors the
-              # create-time guard (roster x drafters x 2) to grey out roster
-              # sizes the night can't support, instead of failing on send.
-              players: HeadsUp.Contests.slate_player_count(sport, d.upcoming_teams)
-            }
-          end)
+    alias HeadsUp.Sports.Slate
 
-        {:error, _} ->
-          []
-      end
+    if Slate.week_shaped?(sport) do
+      json(conn, %{sport: sport, kind: "week", slates: week_slates(sport)})
+    else
+      json(conn, %{sport: sport, kind: "day", slates: day_slates(sport)})
+    end
+  end
 
-    json(conn, %{sport: sport, slates: slates})
+  defp day_slates(sport) do
+    case HeadsUp.Sports.Slate.upcoming(sport) do
+      {:ok, days} ->
+        Enum.map(days, fn d ->
+          %{
+            date: d.date,
+            games: d.games,
+            upcoming: d.upcoming,
+            # Draftable bodies on that slate. The client mirrors the
+            # create-time guard (roster x drafters x 2) to grey out roster
+            # sizes the night can't support, instead of failing on send.
+            players: HeadsUp.Contests.slate_player_count(sport, d.upcoming_teams)
+          }
+        end)
+
+      {:error, _} ->
+        []
+    end
+  end
+
+  defp week_slates(sport) do
+    case HeadsUp.Sports.Slate.weeks(sport) do
+      {:ok, weeks} ->
+        Enum.map(weeks, fn w ->
+          %{
+            key: w.key,
+            label: w.label,
+            week: w.week,
+            season_type: w.season_type,
+            # Every ET day the week has games on — the first is what a client
+            # shows as the start, and the last is when the duel settles.
+            dates: w.dates,
+            date: List.first(w.dates),
+            last_date: List.last(w.dates),
+            games: w.games,
+            upcoming: w.upcoming,
+            players: HeadsUp.Contests.slate_player_count(sport, w.upcoming_teams)
+          }
+        end)
+
+      {:error, _} ->
+        []
+    end
   end
 
   def upcoming(conn, params) do

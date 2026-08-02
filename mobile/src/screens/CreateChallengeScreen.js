@@ -77,7 +77,11 @@ export default function CreateChallengeScreen({ navigation, route }) {
 
   // Step 1 — the duel
   const [league, setLeague] = useState('wnba');
-  const [slateDate, setSlateDate] = useState(null);
+  // Basketball and baseball pick an ET DAY; football picks a WEEK, since a
+  // team there plays once and a single night is two teams, not a league.
+  // `slateId` holds whichever identifies the pick — an ISO date or "1-2".
+  const [slateKind, setSlateKind] = useState('day');
+  const [slateId, setSlateId] = useState(null);
   const [roster, setRoster] = useState(5);
   const [stake, setStake] = useState(0);
   const [customStake, setCustomStake] = useState('');
@@ -125,14 +129,16 @@ export default function CreateChallengeScreen({ navigation, route }) {
   useEffect(() => {
     let live = true;
     setSlates([]);
-    setSlateDate(null);
+    setSlateId(null);
     listSlates(token, league)
       .then((res) => {
         if (!live) return;
-        const days = res.slates || [];
-        setSlates(days);
-        const first = days.find((d) => (d.upcoming ?? d.games) > 0);
-        if (first) setSlateDate(first.date);
+        const kind = res.kind || 'day';
+        const list = res.slates || [];
+        setSlateKind(kind);
+        setSlates(list);
+        const first = list.find((d) => (d.upcoming ?? d.games) > 0);
+        if (first) setSlateId(kind === 'week' ? first.key : first.date);
       })
       .catch(() => {});
     return () => {
@@ -150,8 +156,12 @@ export default function CreateChallengeScreen({ navigation, route }) {
   }, [sportsStatus]);
 
   const playableLeagues = LEAGUES.filter((l) => isPlayable(sportsStatus, l.key));
-  const slate = slates.find((d) => d.date === slateDate);
+  const slateIdOf = (d) => (slateKind === 'week' ? d.key : d.date);
+  const slate = slates.find((d) => slateIdOf(d) === slateId);
   const slatePlayers = slate?.players ?? null;
+  // The label a human reads, and the first day the draft has to beat.
+  const slateName = slateKind === 'week' ? slate?.label || 'that week' : slateLabel(slate?.date || '');
+  const slateStart = slate?.date || null;
 
   // The server rejects a slate that can't field roster x drafters x 2 bodies.
   // Mirror that here so sizes (and extra rivals) grey out BEFORE you send.
@@ -172,7 +182,7 @@ export default function CreateChallengeScreen({ navigation, route }) {
       if (ok) setRoster(ok);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [slateDate, slatePlayers, selected.length]);
+  }, [slateId, slatePlayers, selected.length]);
 
   const visibleFriends = useMemo(() => {
     const base = [...friends].sort((a, b) => a.username.localeCompare(b.username));
@@ -241,7 +251,7 @@ export default function CreateChallengeScreen({ navigation, route }) {
         pick_clock_seconds: clock,
         stake_coins: effectiveStake,
         draft_starts_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-        ...(slateDate ? { slate_date: slateDate } : {}),
+        ...(slateId ? (slateKind === 'week' ? { slate_week: slateId } : { slate_date: slateId }) : {}),
       });
       refreshUser();
       // Straight to the lobby: watch acceptances land, then start.
@@ -296,14 +306,14 @@ export default function CreateChallengeScreen({ navigation, route }) {
           {slates.some((d) => (d.upcoming ?? d.games) > 0) ? (
             <Row label="SLATE" styles={styles} scroll>
               {slates
-                .filter((d) => (d.upcoming ?? d.games) > 0 || d.date === slateDate)
+                .filter((d) => (d.upcoming ?? d.games) > 0 || slateIdOf(d) === slateId)
                 .slice(0, 5)
                 .map((d) => (
                   <Opt
-                    key={d.date}
-                    label={`${slateLabel(d.date)} · ${d.upcoming ?? d.games}`}
-                    active={slateDate === d.date}
-                    onPress={() => setSlateDate(d.date)}
+                    key={slateIdOf(d)}
+                    label={`${slateKind === 'week' ? d.label : slateLabel(d.date)} · ${d.upcoming ?? d.games}`}
+                    active={slateId === slateIdOf(d)}
+                    onPress={() => setSlateId(slateIdOf(d))}
                     styles={styles}
                   />
                 ))}
@@ -364,12 +374,12 @@ export default function CreateChallengeScreen({ navigation, route }) {
 
         {slatePlayers != null && !anyRosterFits ? (
           <Text style={[styles.note, { color: colors.danger }]}>
-            {slateLabel(slateDate || '')} can't field a draft for {drafters} players. Pick a bigger slate, or drop a
+            {slateName} can't field a draft for {drafters} players. Pick a bigger slate, or drop a
             rival.
           </Text>
         ) : slatePlayers != null && !rosterOk(7) ? (
           <Text style={styles.note}>
-            {slateLabel(slateDate || '')} has {slate?.upcoming ?? 0} game{(slate?.upcoming ?? 0) === 1 ? '' : 's'} — not
+            {slateName} has {slate?.upcoming ?? 0} game{(slate?.upcoming ?? 0) === 1 ? '' : 's'} — not
             enough players for every roster size. Pick a bigger slate for deeper drafts.
           </Text>
         ) : null}
