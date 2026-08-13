@@ -5,6 +5,13 @@ defmodule HeadsUp.Contests.Janitor do
   time. Matters more now that coins are real: every stuck duel is somebody's
   stake locked in escrow. The queries + refunds live in
   `Contests.expire_stale/1`; this process is just the clock.
+
+  The FIRST sweep runs shortly after boot rather than a full interval in.
+  Production scales to zero: the machine wakes for a request, serves it, and is
+  stopped again long before an hour is up, so an hour-delayed first tick never
+  fired at all — the janitor sat dead for weeks while stale duels piled up.
+  Anything that must actually happen on a scale-to-zero node has to happen
+  near boot. The test env keeps both delays huge so the sweep stays silent.
   """
   use GenServer
 
@@ -12,17 +19,26 @@ defmodule HeadsUp.Contests.Janitor do
 
   @cutoff_hours 24
 
-  def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
+  def start_link(opts) do
+    {name, opts} = Keyword.pop(opts, :name, __MODULE__)
+    GenServer.start_link(__MODULE__, opts, name: name)
+  end
 
   @impl true
   def init(opts) do
     interval =
       Keyword.get(opts, :interval_ms, Application.get_env(:heads_up, :janitor_interval_ms, :timer.hours(1)))
 
-    # First sweep waits a FULL interval (mirrors Settlement.Worker) — so the
-    # test env's huge janitor_interval_ms really does keep it silent, and a
-    # booting prod node serves requests before it cleans.
-    Process.send_after(self(), :sweep, interval)
+    first =
+      Keyword.get(
+        opts,
+        :first_sweep_ms,
+        Application.get_env(:heads_up, :janitor_first_sweep_ms, :timer.seconds(45))
+      )
+
+    # Late enough that a booting node serves requests first, early enough that
+    # a machine which is only awake for a few minutes still gets swept.
+    Process.send_after(self(), :sweep, first)
     {:ok, %{interval: interval}}
   end
 

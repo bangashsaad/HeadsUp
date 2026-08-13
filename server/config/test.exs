@@ -6,6 +6,8 @@ config :heads_up, :settlement_interval_ms, 3_600_000
 
 # Same deal for the stale-duel janitor: tests call Contests.expire_stale/1.
 config :heads_up, :janitor_interval_ms, 3_600_000
+# The janitor sweeps near boot in prod (scale-to-zero); tests keep it silent.
+config :heads_up, :janitor_first_sweep_ms, 3_600_000
 config :heads_up, :stats_provider, HeadsUp.Settlement.Stats.Mock
 # Clear the real per-sport map inherited from config.exs — tests must never
 # reach the live ESPN feed.
