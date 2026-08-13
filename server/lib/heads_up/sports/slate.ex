@@ -17,6 +17,8 @@ defmodule HeadsUp.Sports.Slate do
   week). Both resolve to a list of ET dates, which is what a duel stores.
   """
 
+  require Logger
+
   alias HeadsUp.Sports.Espn.Client
 
   # ET = UTC-4 through the WNBA/MLB season (matches WindowScan/PoolFilter).
@@ -26,6 +28,9 @@ defmodule HeadsUp.Sports.Slate do
   # between the preseason opener and week 2.
   @weeks_ahead_days 24
   @ttl_ms 15 * 60 * 1000
+  # How stale a schedule may get before an outage is worse than an empty
+  # picker. A day-old schedule can be genuinely wrong (postponements, flexes).
+  @max_stale_ms 6 * 60 * 60 * 1000
 
   @doc """
   The next #{@days_ahead + 1} ET days, each as `%{date, games, teams}` (zero-game
@@ -145,40 +150,75 @@ defmodule HeadsUp.Sports.Slate do
   defp scan(sport, from, to, opts) do
     client = Keyword.get(opts, :client, client())
 
-    if client == Client do
-      cached_scan(sport, from, to)
+    # Stubs bypass the cache so they can't poison other tests. `cache: true`
+    # opts a stub back IN, which is the only way to exercise the
+    # serve-stale-on-failure path without reaching the real network.
+    if client == Client or Keyword.get(opts, :cache, false) do
+      cached_scan(client, sport, from, to)
     else
       do_scan(client, sport, from, to)
     end
   end
 
-  defp cached_scan(sport, from, to) do
+  defp cached_scan(client, sport, from, to) do
     key = {__MODULE__, sport, from}
+    cached = :persistent_term.get(key, nil)
 
-    case :persistent_term.get(key, nil) do
-      {ts, result} when result != nil ->
+    case cached do
+      {ts, {:ok, _} = result} ->
         if System.monotonic_time(:millisecond) - ts < @ttl_ms do
           result
         else
-          refresh(key, sport, from, to)
+          refresh(client, key, sport, from, to, cached)
         end
 
       _ ->
-        refresh(key, sport, from, to)
+        refresh(client, key, sport, from, to, cached)
     end
   end
 
-  defp refresh(key, sport, from, to) do
-    case do_scan(client(), sport, from, to) do
+  # On a feed failure, keep serving the last good answer rather than nothing.
+  # A schedule is slow-moving: an hour-old copy of "who plays Thursday" is
+  # almost always right, and it is certainly better than an empty slate picker
+  # while ESPN is unreachable. Errors themselves are never cached.
+  defp refresh(client, key, sport, from, to, cached) do
+    case do_scan(client, sport, from, to) do
       {:ok, _} = ok ->
         :persistent_term.put(key, {System.monotonic_time(:millisecond), ok})
         ok
 
-      # Feed errors are never cached — the next caller retries.
       {:error, _} = err ->
-        err
+        stale_or(cached, err)
     end
   end
+
+  defp stale_or({ts, {:ok, events}}, err) do
+    age_ms = System.monotonic_time(:millisecond) - ts
+
+    if age_ms <= @max_stale_ms do
+      Logger.warning("Slate feed unreachable — serving a #{div(age_ms, 60_000)}m-old schedule")
+      {:ok, Enum.map(events, &age_out/1)}
+    else
+      err
+    end
+  end
+
+  defp stale_or(_none, err), do: err
+
+  # The one part of a cached scoreboard that genuinely rots is a game's STATE.
+  # Serving a stale "pre" would offer a team whose game has already kicked off,
+  # which is the hindsight exploit the slate exists to prevent. Kickoff time is
+  # known locally, so anything that should have started by now is treated as
+  # started — conservative in the only direction that matters.
+  defp age_out(%{date: date, state: "pre"} = event) do
+    if Date.compare(date, et_date(DateTime.utc_now())) == :lt do
+      %{event | state: "post"}
+    else
+      event
+    end
+  end
+
+  defp age_out(event), do: event
 
   defp do_scan(client, sport, from, to) do
     if Client.supported?(sport) do

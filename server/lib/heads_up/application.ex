@@ -9,6 +9,9 @@ defmodule HeadsUp.Application do
   def start(_type, _args) do
     # ETS table for the rate limiter (see HeadsUpWeb.Plugs.RateLimit).
     HeadsUpWeb.Plugs.RateLimit.init_table()
+    # ETS table the background workers stamp each pass, so /api/health can tell
+    # a worker that is RUNNING from one that is merely alive.
+    HeadsUp.Heartbeat.init_table()
 
     children = [
       HeadsUpWeb.Telemetry,

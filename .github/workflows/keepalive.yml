@@ -20,7 +20,16 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Wake the server
+      # /api/health checks the DATABASE, the sports feed and both background
+      # workers, and answers 503 when any of them is unhealthy. --fail turns
+      # that 503 into a failed job, which is how a degraded server reaches a
+      # human: GitHub mails on workflow failure. Two silent outages (ESPN
+      # refusing us with 403, and a janitor that never swept) each ran for days
+      # because nothing ever checked more than "did the web server answer".
+      #
+      # Retries are deliberate: the machine scales to zero, so the first
+      # request of a cycle may time out simply waking it up.
+      - name: Wake the server and check its dependencies
         run: |
           curl -sS --fail --max-time 45 --retry 3 --retry-delay 5 \
-            https://headsup-fantasy.fly.dev/api/hello
+            https://headsup-fantasy.fly.dev/api/health

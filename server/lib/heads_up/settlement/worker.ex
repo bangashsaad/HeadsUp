@@ -29,6 +29,7 @@ defmodule HeadsUp.Settlement.Worker do
 
   @impl true
   def handle_info(:tick, state) do
+    HeadsUp.Heartbeat.record(:settlement)
     sweep(state.now_fun)
     schedule(state.interval)
     {:noreply, state}

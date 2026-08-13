@@ -45,6 +45,9 @@ defmodule HeadsUpWeb.Router do
     pipe_through :api
 
     get "/hello", HelloController, :index
+    # Dependency health. 503 here fails the keepalive workflow, which is how
+    # a degraded server reaches a human.
+    get "/health", HealthController, :index
     post "/register", AuthController, :register
     post "/login", AuthController, :login
     post "/password/forgot", AuthController, :forgot_password

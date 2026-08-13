@@ -44,6 +44,8 @@ defmodule HeadsUp.Contests.Janitor do
 
   @impl true
   def handle_info(:sweep, state) do
+    HeadsUp.Heartbeat.record(:janitor)
+
     case HeadsUp.Contests.expire_stale(@cutoff_hours) do
       %{pending: 0, lobby: 0} -> :ok
       counts -> Logger.info("Janitor expired stale duels: #{inspect(counts)}")

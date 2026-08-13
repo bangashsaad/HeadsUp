@@ -27,6 +27,8 @@ defmodule HeadsUp.Sports.Espn.Client do
 
   @default_site_host "https://site.web.api.espn.com/apis/site/v2/sports"
   @default_web_host "https://site.web.api.espn.com/apis/common/v3/sports"
+  # Same paths, different host — the fallback when one is refusing us.
+  @mirror_site_host "https://site.api.espn.com/apis/site/v2/sports"
 
   # ESPN league path segment per sport (host_root <> "/" <> league <> path).
   @leagues %{
@@ -79,11 +81,39 @@ defmodule HeadsUp.Sports.Espn.Client do
 
   # --- internals ----------------------------------------------------------
 
-  defp get(sport, path, params), do: request(site_base(sport) <> path, params)
+  # Site paths are tried on the primary host, then the mirror. ESPN blocked one
+  # host at the IP level while serving the identical paths from the other, and
+  # the app degraded for days before anyone noticed; a second try costs nothing
+  # on the happy path and turns that outage into a blip.
+  defp get(sport, path, params) do
+    case request(site_base(sport) <> path, params) do
+      {:error, {:http, status}} = err when status in [401, 403] ->
+        case alt_site_base(sport) do
+          nil -> err
+          base -> request(base <> path, params)
+        end
+
+      other ->
+        other
+    end
+  end
 
   defp get_web(sport, path, params), do: request(web_base(sport) <> path, params)
 
   defp site_base(sport), do: host(:site_host, @default_site_host) <> "/" <> league!(sport)
+
+  # The other host serving the same /apis/site/v2 paths. nil when the primary
+  # has been overridden (tests point it at a stub, which must not fall back to
+  # the real internet).
+  defp alt_site_base(sport) do
+    primary = host(:site_host, @default_site_host)
+
+    cond do
+      primary == @default_site_host -> @mirror_site_host <> "/" <> league!(sport)
+      primary == @mirror_site_host -> @default_site_host <> "/" <> league!(sport)
+      true -> nil
+    end
+  end
 
   defp web_base(sport), do: host(:web_host, @default_web_host) <> "/" <> league!(sport)
 
