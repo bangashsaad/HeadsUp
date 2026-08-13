@@ -6,21 +6,26 @@ defmodule HeadsUp.Sports.Espn.Client do
   `{:error, reason}` and NEVER raise on a transport/HTTP failure — callers decide
   how to degrade. (An unknown sport DOES raise, since it's a programmer error.)
 
-  Two ESPN hosts are used: the `site.api` host (scoreboard/summary/teams/roster)
-  and the `site.web.api` "common/v3" host (athlete gamelog + stats). Both host
-  roots + Req options come from one app-config namespace so tests can point them
-  at a `Req.Test` plug:
+  Both host roots + Req options come from one app-config namespace so tests can
+  point them at a `Req.Test` plug:
 
       config :heads_up, HeadsUp.Sports.Espn,
-        site_host: "https://site.api.espn.com/apis/site/v2/sports",
+        site_host: "https://site.web.api.espn.com/apis/site/v2/sports",
         web_host: "https://site.web.api.espn.com/apis/common/v3/sports",
         req_options: []
+
+  Both roots live on `site.web.api.espn.com`. The `site/v2` paths
+  (scoreboard/summary/teams/roster) were originally read from `site.api.espn.com`,
+  which began answering this app's server with 403 while still serving the same
+  paths to other clients — an IP-level block, unaffected by request headers.
+  `site.web.api.espn.com` serves those paths byte-identically and is the host
+  ESPN's own web app uses, so everything now goes through it.
 
   The host root is joined with the per-sport league path (e.g. `baseball/mlb`)
   to form the base URL, so adding a sport is one entry in `@leagues`.
   """
 
-  @default_site_host "https://site.api.espn.com/apis/site/v2/sports"
+  @default_site_host "https://site.web.api.espn.com/apis/site/v2/sports"
   @default_web_host "https://site.web.api.espn.com/apis/common/v3/sports"
 
   # ESPN league path segment per sport (host_root <> "/" <> league <> path).
@@ -108,6 +113,14 @@ defmodule HeadsUp.Sports.Espn.Client do
     case Req.get(req) do
       {:ok, %Req.Response{status: status, body: body}} when status < 400 ->
         if is_map(body), do: {:ok, body}, else: {:error, {:bad_body, body}}
+
+      # 401/403 means ESPN is refusing this caller, not that the data is
+      # missing — every caller fails OPEN, so without a log the app just
+      # quietly stops filtering slates and nobody finds out.
+      {:ok, %Req.Response{status: status}} when status in [401, 403] ->
+        require Logger
+        Logger.warning("ESPN refused #{url} with #{status} — feed degraded, callers will fail open")
+        {:error, {:http, status}}
 
       {:ok, %Req.Response{status: status}} ->
         {:error, {:http, status}}
