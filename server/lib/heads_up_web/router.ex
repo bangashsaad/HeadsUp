@@ -28,7 +28,9 @@ defmodule HeadsUpWeb.Router do
   end
 
   scope "/", HeadsUpWeb do
-    pipe_through :browser
+    # :web so a signed-in visitor is recognised and sent to their duels rather
+    # than being pitched the product they already use.
+    pipe_through [:browser, :web]
 
     get "/", PageController, :home
   end
