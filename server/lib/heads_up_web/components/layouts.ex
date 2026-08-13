@@ -73,6 +73,69 @@ defmodule HeadsUpWeb.Layouts do
   end
 
   @doc """
+  The frame for signed-out pages: sign in, sign up. Deliberately narrow and
+  centred — on the reach path this is the only thing between a stranger who
+  followed a link and a draft, so it carries the brand and nothing else.
+  """
+  attr :title, :string, required: true
+  attr :subtitle, :string, default: nil
+  slot :inner_block, required: true
+
+  def auth_shell(assigns) do
+    ~H"""
+    <main class="flex min-h-dvh flex-col items-center justify-center bg-[#0A0B10] px-5 py-12">
+      <div class="w-full max-w-sm">
+        <.link navigate="/" class="mb-8 block text-center">
+          <span class="text-2xl font-black uppercase tracking-tight text-[#F4F5F7]">
+            Heads<span class="text-[#C8FF2E]">Up</span>
+          </span>
+        </.link>
+
+        <h1 class="text-center text-xl font-black text-[#F4F5F7]">{@title}</h1>
+        <p :if={@subtitle} class="mt-1.5 mb-7 text-center text-sm text-[#8B91A7]">{@subtitle}</p>
+
+        {render_slot(@inner_block)}
+      </div>
+    </main>
+    """
+  end
+
+  @doc """
+  The frame for signed-in pages. Mobile-first by intent: web reach means
+  shared links, and shared links get opened on phones.
+  """
+  attr :current_user, :map, default: nil
+  attr :flash, :map, default: %{}
+  slot :inner_block, required: true
+
+  def shell(assigns) do
+    ~H"""
+    <div class="min-h-dvh bg-[#0A0B10] text-[#F4F5F7]">
+      <header class="sticky top-0 z-20 border-b border-[#1A1E2B] bg-[#0A0B10]/95 backdrop-blur">
+        <div class="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
+          <.link navigate="/app" class="text-lg font-black uppercase tracking-tight">
+            Heads<span class="text-[#C8FF2E]">Up</span>
+          </.link>
+          <div :if={@current_user} class="flex items-center gap-3">
+            <span class="text-sm text-[#8B91A7]">{@current_user.username}</span>
+            <.link
+              href="/logout"
+              method="delete"
+              class="text-xs font-bold uppercase tracking-wide text-[#565D73] hover:text-[#F4F5F7]"
+            >
+              Sign out
+            </.link>
+          </div>
+        </div>
+      </header>
+
+      <.flash_group flash={@flash} />
+      <main class="mx-auto max-w-3xl px-4 py-5">{render_slot(@inner_block)}</main>
+    </div>
+    """
+  end
+
+  @doc """
   Shows the flash group with standard titles and content.
 
   ## Examples

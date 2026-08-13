@@ -21,10 +21,42 @@ defmodule HeadsUpWeb.Router do
     plug :require_authenticated_user
   end
 
+  # The browser app. Same token store as the phone; the cookie is just a
+  # different way to carry it.
+  pipeline :web do
+    plug :fetch_web_user
+  end
+
   scope "/", HeadsUpWeb do
     pipe_through :browser
 
     get "/", PageController, :home
+  end
+
+  scope "/", HeadsUpWeb do
+    pipe_through [:browser, :web, :redirect_if_web_user]
+
+    get "/login", SessionController, :new
+    post "/login", SessionController, :create
+    get "/signup", SessionController, :new_signup
+    post "/signup", SessionController, :signup
+  end
+
+  scope "/", HeadsUpWeb do
+    pipe_through [:browser, :web]
+
+    delete "/logout", SessionController, :delete
+  end
+
+  scope "/", HeadsUpWeb do
+    pipe_through [:browser, :web, :require_web_user]
+
+    live_session :authenticated,
+      on_mount: [{HeadsUpWeb.UserAuth, :ensure_authenticated}],
+      layout: {HeadsUpWeb.Layouts, :root} do
+      live "/app", HomeLive, :index
+      live "/app/draft/:id", DraftLive, :show
+    end
   end
 
   # Universal links: Apple's association file + browser fallbacks for shared

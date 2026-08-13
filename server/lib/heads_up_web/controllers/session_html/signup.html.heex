@@ -1,0 +1,58 @@
+<.auth_shell title="Create your account" subtitle="Takes a few seconds. 1,000 coins on the house.">
+  <.form :let={f} for={%{}} as={:user} action={~p"/signup"} class="space-y-4">
+    <div :if={@changeset_errors != []} class="rounded-lg border border-[#FF4557]/50 bg-[#FF4557]/10 px-3 py-2 text-sm text-[#FF4557]">
+      <p :for={msg <- @changeset_errors} class="first-letter:uppercase">{msg}</p>
+    </div>
+
+    <label class="block">
+      <span class="mb-1.5 block text-[11px] font-black uppercase tracking-[0.15em] text-[#8B91A7]">Username</span>
+      <input
+        type="text"
+        name="user[username]"
+        value={@values["username"]}
+        required
+        autocomplete="nickname"
+        autofocus
+        class="w-full rounded-xl border border-[#252A3A] bg-[#12141D] px-4 py-3 text-[#F4F5F7] outline-none focus:border-[#C8FF2E]/60"
+      />
+    </label>
+
+    <label class="block">
+      <span class="mb-1.5 block text-[11px] font-black uppercase tracking-[0.15em] text-[#8B91A7]">Email</span>
+      <input
+        type="email"
+        name="user[email]"
+        value={@values["email"]}
+        required
+        autocomplete="email"
+        class="w-full rounded-xl border border-[#252A3A] bg-[#12141D] px-4 py-3 text-[#F4F5F7] outline-none focus:border-[#C8FF2E]/60"
+      />
+    </label>
+
+    <label class="block">
+      <span class="mb-1.5 block text-[11px] font-black uppercase tracking-[0.15em] text-[#8B91A7]">Password</span>
+      <input
+        type="password"
+        name="user[password]"
+        required
+        minlength="8"
+        autocomplete="new-password"
+        class="w-full rounded-xl border border-[#252A3A] bg-[#12141D] px-4 py-3 text-[#F4F5F7] outline-none focus:border-[#C8FF2E]/60"
+      />
+      <span class="mt-1.5 block text-xs text-[#565D73]">At least 8 characters.</span>
+    </label>
+
+    <button
+      type="submit"
+      class="w-full rounded-xl bg-[#C8FF2E] px-4 py-3.5 text-[15px] font-black uppercase tracking-wide text-[#0A0B10] transition hover:brightness-110"
+    >
+      Create account
+    </button>
+    <% _ = f %>
+  </.form>
+
+  <p class="mt-6 text-center text-sm text-[#8B91A7]">
+    Already have one?
+    <.link navigate={~p"/login"} class="font-bold text-[#C8FF2E] hover:underline">Sign in</.link>
+  </p>
+</.auth_shell>

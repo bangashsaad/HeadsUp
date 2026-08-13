@@ -1,0 +1,44 @@
+<.auth_shell title="Sign in" subtitle="Pick up where you left off.">
+  <.form :let={f} for={%{}} as={:user} action={~p"/login"} class="space-y-4">
+    <div :if={@error} class="rounded-lg border border-[#FF4557]/50 bg-[#FF4557]/10 px-3 py-2 text-sm text-[#FF4557]">
+      {@error}
+    </div>
+
+    <label class="block">
+      <span class="mb-1.5 block text-[11px] font-black uppercase tracking-[0.15em] text-[#8B91A7]">Email</span>
+      <input
+        type="email"
+        name="user[email]"
+        value={@email}
+        required
+        autocomplete="email"
+        autofocus
+        class="w-full rounded-xl border border-[#252A3A] bg-[#12141D] px-4 py-3 text-[#F4F5F7] outline-none focus:border-[#C8FF2E]/60"
+      />
+    </label>
+
+    <label class="block">
+      <span class="mb-1.5 block text-[11px] font-black uppercase tracking-[0.15em] text-[#8B91A7]">Password</span>
+      <input
+        type="password"
+        name="user[password]"
+        required
+        autocomplete="current-password"
+        class="w-full rounded-xl border border-[#252A3A] bg-[#12141D] px-4 py-3 text-[#F4F5F7] outline-none focus:border-[#C8FF2E]/60"
+      />
+    </label>
+
+    <button
+      type="submit"
+      class="w-full rounded-xl bg-[#C8FF2E] px-4 py-3.5 text-[15px] font-black uppercase tracking-wide text-[#0A0B10] transition hover:brightness-110"
+    >
+      Sign in
+    </button>
+    <% _ = f %>
+  </.form>
+
+  <p class="mt-6 text-center text-sm text-[#8B91A7]">
+    New here?
+    <.link navigate={~p"/signup"} class="font-bold text-[#C8FF2E] hover:underline">Create an account</.link>
+  </p>
+</.auth_shell>
