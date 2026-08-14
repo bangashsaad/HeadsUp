@@ -1,0 +1,99 @@
+<!-- ========== NEW CHALLENGE ========== -->
+    <sc-if value="{{ isNew }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Web · New challenge" style="flex:1;display:flex;flex-wrap:wrap;gap:24px;padding:28px 34px 50px;max-width:1080px;width:100%;margin:0 auto;box-sizing:border-box;animation:huw-rise .3s ease">
+      <div style="flex:1;min-width:min(440px,100%);display:flex;flex-direction:column;gap:18px">
+        <div style="display:flex;flex-direction:column">
+          <span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:24px;letter-spacing:.5px">NEW CHALLENGE</span>
+          <span style="font-size:11.5px;color:#8B91A7;font-weight:600">Set the terms first, then pick who has to answer for it.</span>
+          <sc-if value="{{ isCounter }}" hint-placeholder-val="{{ false }}">
+            <div style="margin-top:10px;display:flex;align-items:center;gap:8px;background:rgba(124,92,255,.12);border:1px solid #7C5CFF;border-radius:11px;padding:9px 14px">
+              <span style="font-size:11px;font-weight:900;letter-spacing:1px;color:#A794FF">COUNTER OFFER</span>
+              <span style="font-size:11.5px;color:#C7CBD9;font-weight:600">You're editing {{ counterWho }}'s terms — sending returns it to them to accept or decline.</span>
+            </div>
+          </sc-if>
+        </div>
+
+        <div style="border-radius:16px;border:1px solid #252A3A;background:#12141D;padding:18px;display:flex;flex-direction:column;gap:16px">
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:10.5px;font-weight:900;letter-spacing:1.5px;color:#565D73">LEAGUE</span>
+            <div style="display:flex;gap:8px">
+              <sc-for list="{{ leagueOpts }}" as="o" hint-placeholder-count="2">
+                <span sc-camel-on-click="{{ o.set }}" style="cursor:pointer;border:1px solid {{ o.border }};background:{{ o.bg }};color:{{ o.ink }};font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:16px;border-radius:999px;padding:9px 22px;white-space:nowrap">{{ o.label }}</span>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:10.5px;font-weight:900;letter-spacing:1.5px;color:#565D73">ROSTER SIZE</span>
+            <div style="display:flex;gap:8px">
+              <sc-for list="{{ rosterOpts }}" as="o" hint-placeholder-count="3">
+                <span sc-camel-on-click="{{ o.set }}" style="cursor:pointer;border:1px solid {{ o.border }};background:{{ o.bg }};color:{{ o.ink }};font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:16px;border-radius:999px;padding:9px 22px;white-space:nowrap">{{ o.label }}</span>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:10.5px;font-weight:900;letter-spacing:1.5px;color:#565D73">STAKE · ◎ COINS</span>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <sc-for list="{{ stakeOpts }}" as="o" hint-placeholder-count="4">
+                <span sc-camel-on-click="{{ o.set }}" style="cursor:pointer;border:1px solid {{ o.border }};background:{{ o.bg }};color:{{ o.ink }};font-size:12.5px;font-weight:800;border-radius:999px;padding:9px 18px;white-space:nowrap">{{ o.label }}</span>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:10.5px;font-weight:900;letter-spacing:1.5px;color:#565D73">PICK CLOCK</span>
+            <div style="display:flex;gap:8px">
+              <sc-for list="{{ clockOpts }}" as="o" hint-placeholder-count="3">
+                <span sc-camel-on-click="{{ o.set }}" style="cursor:pointer;border:1px solid {{ o.border }};background:{{ o.bg }};color:{{ o.ink }};font-size:12.5px;font-weight:800;border-radius:999px;padding:9px 18px;white-space:nowrap">{{ o.label }}</span>
+              </sc-for>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <span style="font-size:10.5px;font-weight:900;letter-spacing:1.5px;color:#565D73">SLATE</span>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <sc-for list="{{ slateOpts }}" as="o" hint-placeholder-count="3">
+                <span sc-camel-on-click="{{ o.set }}" style="cursor:pointer;border:1px solid {{ o.border }};background:{{ o.bg }};color:{{ o.ink }};font-size:12.5px;font-weight:800;border-radius:999px;padding:9px 18px;white-space:nowrap">{{ o.label }}</span>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="border-radius:16px;border:1px solid #252A3A;background:#12141D;overflow:hidden">
+          <div style="padding:13px 18px;border-bottom:1px solid #1A1E2B;display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:10.5px;font-weight:900;letter-spacing:1.5px;color:#565D73">WHO ANSWERS FOR IT</span>
+            <span style="font-size:11px;font-weight:800;color:{{ rivalCapInk }}">{{ rivalCapLabel }}</span>
+          </div>
+          <div style="padding:12px 18px 0;display:flex;gap:7px">
+            <sc-for list="{{ groupTabs }}" as="g" hint-placeholder-count="4">
+              <span sc-camel-on-click="{{ g.set }}" style="cursor:pointer;font-size:11px;font-weight:800;letter-spacing:.5px;color:{{ g.ink }};background:{{ g.bg }};border:1px solid {{ g.border }};border-radius:999px;padding:6px 14px">{{ g.label }}</span>
+            </sc-for>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:14px 18px 18px">
+            <sc-for list="{{ crewOpts }}" as="c" hint-placeholder-count="6">
+              <div sc-camel-on-click="{{ c.toggle }}" style="cursor:pointer;display:flex;align-items:center;gap:10px;border:1px solid {{ c.border }};background:{{ c.bg }};border-radius:12px;padding:10px 12px" style-hover="border-color:#3A4157">
+                <div style="width:32px;height:32px;flex:none;border-radius:10px;background:{{ c.avBg }};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:{{ c.avInk }}">{{ c.init }}</div>
+                <div style="display:flex;flex-direction:column;min-width:0"><span style="font-weight:800;font-size:12.5px">{{ c.name }}</span><span style="font-size:10px;color:#565D73;font-weight:700">{{ c.rec }}</span></div>
+                <span style="margin-left:auto;width:16px;height:16px;flex:none;border-radius:9px;border:1px solid {{ c.ckBorder }};background:{{ c.ckBg }};display:flex;align-items:center;justify-content:center"><span style="width:10px;height:10px;background:#0A0B10;-webkit-mask:url(&quot;39393f35-1c81-4c77-ae93-5d223566f2cb&quot;) center/contain no-repeat;mask:url(&quot;39393f35-1c81-4c77-ae93-5d223566f2cb&quot;) center/contain no-repeat;opacity:{{ c.ckOp }}"></span></span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+
+      <div style="width:300px;flex:none;display:flex;flex-direction:column;gap:14px;position:sticky;top:70px;align-self:flex-start">
+        <div style="border-radius:16px;border:1px solid color-mix(in srgb,var(--acc,#C8FF2E) 35%,transparent);background:linear-gradient(150deg,color-mix(in srgb,var(--acc,#C8FF2E) 9%,#12141D),#12141D 60%);padding:18px;display:flex;flex-direction:column;gap:12px">
+          <span style="font-size:10.5px;font-weight:900;letter-spacing:1.5px;color:var(--acc,#C8FF2E)">THE TERMS</span>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:28px;line-height:1.05">{{ termsHeadline }}</div>
+          <div style="display:flex;flex-direction:column;gap:7px">
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11.5px;color:#8B91A7;font-weight:700">Stake</span><span style="font-size:11.5px;font-weight:800">{{ sumStake }}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11.5px;color:#8B91A7;font-weight:700">Pot</span><span style="font-size:11.5px;font-weight:800;color:#FFB021">{{ sumPot }}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11.5px;color:#8B91A7;font-weight:700">Slate</span><span style="font-size:11.5px;font-weight:800">{{ sumSlate }}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11.5px;color:#8B91A7;font-weight:700">Pick clock</span><span style="font-size:11.5px;font-weight:800">{{ sumClock }}</span></div>
+            <div style="display:flex;justify-content:space-between"><span style="font-size:11.5px;color:#8B91A7;font-weight:700">Called out</span><span style="font-size:11.5px;font-weight:800">{{ sumRivals }}</span></div>
+          </div>
+          <div sc-camel-on-click="{{ sendChallenge }}" style="cursor:pointer;background:{{ sendBg }};color:{{ sendInk }};border-radius:12px;padding:13px;text-align:center;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:18px;letter-spacing:.5px" style-hover="filter:brightness(1.08)" style-active="transform:scale(.98)">{{ sendLabel }}</div>
+          <span style="font-size:10.5px;color:#565D73;font-weight:600;text-align:center">Everyone you call out gets a seat when they accept. Max 4 drafters.</span>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    

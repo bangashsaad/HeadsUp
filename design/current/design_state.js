@@ -1,0 +1,467 @@
+
+class Component extends DCLogic {
+  state = {
+    view: 'landing', toast: '',
+    sarah: 'pending',
+    chatDraft: '', chat: [
+      { who: 'MIKE_HOOPS', me: false, txt: 'Collier ain\'t saving you tonight 😤' },
+      { who: 'YOU', me: true, txt: 'She already has 34. Scoreboard.' },
+      { who: 'MIKE_HOOPS', me: false, txt: 'Fourth quarter exists my guy' },
+      { who: 'YOU', me: true, txt: 'So does my 13 point lead' }
+    ],
+    pool: [], myPicks: [], rivalPicks: [], turn: 'you',
+    league: 'WNBA', roster: 5, stake: '◎ 25', clock: '6 hours', slate: 'Tonight',
+    duelsTab: 'active', counterFor: null, coins: 240,
+    duels: [
+      { id: 1, who: 'rocket_ray', st: 'drafting', title: 'rocket_ray\u2019s 4-player match', meta: '🏀 WNBA · 4-way · 5 slots · ◎ 100 pot', stake: 25 },
+      { id: 2, who: 'mike_hoops', st: 'drafted', title: 'mike_hoops', meta: '🏀 WNBA · snake · 5 slots · ◎ 50 pot', stake: 25, score: '118.4 – 104.9', pct: '53%' },
+      { id: 3, who: 'sarah_j', st: 'respond', title: 'sarah_j', meta: '🏀 WNBA · snake · 5 slots · ◎ 100 pot · they set the terms', stake: 50 },
+      { id: 4, who: 'jchef', st: 'countered', title: 'jchef', meta: '⚾️ MLB · snake · 5 slots · ◎ 50 pot · terms changed', stake: 25 },
+      { id: 5, who: 'tbone', st: 'ready', title: 'tbone', meta: '⚾️ MLB · snake · 7 slots · room is open', stake: 0 },
+      { id: 6, who: 'lex_22', st: 'waiting', title: 'lex_22\u2019s 4-player match', meta: '🏀 WNBA · 2/4 in · 5 slots · ◎ 100 pot', stake: 25 }
+    ],
+    past: [
+      { id: 7, who: 'kdub', res: 'W', meta: '🏀 WNBA · AUG 9', stake: 25, sport: '🏀 WNBA', slots: 5 },
+      { id: 8, who: 'sarah_j', res: 'L', meta: '🏀 WNBA · AUG 6', stake: 50, sport: '🏀 WNBA', slots: 5 },
+      { id: 9, who: 'tbone', res: 'W', meta: '⚾️ MLB · AUG 2', stake: 0, sport: '⚾️ MLB', slots: 7 },
+      { id: 10, who: 'marisol', st: 'declined', meta: '⚾️ MLB · 5 slots · JUL 30' }
+    ],
+    group: 'ALL', rivalsPicked: ['mike_hoops'],
+    browseLeague: 'WNBA', playerQuery: '', sbDay: 'UPCOMING',
+    winTab: 'BY LEAGUE', crewTab: 'ALL', selRival: 'mike_hoops',
+    wn: null, ml: null
+  };
+  chatRef = React.createRef();
+
+  CREW = [
+    { name: 'mike_hoops', groups: ['HOOPS CREW'], w: 5, l: 3, since: 'Rivals since May', hist: [['W','118.4 – 104.9','LIVE'],['L','96.2 – 101.7','SUN'],['W','122.0 – 88.4','THU']] },
+    { name: 'sarah_j', groups: ['HOOPS CREW', 'WORK'], w: 2, l: 4, since: 'Rivals since June', hist: [['L','88.1 – 94.5','TUE'],['W','107.3 – 99.0','JUL 30'],['L','76.4 – 90.2','JUL 26']] },
+    { name: 'tbone', groups: ['LEAGUE BOYS'], w: 3, l: 1, since: 'Rivals since May', hist: [['W','131.6 – 120.2','JUL 28'],['W','99.8 – 95.5','JUL 21'],['L','84.0 – 92.3','JUL 14']] },
+    { name: 'jchef', groups: ['WORK'], w: 1, l: 1, since: 'Rivals since July', hist: [['W','104.2 – 95.8','JUL 25'],['L','88.0 – 93.1','JUL 18'],['W','101.5 – 99.9','JUL 11']] },
+    { name: 'kdub', groups: ['LEAGUE BOYS'], w: 0, l: 2, since: 'Rivals since July', hist: [['L','91.3 – 99.0','JUL 27'],['L','85.7 – 88.2','JUL 20'],['W','96.0 – 90.1','JUL 6']] },
+    { name: 'lex_22', groups: ['HOOPS CREW'], w: 2, l: 0, since: 'Rivals since June', hist: [['W','112.9 – 101.4','JUL 29'],['W','98.6 – 92.0','JUL 15'],['W','105.2 – 97.7','JUL 8']] },
+    { name: 'marisol', groups: ['WORK'], w: 1, l: 0, since: 'Rivals since August', hist: [['W','119.1 – 111.6','AUG 2'],['W','95.4 – 90.8','JUL 22'],['L','80.2 – 89.9','JUL 12']] },
+    { name: 'rocket_ray', groups: ['LEAGUE BOYS'], w: 4, l: 4, since: 'Rivals since May', hist: [['L','102.6 – 110.3','AUG 1'],['W','124.8 – 117.5','JUL 24'],['W','93.3 – 90.0','JUL 17']] }
+  ];
+  AVATARS = { mike_hoops: ['rgba(255,69,87,.18)', '#FF4557'], sarah_j: ['rgba(124,92,255,.2)', '#A794FF'], tbone: ['rgba(34,229,255,.15)', '#22E5FF'], jchef: ['rgba(255,176,33,.16)', '#FFB021'], kdub: ['rgba(200,255,46,.14)', '#C8FF2E'], lex_22: ['rgba(255,69,87,.14)', '#FF8896'], marisol: ['rgba(34,229,255,.12)', '#7FE8F5'], rocket_ray: ['rgba(124,92,255,.16)', '#B9A8FF'] };
+  GROUPS = ['ALL', 'HOOPS CREW', 'WORK', 'LEAGUE BOYS'];
+  // Scoreboard mock slates. Team tuple: [abbrev, name, logoSlug, color, score]
+  SB = {
+    wnba: {
+      'UPCOMING': { head: 'TONIGHT · THU AUG 13 · 4 GAMES',
+        live: [{ a: ['IND', 'FEVER', 'ind', '#FFCD00', 58], h: ['NY', 'LIBERTY', 'ny', '#6ECEB2', 54], clock: 'Q3 5:12', note: 'CLARK · 31.8 FAN PTS' }],
+        sched: [{ a: ['LV', 'ACES', 'lv', '#C8102E'], h: ['SEA', 'STORM', 'sea', '#FE5000'], time: '7:00 PM' }, { a: ['PHX', 'MERCURY', 'phx', '#E56020'], h: ['LA', 'SPARKS', 'la', '#FDB927'], time: '10:00 PM' }],
+        final: [{ a: ['MIN', 'LYNX', 'min', '#78BE20', 88], h: ['CHI', 'SKY', 'chi', '#5091CD', 79] }] },
+      'AUG 12': { head: 'WED AUG 12 · 2 GAMES', live: [], sched: [],
+        final: [{ a: ['NY', 'LIBERTY', 'ny', '#6ECEB2', 92], h: ['ATL', 'DREAM', 'atl', '#E31837', 80] }, { a: ['DAL', 'WINGS', 'dal', '#C4D600', 77], h: ['MIN', 'LYNX', 'min', '#78BE20', 84] }] },
+      'AUG 11': { head: 'TUE AUG 11', live: [], sched: [], final: [] }
+    },
+    mlb: {
+      'UPCOMING': { head: 'TONIGHT · THU AUG 13 · 4 GAMES',
+        live: [{ a: ['LAD', 'DODGERS', 'lad', '#4B8DDE', 4], h: ['SF', 'GIANTS', 'sf', '#FD5A1E', 2], clock: 'BOT 6', note: 'OHTANI · 12.4 FAN PTS' }],
+        sched: [{ a: ['NYY', 'YANKEES', 'nyy', '#8CA3C6'], h: ['BOS', 'RED SOX', 'bos', '#BD3039'], time: '7:05 PM' }, { a: ['HOU', 'ASTROS', 'hou', '#EB6E1F'], h: ['TEX', 'RANGERS', 'tex', '#4E9FE0'], time: '8:05 PM' }],
+        final: [{ a: ['SD', 'PADRES', 'sd', '#FFC425', 3], h: ['CHC', 'CUBS', 'chc', '#6CACE4', 1] }] },
+      'AUG 12': { head: 'WED AUG 12 · 1 GAME', live: [], sched: [],
+        final: [{ a: ['TEX', 'RANGERS', 'tex', '#4E9FE0', 5], h: ['HOU', 'ASTROS', 'hou', '#EB6E1F', 7] }] },
+      'AUG 11': { head: 'TUE AUG 11', live: [], sched: [], final: [] }
+    }
+  };
+
+  componentDidMount() {
+    if (this.props.startInApp) this.setState({ view: 'home' });
+    import('./espn-players.js').then((m) => {
+      Promise.all([m.loadLeague('wnba'), m.loadLeague('mlb')]).then(([wn, ml]) => {
+        const seen = {};
+        const top = wn.players.filter((p) => p.headshot && !seen[p.name] && (seen[p.name] = 1));
+        this.setState({ wn: top, ml: ml.players.filter((p) => p.headshot), pool: this.buildPool(top) });
+      });
+    });
+  }
+  buildPool(players) {
+    const names = ["A'ja Wilson", 'Napheesa Collier', 'Breanna Stewart', 'Caitlin Clark', 'Sabrina Ionescu', 'Paige Bueckers', 'Arike Ogunbowale', 'Jackie Young', 'Kayla McBride', 'Jonquel Jones', 'Chelsea Gray', 'Jewell Loyd', 'Satou Sabally', 'Courtney Williams', 'Natasha Howard', 'Skylar Diggins'];
+    return names.map((n) => players.find((p) => p.name === n)).filter(Boolean);
+  }
+  avg(name) { let h = 0; for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 997; return (16 + (h % 26)) + '.' + (h % 10); }
+  go(view) { this.setState({ view }); }
+  pop(toast) {
+    this.setState({ toast });
+    clearTimeout(this._tt);
+    this._tt = setTimeout(() => this.setState({ toast: '' }), 2400);
+  }
+  componentDidUpdate(pp, ps) {
+    const el = this.chatRef.current;
+    if (el && ps.chat !== this.state.chat) el.scrollTop = el.scrollHeight;
+  }
+  componentWillUnmount() { clearTimeout(this._tt); clearTimeout(this._dt); }
+
+  sendChat() {
+    const t = this.state.chatDraft.trim();
+    if (!t) return;
+    this.setState((s) => ({ chat: [...s.chat, { who: 'YOU', me: true, txt: t }], chatDraft: '' }));
+    clearTimeout(this._ct);
+    this._ct = setTimeout(() => {
+      const jabs = ['Bold words for someone in second place', 'Wait til my late games tip 😈', 'Screenshot that, it won\'t age well', 'The comeback starts NOW'];
+      this.setState((s) => ({ chat: [...s.chat, { who: 'MIKE_HOOPS', me: false, txt: jabs[s.chat.length % jabs.length] }] }));
+    }, 1400);
+  }
+  draftPick(p) {
+    if (this.state.turn !== 'you' || this.state.myPicks.length >= 5) return;
+    this.setState((s) => ({ myPicks: [...s.myPicks, p], turn: 'rival' }));
+    this._dt = setTimeout(() => {
+      this.setState((s) => {
+        const taken = new Set([...s.myPicks, ...s.rivalPicks].map((x) => x.name));
+        const next = s.pool.find((x) => !taken.has(x.name));
+        const rp = next && s.rivalPicks.length < 5 ? [...s.rivalPicks, next] : s.rivalPicks;
+        return { rivalPicks: rp, turn: s.myPicks.length >= 5 && rp.length >= 5 ? 'done' : 'you' };
+      });
+    }, 1100);
+  }
+  duelAccept(d) {
+    this.setState((s) => ({ duels: s.duels.map((x) => x.id === d.id ? { ...x, st: 'ready', meta: x.meta.replace(' · they set the terms', '') + ' · room is open' } : x), coins: s.coins - (d.stake || 0) }));
+    this.pop(d.stake ? 'Accepted — ◎ ' + d.stake + ' staked · room is open' : 'Accepted — room is open');
+  }
+  duelDecline(d) {
+    this.setState((s) => ({ duels: s.duels.filter((x) => x.id !== d.id), past: [...s.past, { id: d.id, who: d.who, st: 'declined', meta: d.meta.replace(' · they set the terms', '') }] }));
+    this.pop('Declined — nothing staked');
+  }
+  duelCounter(d) {
+    this.setState({ view: 'new', counterFor: d.who, rivalsPicked: [d.who], stake: d.stake ? '◎ ' + d.stake : 'No stake' });
+  }
+  duelRematch(p) {
+    this.setState((s) => ({ coins: s.coins - (p.stake || 0), duels: [...s.duels, { id: Date.now(), who: p.who, st: 'waiting', title: p.who, meta: (p.sport || '🏀 WNBA') + ' · snake · ' + (p.slots || 5) + ' slots' + (p.stake ? ' · ◎ ' + p.stake * 2 + ' pot' : ''), stake: p.stake || 0 }] }));
+    this.pop('Rematch sent to ' + p.who + ' — same terms' + (p.stake ? ' · ◎ ' + p.stake + ' staked' : ''));
+  }
+  toggleRival(name) {
+    this.setState((s) => {
+      const has = s.rivalsPicked.includes(name);
+      if (!has && s.rivalsPicked.length >= 7) { this.pop('Max 7 rivals — 8 drafters per duel'); return null; }
+      return { rivalsPicked: has ? s.rivalsPicked.filter((r) => r !== name) : [...s.rivalsPicked, name] };
+    });
+  }
+  seg(list, cur, setter, style) {
+    return list.map((label) => {
+      const on = label === cur;
+      return { label, set: () => setter(label), on,
+        bg: on ? 'rgba(200,255,46,.12)' : 'transparent',
+        border: on ? 'var(--acc,#C8FF2E)' : '#252A3A',
+        ink: on ? 'var(--acc,#C8FF2E)' : '#8B91A7' };
+    });
+  }
+
+  renderVals() {
+    const S = this.state;
+    const acc = this.props.accent ?? '#C8FF2E';
+    const W = (l) => l === 'W';
+    const resColors = (l) => W(l) ? { bg: 'rgba(200,255,46,.18)', ink: acc } : { bg: 'rgba(255,69,87,.18)', ink: '#FF4557' };
+
+    const ticker = [
+      { tag: '● LIVE', tagColor: '#FF4557', line: 'IND 58 — NYL 54', meta: 'Q3' },
+      { tag: 'FINAL', tagColor: '#565D73', line: 'MIN 88 — CHI 79', meta: '' },
+      { tag: '7:00 ET', tagColor: acc, line: 'LVA @ SEA', meta: '' },
+      { tag: '7:05 ET', tagColor: acc, line: 'NYY @ BOS', meta: '' },
+      { tag: '● LIVE', tagColor: '#FF4557', line: 'LAD 4 — SF 2', meta: 'BOT 6' },
+      { tag: 'DUEL', tagColor: '#7C5CFF', line: 'sp1ke leads mike_hoops +13.5', meta: '3 OF 5' }
+    ];
+
+    const av = (n) => this.AVATARS[n] || ['rgba(124,92,255,.16)', '#A794FF'];
+    const crewOf = (tab) => this.CREW.filter((c) => tab === 'ALL' || c.groups.includes(tab));
+    const openRival = (name) => () => this.setState({ view: 'profile', selRival: name });
+
+    const rivalCards = this.CREW.slice(0, 3).map((c) => ({
+      name: c.name, init: c.name[0].toUpperCase(), since: c.since,
+      bg: av(c.name)[0], ink: av(c.name)[1],
+      rec: c.w + '–' + c.l, recColor: c.w >= c.l ? acc : '#FF4557',
+      tag: c.w >= c.l ? 'YOU LEAD' : 'THEY LEAD', open: openRival(c.name)
+    }));
+
+    const logoW = (a) => 'https://a.espncdn.com/i/teamlogos/wnba/500/' + a + '.png';
+    const logoM = (a) => 'https://a.espncdn.com/i/teamlogos/mlb/500/' + a + '.png';
+    const slate = [
+      { aLogo: logoW('ind'), bLogo: logoW('ny'), line: 'IND @ NYL', meta: '● Q3', metaColor: '#FF4557' },
+      { aLogo: logoW('lv'), bLogo: logoW('sea'), line: 'LVA @ SEA', meta: '7:00', metaColor: acc },
+      { aLogo: logoW('min'), bLogo: logoW('chi'), line: 'MIN @ CHI', meta: 'FINAL', metaColor: '#565D73' },
+      { aLogo: logoM('nyy'), bLogo: logoM('bos'), line: 'NYY @ BOS', meta: '7:05', metaColor: acc },
+      { aLogo: logoM('lad'), bLogo: logoM('sf'), line: 'LAD @ SF', meta: '● B6', metaColor: '#FF4557' }
+    ];
+
+    const find = (n) => (S.wn || []).find((p) => p.name === n);
+    const hs = (n) => { const p = find(n); return p ? p.headshot : ''; };
+    const rosterRow = (n, meta, pts, live) => ({ name: n, meta, pts, img: hs(n), ptsColor: live ? acc : '#C7CBD9' });
+    const myRoster = [
+      rosterRow('Napheesa Collier', 'MIN · F · FINAL', '34.2', false),
+      rosterRow('Breanna Stewart', 'NYL · F · Q3', '28.6', true),
+      rosterRow('Sabrina Ionescu', 'NYL · G · Q3', '25.1', true),
+      rosterRow("A'ja Wilson", 'LVA · C · 7:00', '—', false),
+      rosterRow('Jackie Young', 'LVA · G · 7:00', '—', false)
+    ];
+    const rivalRoster = [
+      rosterRow('Caitlin Clark', 'IND · G · Q3', '31.8', true),
+      rosterRow('Kayla McBride', 'MIN · G · FINAL', '22.4', false),
+      rosterRow('Arike Ogunbowale', 'DAL · G · FINAL', '19.9', false),
+      rosterRow('Jewell Loyd', 'LVA · G · 7:00', '—', false),
+      rosterRow('Skylar Diggins', 'SEA · G · 7:00', '—', false)
+    ];
+
+    const taken = new Set([...S.myPicks, ...S.rivalPicks].map((x) => x.name));
+    const myTurn = S.turn === 'you' && S.myPicks.length < 5;
+    const dq = (S.draftQuery || '').toLowerCase();
+    const pool = (S.pool || []).filter((p) => (!dq || p.name.toLowerCase().includes(dq)) && ((S.draftPos || 'ALL') === 'ALL' || p.pos === S.draftPos)).map((p) => {
+      const gone = taken.has(p.name);
+      return { name: p.name, meta: p.team + ' · ' + p.pos + ' · ' + p.teamName, img: p.headshot,
+        avg: this.avg(p.name), tag: gone ? 'TAKEN' : (myTurn ? 'DRAFT' : '—'),
+        tagInk: gone ? '#565D73' : (myTurn ? acc : '#565D73'),
+        cursor: gone || !myTurn ? 'default' : 'pointer', op: gone ? '.35' : '1',
+        pick: gone || !myTurn ? null : () => this.draftPick(p) };
+    });
+    const pickRow = (p, i) => ({ name: p.name, img: p.headshot, meta: 'R' + (i + 1) });
+    const draftDone = S.myPicks.length >= 5 && S.rivalPicks.length >= 5;
+    const slots = (picks) => Array.from({ length: 5 }, (_, i) => {
+      const p = picks[i];
+      return p ? { filled: true, empty: false, img: p.headshot, name: p.name.split(' ').slice(-1)[0], n: i + 1 }
+               : { filled: false, empty: true, n: i + 1 };
+    });
+
+    const chat = S.chat.map((m) => ({
+      who: m.who, txt: m.txt, align: m.me ? 'flex-end' : 'flex-start',
+      ink: m.me ? acc : '#FF4557',
+      bg: m.me ? 'rgba(200,255,46,.09)' : '#1A1E2B',
+      border: m.me ? 'rgba(200,255,46,.3)' : '#252A3A'
+    }));
+
+    const groupTab = (tab, key) => this.GROUPS.map((g) => {
+      const on = g === S[key];
+      return { label: g, set: () => this.setState({ [key]: g }),
+        bg: on ? 'rgba(124,92,255,.15)' : 'transparent', border: on ? '#7C5CFF' : '#252A3A', ink: on ? '#A794FF' : '#8B91A7' };
+    });
+    const crewOpts = crewOf(S.group).map((c) => {
+      const on = S.rivalsPicked.includes(c.name);
+      return { name: c.name, init: c.name[0].toUpperCase(), rec: c.w + '–' + c.l + ' vs you',
+        avBg: av(c.name)[0], avInk: av(c.name)[1],
+        border: on ? 'var(--acc,#C8FF2E)' : '#252A3A', bg: on ? 'rgba(200,255,46,.07)' : 'transparent',
+        ckBorder: on ? 'var(--acc,#C8FF2E)' : '#3A4157', ckBg: on ? 'var(--acc,#C8FF2E)' : 'transparent', ckOp: on ? '1' : '0',
+        toggle: () => this.toggleRival(c.name) };
+    });
+    const nRiv = S.rivalsPicked.length;
+    const canSend = nRiv > 0;
+
+    const q = S.playerQuery.toLowerCase();
+    const src = S.browseLeague === 'WNBA' ? (S.wn || []) : (S.ml || []);
+    const browsePlayers = src.filter((p) => !q || p.name.toLowerCase().includes(q)).slice(0, 16).map((p) => ({
+      name: p.name, img: p.headshot, logo: p.teamLogo, tint: p.color + '55',
+      meta: p.team + ' · ' + p.pos, avg: this.avg(p.name)
+    }));
+
+    const winData = {
+      'BY LEAGUE': [
+        { label: '🏀 WNBA', rec: '8–4', ink: acc, note: 'Your bread and butter' },
+        { label: '⚾️ MLB', rec: '4–4', ink: '#C7CBD9', note: 'Coin-flip territory' },
+        { label: 'PRIMETIME', rec: '5–1', ink: acc, note: 'Built for the big slate' }
+      ],
+      'BY ROSTER': [
+        { label: '3 SLOTS', rec: '3–1', ink: acc, note: 'Sniper' },
+        { label: '5 SLOTS', rec: '7–5', ink: '#C7CBD9', note: 'Your usual game' },
+        { label: '7 SLOTS', rec: '2–2', ink: '#C7CBD9', note: 'Deep drafts, even odds' }
+      ],
+      'BY FIELD': [
+        { label: 'HEAD-TO-HEAD', rec: '9–5', ink: acc, note: 'Best one-on-one' },
+        { label: '3–4 DRAFTERS', rec: '2–2', ink: '#C7CBD9', note: 'Crowded but fine' },
+        { label: '5–8 DRAFTERS', rec: '1–1', ink: '#C7CBD9', note: 'Small sample' }
+      ]
+    };
+    const winTabs = ['BY LEAGUE', 'BY ROSTER', 'BY FIELD'].map((t) => {
+      const on = t === S.winTab;
+      return { label: t, set: () => this.setState({ winTab: t }),
+        bg: on ? 'rgba(200,255,46,.1)' : 'transparent', border: on ? 'var(--acc,#C8FF2E)' : '#252A3A', ink: on ? acc : '#8B91A7' };
+    });
+
+    const crewRows = crewOf(S.crewTab).map((c) => ({
+      name: c.name, init: c.name[0].toUpperCase(), groups: c.groups.join(' · '),
+      avBg: av(c.name)[0], avInk: av(c.name)[1],
+      rec: c.w + '–' + c.l, recInk: c.w >= c.l ? acc : '#FF4557',
+      rowBg: S.selRival === c.name ? '#151827' : 'transparent',
+      open: () => this.setState({ selRival: c.name })
+    }));
+    const sel = this.CREW.find((c) => c.name === S.selRival) || this.CREW[0];
+    const selRival = {
+      name: sel.name, short: sel.name.split('_')[0].toUpperCase(), init: sel.name[0].toUpperCase(),
+      since: sel.since, avBg: av(sel.name)[0], avInk: av(sel.name)[1],
+      myW: sel.w, theirW: sel.l, myInk: sel.w >= sel.l ? acc : '#F4F5F7', theirInk: sel.l > sel.w ? '#FF4557' : '#8B91A7'
+    };
+    const selRivalHist = sel.hist.map(([l, line, when]) => ({ l, line, when, ...resColors(l) }));
+
+    const navDefs = [
+      { k: 'home', label: 'HOME', icon: 'icons/home.svg' },
+      { k: 'duels', label: 'DUELS', icon: 'icons/flame.svg', count: S.duels.length },
+      { k: 'draft', label: 'DRAFT', icon: 'icons/timer.svg' },
+      { k: 'live', label: 'LIVE', icon: 'icons/pulse.svg', live: true },
+      { k: 'players', label: 'SCOREBOARD', icon: 'icons/basketball.svg' },
+      { k: 'profile', label: 'YOU', icon: 'icons/person-circle.svg' }
+    ];
+    const nav = navDefs.map((n) => {
+      const on = S.view === n.k;
+      return { ...n, go: () => this.go(n.k),
+        bg: on ? 'rgba(200,255,46,.08)' : 'transparent',
+        border: on ? 'rgba(200,255,46,.35)' : 'transparent',
+        ink: on ? acc : '#8B91A7',
+        live: n.live && !on, count: !on && n.count ? String(n.count) : false };
+    });
+
+    const badgeMap = {
+      drafting: ['DRAFTING', '#FF4557', 'rgba(255,69,87,.15)', '#FF4557', true],
+      drafted: ['IN PLAY', '#22E5FF', 'rgba(34,229,255,.1)', '#22E5FF', true],
+      respond: ['RESPOND', '#22E5FF', 'rgba(34,229,255,.1)', '#22E5FF', false],
+      countered: ['COUNTERED', '#A794FF', 'rgba(124,92,255,.15)', '#7C5CFF', false],
+      ready: ['READY', acc, 'rgba(200,255,46,.1)', 'rgba(200,255,46,.45)', false],
+      waiting: ['SENT', '#8B91A7', 'transparent', '#252A3A', false]
+    };
+    const duelOrder = ['drafting', 'drafted', 'respond', 'countered', 'ready', 'waiting'];
+    const activeRows = [...S.duels].sort((a, b) => duelOrder.indexOf(a.st) - duelOrder.indexOf(b.st)).map((d) => {
+      const [badge, ink, bg, border, blink] = badgeMap[d.st] || badgeMap.waiting;
+      return { init: d.who[0].toUpperCase(), avBg: av(d.who)[0], avInk: av(d.who)[1],
+        title: d.title, meta: d.meta, badge, badgeInk: ink, badgeBg: bg, badgeBorder: border, blink,
+        cardBorder: d.st === 'drafting' ? 'rgba(255,69,87,.45)' : '#252A3A', cardBg: '#12141D',
+        op: d.st === 'waiting' ? '.75' : '1',
+        score: d.score || false, pct: d.pct || '50%',
+        respond: d.st === 'respond',
+        open: d.st === 'drafting' || d.st === 'ready' ? () => this.go('draft') : d.st === 'drafted' ? () => this.go('live') : null,
+        accept: () => this.duelAccept(d), counter: () => this.duelCounter(d), decline: () => this.duelDecline(d) };
+    });
+    const settledRows = S.past.filter((p) => p.res).map((p) => ({
+      who: p.who, res: p.res, meta: p.meta,
+      tint: p.res === 'W' ? acc : p.res === 'T' ? '#8B91A7' : '#FF4557',
+      swing: p.stake ? (p.res === 'W' ? '+' + p.stake : '−' + p.stake) : false,
+      swingInk: p.res === 'W' ? '#FFB021' : '#565D73',
+      open: null, rematch: () => this.duelRematch(p)
+    }));
+    const deadRows = S.past.filter((p) => p.st).map((p) => ({
+      who: p.who, meta: p.meta, badge: p.st.toUpperCase(),
+      init: p.who[0].toUpperCase(), avBg: av(p.who)[0], avInk: av(p.who)[1]
+    }));
+    const duelsTabs = ['active', 'past'].map((t) => {
+      const on = S.duelsTab === t;
+      const n = t === 'active' ? S.duels.length : S.past.length;
+      return { label: t.toUpperCase() + ' ' + n, set: () => this.setState({ duelsTab: t }),
+        bg: on ? 'rgba(200,255,46,.1)' : 'transparent', border: on ? 'rgba(200,255,46,.45)' : '#252A3A', ink: on ? acc : '#8B91A7' };
+    });
+    const stakeN = S.stake.indexOf('◎') === 0 ? parseInt(S.stake.slice(1)) : 0;
+
+    return {
+      accent: acc,
+      isLanding: S.view === 'landing', isApp: S.view !== 'landing',
+      isHome: S.view === 'home', isLive: S.view === 'live', isDraft: S.view === 'draft',
+      isDuels: S.view === 'duels', goDuels: () => this.go('duels'), coins: S.coins,
+      duelsTabs, activeRows, settledRows, deadRows,
+      duelsActiveTab: S.duelsTab === 'active', duelsPastTab: S.duelsTab === 'past',
+      isNew: S.view === 'new', isPlayers: S.view === 'players', isProfile: S.view === 'profile',
+      enterApp: () => this.go('home'), goLanding: () => this.go('landing'),
+      goHome: () => this.go('home'), goLive: () => this.go('live'), goDraft: () => this.go('draft'),
+      goNew: () => this.go('new'), goPlayers: () => this.go('players'), goProfile: () => this.go('profile'),
+      nav,
+      tickerLoop: [...ticker, ...ticker],
+      heroFeed: [
+        { who: 'MIKE', ink: '#FF4557', txt: 'Collier ain\'t saving you tonight 😤' },
+        { who: 'SP1KE', ink: acc, txt: 'She already has 34. Scoreboard.' },
+        { who: 'MIKE', ink: '#FF4557', txt: 'Fourth quarter exists my guy' }
+      ],
+      last5: ['W', 'W', 'L', 'W', 'W'].map((l) => ({ l, ...resColors(l) })),
+      pendingLabel: S.sarah === 'pending' ? '3 PENDING' : '2 PENDING',
+      sarahPending: S.sarah === 'pending', sarahAccepted: S.sarah === 'accepted',
+      acceptSarah: () => { this.setState({ sarah: 'accepted' }); const d = S.duels.find((x) => x.who === 'sarah_j' && x.st === 'respond'); if (d) this.duelAccept(d); else this.pop('Challenge accepted'); },
+      declineSarah: () => { this.setState({ sarah: 'declined' }); const d = S.duels.find((x) => x.who === 'sarah_j' && x.st === 'respond'); if (d) this.duelDecline(d); },
+      rivalCards, slate,
+      myRoster, rivalRoster,
+      chat, chatRef: this.chatRef, chatDraft: S.chatDraft,
+      onChatInput: (e) => this.setState({ chatDraft: e.target.value }),
+      onChatKey: (e) => { if (e.key === 'Enter') this.sendChat(); },
+      sendChat: () => this.sendChat(),
+      pool, poolHint: draftDone ? 'Draft complete' : (myTurn ? 'Click a player to draft' : 'Mike is picking…'),
+      poolEmpty: pool.length === 0,
+      mySlots: slots(S.myPicks), rivalSlots: slots(S.rivalPicks),
+      draftQuery: S.draftQuery || '',
+      onDraftQuery: (e) => this.setState({ draftQuery: e.target.value }),
+      draftPosOpts: ['ALL', 'G', 'F', 'C'].map((p) => {
+        const on = (S.draftPos || 'ALL') === p;
+        return { label: p, set: () => this.setState({ draftPos: p }),
+          bg: on ? 'rgba(200,255,46,.1)' : 'transparent', border: on ? 'rgba(200,255,46,.45)' : '#252A3A', ink: on ? acc : '#8B91A7' };
+      }),
+      myPicks: S.myPicks.map(pickRow), rivalPicks: S.rivalPicks.map(pickRow),
+      myEmpty: Array.from({ length: 5 - S.myPicks.length }, (_, i) => ({ n: S.myPicks.length + i + 1 })),
+      myCount: S.myPicks.length, rivalCount: S.rivalPicks.length,
+      draftActive: !draftDone, draftDone,
+      turnLabel: myTurn ? 'YOUR PICK' : 'MIKE IS PICKING…',
+      turnBg: myTurn ? 'rgba(200,255,46,.1)' : 'rgba(255,69,87,.1)',
+      turnBorder: myTurn ? 'var(--acc,#C8FF2E)' : '#FF4557',
+      turnInk: myTurn ? acc : '#FF4557',
+      leagueOpts: this.seg(['🏀 WNBA', '⚾️ MLB'], (S.league === 'WNBA' ? '🏀 WNBA' : '⚾️ MLB'), (v) => this.setState({ league: v.includes('WNBA') ? 'WNBA' : 'MLB' })),
+      rosterOpts: this.seg(['3 SLOTS', '5 SLOTS', '7 SLOTS'], S.roster + ' SLOTS', (v) => this.setState({ roster: parseInt(v) })),
+      stakeOpts: this.seg(['No stake', '◎ 25', '◎ 50', '◎ 100'], S.stake, (v) => this.setState({ stake: v })),
+      slateOpts: this.seg(['Tonight', 'Tomorrow', 'Saturday'], S.slate, (v) => this.setState({ slate: v })),
+      clockOpts: this.seg(['2 min blitz', '6 hours', '24 hours'], S.clock === '6 hours' ? '6 hours' : S.clock, (v) => this.setState({ clock: v })),
+      groupTabs: groupTab(S.group, 'group'), crewOpts,
+      rivalCapLabel: nRiv + '/7 CALLED OUT', rivalCapInk: nRiv >= 7 ? '#FF4557' : '#565D73',
+      termsHeadline: S.league + ' · ' + S.roster + ' SLOTS · SNAKE',
+      sumStake: S.stake, sumPot: stakeN ? '◎ ' + stakeN * 2 : '—', sumSlate: S.slate,
+      sumClock: S.clock === '6 hours' ? '6 hours' : S.clock,
+      isCounter: !!S.counterFor, counterWho: S.counterFor || '',
+      sumRivals: nRiv === 0 ? 'Nobody yet' : (nRiv === 1 ? S.rivalsPicked[0] : nRiv + ' rivals'),
+      sendLabel: !canSend ? 'PICK A RIVAL FIRST' : S.counterFor ? 'SEND COUNTER →' : 'SEND CHALLENGE →',
+      sendBg: canSend ? 'var(--acc,#C8FF2E)' : '#252A3A', sendInk: canSend ? '#0A0B10' : '#565D73',
+      sendChallenge: () => {
+        if (!canSend) return;
+        if (S.counterFor) {
+          const who = S.counterFor;
+          this.setState((s) => ({ view: 'duels', counterFor: null, rivalsPicked: ['mike_hoops'],
+            duels: s.duels.map((x) => x.who === who && x.st === 'respond' ? { ...x, st: 'waiting', meta: x.meta.replace(' · they set the terms', ' · your counter is out') } : x) }));
+          this.pop('Counter sent back to ' + who);
+          return;
+        }
+        this.setState((s) => ({ view: 'duels', rivalsPicked: ['mike_hoops'], coins: s.coins - stakeN,
+          duels: [...s.duels, { id: Date.now(), who: S.rivalsPicked[0], st: 'waiting',
+            title: nRiv === 1 ? S.rivalsPicked[0] : 'Your ' + (nRiv + 1) + '-player match',
+            meta: (S.league === 'WNBA' ? '🏀 WNBA' : '⚾️ MLB') + ' · ' + (nRiv === 1 ? 'snake' : '0/' + (nRiv + 1) + ' in') + ' · ' + S.roster + ' slots' + (stakeN ? ' · ◎ ' + stakeN * 2 + ' pot' : ''), stake: stakeN }] }));
+        this.pop('Challenge sent to ' + (nRiv === 1 ? S.rivalsPicked[0] : nRiv + ' rivals') + (stakeN ? ' · ◎ ' + stakeN + ' staked' : ''));
+      },
+      browseLeagueOpts: this.seg(['WNBA', 'MLB'], S.browseLeague, (v) => this.setState({ browseLeague: v })),
+      playerQuery: S.playerQuery,
+      onQueryInput: (e) => this.setState({ playerQuery: e.target.value }),
+      browsePlayers,
+      ...(() => {
+        const lg = S.browseLeague === 'WNBA' ? 'wnba' : 'mlb';
+        const day = this.SB[lg][S.sbDay] || { head: S.sbDay, live: [], sched: [], final: [] };
+        const logo = (slug) => 'https://a.espncdn.com/i/teamlogos/' + lg + '/500/' + slug + '.png';
+        const tint = (c) => c + '2E';
+        const sbLive = day.live.map((g) => {
+          const [aAb, aName, aSlug, aC, aS] = g.a, [hAb, hName, hSlug, hC, hS] = g.h;
+          const tot = aS + hS;
+          return { aAb, aName, aLogo: logo(aSlug), aC, aS: String(aS), aTint: tint(aC), aInk: aS >= hS ? acc : '#F4F5F7',
+            hAb, hName, hLogo: logo(hSlug), hC, hS: String(hS), hTint: tint(hC), hInk: hS >= aS ? acc : '#F4F5F7',
+            clock: g.clock, note: g.note,
+            pctA: (tot ? Math.round((aS / tot) * 100) : 50) + '%',
+            lead: aS === hS ? 'TIED' : (aS > hS ? aAb : hAb) + ' BY ' + Math.abs(aS - hS) };
+        });
+        const row = (g, isFinal) => {
+          const [aAb, aName, aSlug, aC, aS] = g.a, [hAb, hName, hSlug, hC, hS] = g.h;
+          return { aAb, aName, aLogo: logo(aSlug), aTint: tint(aC), aS: isFinal ? String(aS) : '', aInk: isFinal && aS > hS ? acc : '#8B91A7',
+            hAb, hName, hLogo: logo(hSlug), hTint: tint(hC), hS: isFinal ? String(hS) : '', hInk: isFinal && hS > aS ? acc : '#8B91A7',
+            right: g.time || 'FINAL', rightSub: g.time ? 'ET' : '', rightInk: g.time ? acc : '#565D73' };
+        };
+        const sbSched = day.sched.map((g) => row(g, false));
+        const sbFinal = day.final.map((g) => row(g, true));
+        return { sbLive, sbSched, sbFinal, sbHead: day.head,
+          sbHasLive: sbLive.length > 0, sbHasSched: sbSched.length > 0, sbHasFinal: sbFinal.length > 0,
+          sbEmpty: sbLive.length + sbSched.length + sbFinal.length === 0,
+          sbDayOpts: ['UPCOMING', 'AUG 12', 'AUG 11'].map((d) => {
+            const on = S.sbDay === d;
+            return { label: d, set: () => this.setState({ sbDay: d }),
+              bg: on ? 'rgba(200,255,46,.1)' : 'transparent', border: on ? 'rgba(200,255,46,.45)' : '#252A3A', ink: on ? acc : '#8B91A7' };
+          }) };
+      })(),
+      winTabs, winRows: winData[S.winTab],
+      crewTabs: groupTab(S.crewTab, 'crewTab'), crewRows,
+      selRival, selRivalHist,
+      challengeSelected: () => { this.setState({ view: 'new', rivalsPicked: [sel.name] }); },
+      addFriend: () => this.pop('Invite link copied — send it to your crew'),
+      hasToast: !!S.toast, toast: S.toast
+    };
+  }
+}

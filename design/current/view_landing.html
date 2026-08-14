@@ -1,0 +1,78 @@
+<!-- ==================== LANDING ==================== -->
+<sc-if value="{{ isLanding }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="Web · Landing" style="min-height:100vh;display:flex;flex-direction:column;background:radial-gradient(1100px 560px at 50% -12%,rgba(124,92,255,.2),transparent 62%),radial-gradient(800px 480px at 92% 100%,rgba(200,255,46,.07),transparent 60%),#07080C">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:22px 48px;max-width:1240px;width:100%;margin:0 auto;box-sizing:border-box">
+    <div style="display:flex;flex-direction:column">
+      <span style="font-family:'Archivo Black',sans-serif;font-style:italic;font-size:24px;letter-spacing:-.5px;line-height:1"><span style="color:#F4F5F7">HEADS</span><span style="color:var(--acc,#C8FF2E)">UP</span></span>
+      <span style="font-size:9px;font-weight:800;letter-spacing:3.5px;color:#565D73;margin-top:3px">FANTASY DUELS</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:26px">
+      <span style="font-size:13px;font-weight:700;color:#8B91A7;cursor:pointer" style-hover="color:#F4F5F7">How it works</span>
+      <span style="font-size:13px;font-weight:700;color:#8B91A7;cursor:pointer" style-hover="color:#F4F5F7">Leagues</span>
+      <span sc-camel-on-click="{{ enterApp }}" style="cursor:pointer;font-size:13px;font-weight:800;color:#F4F5F7;border:1px solid #252A3A;border-radius:999px;padding:9px 20px" style-hover="border-color:var(--acc,#C8FF2E);color:var(--acc,#C8FF2E)">LOG IN</span>
+      <span sc-camel-on-click="{{ enterApp }}" style="cursor:pointer;background:var(--acc,#C8FF2E);color:#0A0B10;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:16px;letter-spacing:.5px;border-radius:999px;padding:10px 24px" style-hover="filter:brightness(1.08)">PLAY FREE</span>
+    </div>
+  </div>
+
+  <div style="flex:1;display:flex;flex-wrap:wrap;align-items:center;gap:60px;padding:40px 48px 70px;max-width:1240px;width:100%;margin:0 auto;box-sizing:border-box">
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;animation:huw-rise .4s ease">
+      <span style="display:inline-flex;align-items:center;gap:8px;align-self:flex-start;background:#12141D;border:1px solid #252A3A;border-radius:999px;padding:6px 14px"><span style="width:6px;height:6px;border-radius:3px;background:#FF4557;animation:huw-blink 1.1s infinite"></span><span style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:#8B91A7">WNBA + MLB · LIVE NOW</span></span>
+      <h1 style="font-family:'Archivo Black',sans-serif;font-style:italic;font-size:clamp(48px,6vw,76px);line-height:.95;letter-spacing:-2px;margin:22px 0 0">CALL OUT<br>A FRIEND<span style="color:var(--acc,#C8FF2E)">.</span><br>DRAFT<span style="color:var(--acc,#C8FF2E)">.</span> WIN<span style="color:var(--acc,#C8FF2E)">.</span></h1>
+      <p style="font-size:17px;line-height:1.6;color:#8B91A7;max-width:480px;margin:20px 0 0">Head-to-head fantasy duels. Challenge a rival, snake-draft real players from tonight's slate, and settle it live — with trash talk built in.</p>
+      <div style="display:flex;align-items:center;gap:14px;margin-top:30px">
+        <span sc-camel-on-click="{{ enterApp }}" style="cursor:pointer;background:var(--acc,#C8FF2E);color:#0A0B10;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:21px;letter-spacing:.5px;border-radius:999px;padding:15px 34px;animation:huw-pulse 2.4s infinite" style-hover="filter:brightness(1.08)" style-active="transform:scale(.98)">START A DUEL →</span>
+        <span style="font-size:12px;font-weight:700;color:#565D73">Free to play · no picks against the house</span>
+      </div>
+      <div style="display:flex;gap:34px;margin-top:44px">
+        <div style="display:flex;flex-direction:column"><span style="font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:34px;color:#F4F5F7">1v1 – 4</span><span style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:#565D73">DRAFTERS PER DUEL</span></div>
+        <div style="display:flex;flex-direction:column"><span style="font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:34px;color:#F4F5F7">2 MIN</span><span style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:#565D73">FASTEST PICK CLOCK</span></div>
+        <div style="display:flex;flex-direction:column"><span style="font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:34px;color:#F4F5F7">∞</span><span style="font-size:11px;font-weight:800;letter-spacing:1.5px;color:#565D73">BRAGGING RIGHTS</span></div>
+      </div>
+    </div>
+
+    <div style="width:440px;max-width:100%;flex:none;position:relative;animation:huw-rise .5s ease">
+      <div style="position:absolute;inset:-40px;background:radial-gradient(320px 320px at 50% 40%,rgba(200,255,46,.1),transparent 70%);pointer-events:none"></div>
+      <div style="position:relative;border-radius:20px;border:1px solid #252A3A;background:#12141D;padding:22px;box-shadow:0 30px 80px rgba(0,0,0,.5)">
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <span style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,69,87,.15);border:1px solid #FF4557;border-radius:999px;padding:3px 10px"><span style="width:6px;height:6px;border-radius:3px;background:#FF4557;animation:huw-blink 1.1s infinite"></span><span style="color:#FF4557;font-size:10px;font-weight:900;letter-spacing:1.5px">LIVE</span></span>
+          <span style="font-size:10px;font-weight:800;color:#565D73;letter-spacing:1px">WNBA · BEST OF 5</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:36px;margin-top:16px">
+          <div style="display:flex;flex-direction:column;align-items:center"><span style="font-size:11px;font-weight:900;letter-spacing:1px;color:var(--acc,#C8FF2E)">SP1KE</span><span style="font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:58px;line-height:1">118.4</span></div>
+          <span style="font-family:'Archivo Black',sans-serif;font-style:italic;font-size:18px;color:#565D73">VS</span>
+          <div style="display:flex;flex-direction:column;align-items:center"><span style="font-size:11px;font-weight:900;letter-spacing:1px;color:#8B91A7">MIKE</span><span style="font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:58px;line-height:1;color:#8B91A7">104.9</span></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:7px;margin-top:18px">
+          <sc-for list="{{ heroFeed }}" as="m" hint-placeholder-count="3">
+            <div style="display:flex;align-items:flex-start;gap:8px">
+              <span style="font-size:10.5px;font-weight:900;color:{{ m.ink }};flex:none;padding-top:2px">{{ m.who }}</span>
+              <span style="font-size:12.5px;color:#C7CBD9;background:#1A1E2B;border-radius:10px;padding:6px 11px;line-height:1.4">{{ m.txt }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="border-top:1px solid #1A1E2B;background:#0D0F16">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:26px;padding:44px 48px;max-width:1240px;margin:0 auto;box-sizing:border-box">
+      <div style="display:flex;flex-direction:column;gap:9px">
+        <span style="width:22px;height:22px;background:var(--acc,#C8FF2E);-webkit-mask:url(&quot;21038716-a40c-444f-98d4-df1c1b17dedd&quot;) center/contain no-repeat;mask:url(&quot;21038716-a40c-444f-98d4-df1c1b17dedd&quot;) center/contain no-repeat"></span>
+        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:21px;letter-spacing:.5px">CHALLENGE ANYONE</span>
+        <span style="font-size:13px;color:#8B91A7;line-height:1.6">Set the terms — league, roster size, stake, pick clock — and call out up to 3 rivals. Everyone who accepts gets a seat.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:9px">
+        <span style="width:22px;height:22px;background:var(--acc,#C8FF2E);-webkit-mask:url(&quot;2fd65c32-9dbb-49fe-8eb3-f4bc5ea31f8e&quot;) center/contain no-repeat;mask:url(&quot;2fd65c32-9dbb-49fe-8eb3-f4bc5ea31f8e&quot;) center/contain no-repeat"></span>
+        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:21px;letter-spacing:.5px">SNAKE DRAFT LIVE</span>
+        <span style="font-size:13px;color:#8B91A7;line-height:1.6">Coin flip for first pick, then draft real players from tonight's games on a clock. Every pick is a dagger.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:9px">
+        <span style="width:22px;height:22px;background:var(--acc,#C8FF2E);-webkit-mask:url(&quot;846dc239-258b-4641-9cc8-f255614b27d8&quot;) center/contain no-repeat;mask:url(&quot;846dc239-258b-4641-9cc8-f255614b27d8&quot;) center/contain no-repeat"></span>
+        <span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:21px;letter-spacing:.5px">RIVALRIES THAT LAST</span>
+        <span style="font-size:13px;color:#8B91A7;line-height:1.6">Every duel counts toward a lifetime head-to-head record. Win the night, take the rivalry lead, post the receipt.</span>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
