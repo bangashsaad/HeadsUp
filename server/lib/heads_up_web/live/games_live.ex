@@ -64,7 +64,7 @@ defmodule HeadsUpWeb.GamesLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.shell current_user={@current_user} flash={@flash}>
+    <Layouts.shell current_user={@current_user} flash={@flash} shell={assigns[:shell] || %{}}>
       <div style="flex:1;display:flex;flex-direction:column;gap:12px;max-width:780px;width:100%;margin:0 auto;box-sizing:border-box;animation:huw-rise .3s ease">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
           <div style="display:flex;flex-direction:column">
@@ -115,39 +115,17 @@ defmodule HeadsUpWeb.GamesLive do
             </div>
           </div>
 
-          <%!-- SCHEDULE --%>
-          <div :if={@pre_games != []} style="display:flex;align-items:center;gap:10px;margin-top:8px">
-            <span style="font-size:10px;font-weight:900;letter-spacing:2px;color:#565D73;white-space:nowrap">SCHEDULE</span>
-            <div style="flex:1;height:1px;background:#1A1E2B"></div>
-          </div>
-          <div :for={g <- @pre_games} style="display:flex;align-items:center;gap:12px;border-radius:13px;border:1px solid #1A1E2B;background:#12141D;padding:11px 15px">
-            <img :if={g.away && g.away.logo} src={g.away.logo} style="width:26px;height:26px;object-fit:contain" alt="" loading="lazy" />
-            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;min-width:100px">
-              {g.away && g.away.abbrev} @ {g.home && g.home.abbrev}
-            </span>
-            <img :if={g.home && g.home.logo} src={g.home.logo} style="width:26px;height:26px;object-fit:contain" alt="" loading="lazy" />
-            <span style="margin-left:auto;font-size:11px;font-weight:800;color:#565D73">{g.status}</span>
-          </div>
+          <%!-- SCHEDULE (the design's two-row card with the right rail) --%>
+          <span :if={@pre_games != []} style="font-size:9.5px;font-weight:900;letter-spacing:2px;color:#565D73;margin-top:8px">SCHEDULE</span>
+          <.game_card :for={g <- @pre_games} game={g} right={g.status} right_ink="var(--acc,#C8FF2E)" right_sub="TIP" dim={false} />
 
           <%!-- FINAL --%>
-          <div :if={@post_games != []} style="display:flex;align-items:center;gap:10px;margin-top:8px">
-            <span style="font-size:10px;font-weight:900;letter-spacing:2px;color:#565D73;white-space:nowrap">FINAL</span>
-            <div style="flex:1;height:1px;background:#1A1E2B"></div>
-          </div>
-          <div :for={g <- @post_games} style="display:flex;align-items:center;gap:12px;border-radius:13px;border:1px solid #1A1E2B;background:#12141D;padding:11px 15px;opacity:.8">
-            <img :if={g.away && g.away.logo} src={g.away.logo} style="width:26px;height:26px;object-fit:contain" alt="" loading="lazy" />
-            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;min-width:100px">
-              {g.away && g.away.abbrev} @ {g.home && g.home.abbrev}
-            </span>
-            <img :if={g.home && g.home.logo} src={g.home.logo} style="width:26px;height:26px;object-fit:contain" alt="" loading="lazy" />
-            <span class="hu-cond" style="margin-left:auto;font-size:17px">
-              {(g.away && g.away.score) || ""}–{(g.home && g.home.score) || ""}
-            </span>
-          </div>
+          <span :if={@post_games != []} style="font-size:9.5px;font-weight:900;letter-spacing:2px;color:#565D73;margin-top:8px">FINAL</span>
+          <.game_card :for={g <- @post_games} game={g} right="FINAL" right_ink="#565D73" right_sub={nil} dim={true} />
 
           <div :if={@live_games == [] and @pre_games == [] and @post_games == []} style="padding:32px;text-align:center">
             <p class="hu-cond" style="font-size:22px;color:#8B91A7">QUIET NIGHT</p>
-            <p style="font-size:12px;color:#565D73;font-weight:600">No games on that date — pick another league.</p>
+            <p style="font-size:12px;color:#565D73;font-weight:600">No games on that date — pick another day.</p>
           </div>
         <% else %>
           <form phx-change="search" id="pool-search" style="display:flex;align-items:center;gap:8px;background:#0D0F16;border:1px solid #252A3A;border-radius:999px;padding:9px 15px;margin-top:8px">
@@ -175,6 +153,40 @@ defmodule HeadsUpWeb.GamesLive do
         <% end %>
       </div>
     </Layouts.shell>
+    """
+  end
+
+  attr :game, :map, required: true
+  attr :right, :string, required: true
+  attr :right_ink, :string, required: true
+  attr :right_sub, :string, default: nil
+  attr :dim, :boolean, default: false
+
+  defp game_card(assigns) do
+    ~H"""
+    <div style={"display:flex;border-radius:14px;border:1px solid #252A3A;overflow:hidden;background:linear-gradient(180deg,rgba(124,92,255,.07),#12141D 50%,rgba(200,255,46,.04))#{if @dim, do: ";opacity:.8"}"}>
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px;padding:11px 0 11px 12px">
+        <.team_row side={@game.away} />
+        <.team_row side={@game.home} />
+      </div>
+      <div style="width:70px;flex:none;border-left:1px solid #1A1E2B;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">
+        <span style={"font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:13px;letter-spacing:.5px;color:#{@right_ink};text-align:center"}>{@right}</span>
+        <span :if={@right_sub} style="font-size:8.5px;font-weight:800;letter-spacing:.5px;color:#565D73">{@right_sub}</span>
+      </div>
+    </div>
+    """
+  end
+
+  attr :side, :map, default: nil
+
+  defp team_row(assigns) do
+    ~H"""
+    <div :if={@side} style="display:flex;align-items:center;gap:10px;padding-right:12px">
+      <img :if={@side.logo} src={@side.logo} style="width:26px;height:26px;object-fit:contain" alt="" loading="lazy" />
+      <span class="hu-black" style="font-size:14px;width:44px">{@side.abbrev}</span>
+      <span style="flex:1;font-size:11.5px;font-weight:600;color:#8B91A7">{@side.name}</span>
+      <span class="hu-cond" style="font-size:20px;color:#C7CBD9">{@side.score}</span>
+    </div>
     """
   end
 

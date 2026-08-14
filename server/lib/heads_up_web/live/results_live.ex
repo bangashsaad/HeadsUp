@@ -69,7 +69,7 @@ defmodule HeadsUpWeb.ResultsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.shell current_user={@current_user} flash={@flash}>
+    <Layouts.shell current_user={@current_user} flash={@flash} shell={assigns[:shell] || %{}}>
       <div class="mx-auto max-w-2xl">
         <div class={[
           "rounded-2xl border p-6 text-center",

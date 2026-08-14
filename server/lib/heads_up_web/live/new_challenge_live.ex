@@ -160,6 +160,12 @@ defmodule HeadsUpWeb.NewChallengeLive do
     %{league: league, roster: roster, stake: stake, clock: clock, rivals: rivals} = socket.assigns
 
     cond do
+      not HeadsUpWeb.UserAuth.verified_for_duels?(socket.assigns.current_user) ->
+        {:noreply,
+         socket
+         |> put_flash(:error, "Verify your email to duel — takes a few seconds.")
+         |> push_navigate(to: "/app/verify")}
+
       rivals == [] ->
         {:noreply, assign(socket, error: "Pick at least one rival.")}
 
@@ -219,7 +225,7 @@ defmodule HeadsUpWeb.NewChallengeLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.shell current_user={@current_user} flash={@flash}>
+    <Layouts.shell current_user={@current_user} flash={@flash} shell={assigns[:shell] || %{}}>
       <div style="flex:1;display:flex;flex-wrap:wrap;gap:24px;max-width:1080px;width:100%;margin:0 auto;box-sizing:border-box;animation:huw-rise .3s ease">
         <div style="flex:1;min-width:min(440px,100%);display:flex;flex-direction:column;gap:18px">
           <div style="display:flex;flex-direction:column">

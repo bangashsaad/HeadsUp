@@ -73,7 +73,7 @@ defmodule HeadsUpWeb.LiveLive do
     assigns = assign(assigns, sides: sides(assigns))
 
     ~H"""
-    <Layouts.shell current_user={@current_user} flash={@flash}>
+    <Layouts.shell current_user={@current_user} flash={@flash} shell={assigns[:shell] || %{}}>
       <div style="flex:1;display:flex;flex-wrap:wrap;gap:24px;max-width:1200px;width:100%;margin:0 auto;box-sizing:border-box;animation:huw-rise .3s ease">
         <div style="flex:1;min-width:min(460px,100%);display:flex;flex-direction:column;gap:18px">
           <%= if @sides do %>
@@ -96,7 +96,7 @@ defmodule HeadsUpWeb.LiveLive do
         <div style="width:310px;flex:none;display:flex;flex-direction:column;border-radius:16px;border:1px solid #252A3A;background:#12141D;overflow:hidden;max-height:calc(100vh - 110px);position:sticky;top:70px;box-sizing:border-box">
           <div style="padding:13px 16px;border-bottom:1px solid #1A1E2B;display:flex;align-items:center;justify-content:space-between;flex:none">
             <span class="hu-cond" style="font-size:15px;letter-spacing:1px">TRASH TALK</span>
-            <span style="font-size:10px;font-weight:800;letter-spacing:1px;color:#565D73">DUEL ONLY</span>
+            <span style="font-size:10px;font-weight:800;letter-spacing:1px;color:#565D73">{chat_names(@duel, @current_user.id)}</span>
           </div>
           <div id="chat-thread" phx-hook="ScrollToEnd" style="flex:1;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:9px;min-height:180px">
             <p :if={@chat == []} style="font-size:11px;color:#565D73;font-weight:600;text-align:center;padding:20px 0">
@@ -193,7 +193,7 @@ defmodule HeadsUpWeb.LiveLive do
     <div style={"border-radius:16px;border:1px solid #{if @mine, do: "color-mix(in srgb,var(--acc,#C8FF2E) 35%,transparent)", else: "#252A3A"};background:#12141D;overflow:hidden"}>
       <div style="padding:11px 16px;border-bottom:1px solid #1A1E2B;display:flex;justify-content:space-between">
         <span style={"font-size:11px;font-weight:900;letter-spacing:1.5px;color:#{if @mine, do: "var(--acc,#C8FF2E)", else: "#8B91A7"}"}>
-          {if @mine, do: "YOUR #{length(@side.players)}", else: "#{String.upcase(@side.user.username)}'S #{length(@side.players)}"}
+          {if @mine, do: "YOUR #{count_word(length(@side.players))}", else: "#{String.upcase(@side.user.username)}'S #{count_word(length(@side.players))}"}
         </span>
         <span style="font-size:11px;font-weight:800;color:#565D73">{pts(@side.total)}</span>
       </div>
@@ -270,4 +270,19 @@ defmodule HeadsUpWeb.LiveLive do
 
   defp initials(nil), do: "?"
   defp initials(name), do: name |> String.split() |> Enum.map(&String.first/1) |> Enum.take(2) |> Enum.join()
+
+  defp chat_names(duel, me) do
+    other =
+      cond do
+        duel.opponent_id == nil -> "THE TABLE"
+        duel.challenger_id == me -> String.upcase((duel.opponent && duel.opponent.username) || "THEM")
+        true -> String.upcase((duel.challenger && duel.challenger.username) || "THEM")
+      end
+
+    "YOU + #{other}"
+  end
+
+  defp count_word(5), do: "FIVE"
+  defp count_word(7), do: "SEVEN"
+  defp count_word(n), do: to_string(n)
 end

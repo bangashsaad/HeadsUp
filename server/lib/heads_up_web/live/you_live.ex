@@ -28,6 +28,7 @@ defmodule HeadsUpWeb.YouLive do
 
     socket
     |> assign(
+      requests: Social.list_incoming_requests(user),
       record: Stats.record_for(user.id),
       h2h_by_id: Map.new(h2h, &{&1.opponent.id, &1}),
       friends: friends,
@@ -67,6 +68,20 @@ defmodule HeadsUpWeb.YouLive do
   def handle_event("friend-search", %{"q" => q}, socket) do
     results = if String.length(q) >= 2, do: Social.search_users(q, socket.assigns.current_user), else: []
     {:noreply, assign(socket, search: q, results: results)}
+  end
+
+  def handle_event("request-accept", %{"id" => id}, socket) do
+    case Social.accept_friend_request(socket.assigns.current_user, String.to_integer(id)) do
+      {:ok, _} -> {:noreply, socket |> put_flash(:info, "Friends. Now call them out.") |> load()}
+      {:error, _} -> {:noreply, put_flash(socket, :error, "Couldn't accept that one.")}
+    end
+  end
+
+  def handle_event("request-decline", %{"id" => id}, socket) do
+    case Social.delete_friendship(socket.assigns.current_user, String.to_integer(id)) do
+      :ok -> {:noreply, socket |> put_flash(:info, "Declined.") |> load()}
+      _ -> {:noreply, put_flash(socket, :error, "Couldn't decline that one.")}
+    end
   end
 
   def handle_event("friend-request", %{"id" => id}, socket) do
@@ -123,7 +138,7 @@ defmodule HeadsUpWeb.YouLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.shell current_user={@current_user} flash={@flash}>
+    <Layouts.shell current_user={@current_user} flash={@flash} shell={assigns[:shell] || %{}}>
       <div style="flex:1;display:flex;flex-direction:column;gap:18px;max-width:960px;width:100%;margin:0 auto;box-sizing:border-box;animation:huw-rise .3s ease">
         <%!-- hero --%>
         <div style="display:flex;flex-wrap:wrap;align-items:center;gap:18px;background:radial-gradient(480px 220px at 8% 0%,rgba(124,92,255,.18),transparent 65%);border-radius:18px;padding:6px 8px">
@@ -210,6 +225,34 @@ defmodule HeadsUpWeb.YouLive do
                 <span style="font-weight:800;font-size:12.5px">{u.username}</span>
                 <button phx-click="friend-request" phx-value-id={u.id} class="hu-cond" style="cursor:pointer;margin-left:auto;background:var(--acc,#C8FF2E);color:#0A0B10;font-size:13px;border-radius:999px;padding:5px 14px;border:none">
                   CALL THEM IN
+                </button>
+              </div>
+            </div>
+
+            <div :if={@requests != []} style="border-bottom:1px solid #1A1E2B">
+              <span style="display:block;padding:10px 18px 4px;font-size:9.5px;font-weight:900;letter-spacing:2px;color:#FFB021">
+                WANTS IN · {length(@requests)}
+              </span>
+              <div :for={req <- @requests} style="display:flex;align-items:center;gap:12px;padding:9px 18px">
+                <div style="width:32px;height:32px;flex:none;border-radius:10px;background:rgba(255,176,33,.15);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#FFB021">
+                  {req.requester.username |> String.slice(0, 2) |> String.upcase()}
+                </div>
+                <span style="font-weight:800;font-size:13px;flex:1;min-width:0">{req.requester.username}</span>
+                <button
+                  phx-click="request-accept"
+                  phx-value-id={req.id}
+                  class="hu-cond"
+                  style="cursor:pointer;background:var(--acc,#C8FF2E);color:#0A0B10;font-size:13px;border-radius:999px;padding:5px 14px;border:none"
+                >
+                  ACCEPT
+                </button>
+                <button
+                  phx-click="request-decline"
+                  phx-value-id={req.id}
+                  class="hu-cond"
+                  style="cursor:pointer;border:1px solid #252A3A;color:#8B91A7;font-size:13px;border-radius:999px;padding:5px 14px;background:transparent"
+                >
+                  DECLINE
                 </button>
               </div>
             </div>

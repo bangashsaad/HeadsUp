@@ -62,7 +62,7 @@ defmodule HeadsUpWeb.WebScreensTest do
       challenge(b, a)
 
       {:ok, view, html} = live(conn, ~p"/app/duels")
-      assert html =~ "YOUR CALL"
+      assert html =~ "RESPOND"
       assert html =~ "ACCEPT"
 
       duel = challenge_of(a)
@@ -84,7 +84,7 @@ defmodule HeadsUpWeb.WebScreensTest do
       duel = challenge(a, b)
       {:ok, view, html} = live(conn, ~p"/app/duels")
 
-      assert html =~ "WAITING"
+      assert html =~ "SENT"
       render_click(view, "cancel", %{"id" => to_string(duel.id)})
       assert Repo.get(Duel, duel.id).status == "cancelled"
     end

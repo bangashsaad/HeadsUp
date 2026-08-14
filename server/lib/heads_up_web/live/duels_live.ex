@@ -19,7 +19,7 @@ defmodule HeadsUpWeb.DuelsLive do
     duels = Contests.list_duels(user)
 
     assign(socket,
-      active: Enum.filter(duels, &(&1.status in ~w(pending accepted drafting drafted))),
+      active: Enum.filter(duels, &(&1.status in ~w(pending accepted drafting drafted countered))),
       settled: Enum.filter(duels, &(&1.status == "settled")),
       dead: Enum.filter(duels, &(&1.status in ~w(declined cancelled expired)))
     )
@@ -29,10 +29,26 @@ defmodule HeadsUpWeb.DuelsLive do
   def handle_event("tab", %{"tab" => tab}, socket) when tab in ~w(active past),
     do: {:noreply, assign(socket, tab: tab)}
 
-  def handle_event("accept", %{"id" => id}, socket), do: act(socket, :accept_challenge, id, "Locked in. Draft time.")
+  def handle_event("accept", %{"id" => id}, socket),
+    do: gated(socket, fn -> act(socket, :accept_challenge, id, "Locked in. Draft time.") end)
+
   def handle_event("decline", %{"id" => id}, socket), do: act(socket, :decline_challenge, id, "Declined.")
   def handle_event("cancel", %{"id" => id}, socket), do: act(socket, :cancel_challenge, id, "Called off.")
-  def handle_event("rematch", %{"id" => id}, socket), do: act(socket, :rematch, id, "Rematch sent — same terms.")
+
+  def handle_event("rematch", %{"id" => id}, socket),
+    do: gated(socket, fn -> act(socket, :rematch, id, "Rematch sent — same terms.") end)
+
+  # The same verification bar the phone's API hits — decline/cancel stay open.
+  defp gated(socket, fun) do
+    if HeadsUpWeb.UserAuth.verified_for_duels?(socket.assigns.current_user) do
+      fun.()
+    else
+      {:noreply,
+       socket
+       |> put_flash(:error, "Verify your email to duel — takes a few seconds.")
+       |> push_navigate(to: "/app/verify")}
+    end
+  end
 
   defp act(socket, fun, id, ok_msg) do
     case apply(Contests, fun, [socket.assigns.current_user, String.to_integer(id)]) do
@@ -47,18 +63,18 @@ defmodule HeadsUpWeb.DuelsLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.shell current_user={@current_user} flash={@flash}>
+    <Layouts.shell current_user={@current_user} flash={@flash} shell={assigns[:shell] || %{}}>
       <div style="flex:1;display:flex;flex-direction:column;gap:16px;max-width:860px;width:100%;margin:0 auto;box-sizing:border-box;animation:huw-rise .3s ease">
         <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
           <span class="hu-cond" style="font-size:24px;letter-spacing:.5px">DUELS</span>
           <div style="display:flex;gap:6px">
             <button
-              :for={{key, label} <- [{"active", "ACTIVE"}, {"past", "PAST"}]}
+              :for={{key, label, n} <- [{"active", "ACTIVE", length(@active)}, {"past", "PAST", length(@settled) + length(@dead)}]}
               phx-click="tab"
               phx-value-tab={key}
               style={tab_style(@tab == key)}
             >
-              {label}
+              {label} {n}
             </button>
             <.link navigate={~p"/app/new"} class="hu-cond" style="cursor:pointer;background:var(--acc,#C8FF2E);color:#0A0B10;font-size:14px;border-radius:999px;padding:8px 18px;white-space:nowrap">
               + NEW
@@ -92,7 +108,12 @@ defmodule HeadsUpWeb.DuelsLive do
               <button phx-click="accept" phx-value-id={d.id} class="hu-cond" style="cursor:pointer;flex:1;text-align:center;background:var(--acc,#C8FF2E);color:#0A0B10;font-size:15px;border-radius:9px;padding:8px 0;border:none">
                 ACCEPT
               </button>
-              <.link navigate={~p"/app/new?counter=#{d.id}"} class="hu-cond" style="cursor:pointer;flex:1;text-align:center;border:1px solid #252A3A;color:#F4F5F7;font-size:15px;border-radius:9px;padding:8px 0">
+              <.link
+                :if={d.opponent_id != nil}
+                navigate={~p"/app/new?counter=#{d.id}"}
+                class="hu-cond"
+                style="cursor:pointer;flex:1;text-align:center;border:1px solid #252A3A;color:#F4F5F7;font-size:15px;border-radius:9px;padding:8px 0"
+              >
                 COUNTER
               </.link>
               <button phx-click="decline" phx-value-id={d.id} class="hu-cond" style="cursor:pointer;flex:1;text-align:center;border:1px solid rgba(255,69,87,.4);color:#FF4557;font-size:15px;border-radius:9px;padding:8px 0;background:transparent">
@@ -132,7 +153,7 @@ defmodule HeadsUpWeb.DuelsLive do
               <span style="font-weight:800;font-size:13.5px">vs {title(d, @current_user.id) |> String.replace_prefix("vs ", "")}</span>
               <span style="font-size:10.5px;color:#8B91A7;font-weight:600;margin-top:2px">{meta_line(d)}</span>
             </.link>
-            <span :if={d.stake_coins > 0} style={"font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;color:#{res_tint(d, @current_user.id)}"}>
+            <span :if={d.stake_coins > 0} style={"font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;color:#{if res(d, @current_user.id) == "W", do: "#FFB021", else: "#565D73"}"}>
               ◎ {swing(d, @current_user.id)}
             </span>
             <button
@@ -204,42 +225,47 @@ defmodule HeadsUpWeb.DuelsLive do
   defp meta_line(d) do
     emoji = %{"mlb" => "⚾️", "nfl" => "🏈"} |> Map.get(d.sport, "🏀")
     stake = if d.stake_coins > 0, do: " · ◎ #{d.stake_coins} stake", else: " · no stake"
-    "#{emoji} #{String.upcase(d.sport)} · #{d.roster_size} slots#{stake}"
+    tail = if d.status == "countered", do: " · terms changed", else: ""
+    "#{emoji} #{String.upcase(d.sport)} · #{d.roster_size} slots#{stake}#{tail}"
   end
 
+  # The design's badge map, verbatim: RESPOND cyan, SENT gray, COUNTERED
+  # purple, READY lime, DRAFTING red, IN PLAY cyan.
   defp badge(d, me) do
     case d.status do
-      "pending" -> if respond?(d, me), do: "YOUR CALL", else: "WAITING"
-      "accepted" -> "DRAFT SET"
+      "pending" -> if respond?(d, me), do: "RESPOND", else: "SENT"
+      "countered" -> "COUNTERED"
+      "accepted" -> "READY"
       "drafting" -> "DRAFTING"
-      "drafted" -> "LIVE"
+      "drafted" -> "IN PLAY"
       other -> String.upcase(other)
     end
   end
 
   defp badge_ink(d, me) do
     case d.status do
-      "pending" -> if respond?(d, me), do: "#FFB021", else: "#8B91A7"
+      "pending" -> if respond?(d, me), do: "#22E5FF", else: "#8B91A7"
+      "countered" -> "#A794FF"
       "accepted" -> "#C8FF2E"
-      "drafting" -> "#C8FF2E"
-      "drafted" -> "#FF4557"
+      "drafting" -> "#FF4557"
+      "drafted" -> "#22E5FF"
       _ -> "#8B91A7"
     end
   end
 
   defp badge_bg(d, me) do
     case badge_ink(d, me) do
-      "#FFB021" -> "rgba(255,176,33,.12)"
-      "#C8FF2E" -> "rgba(200,255,46,.10)"
-      "#FF4557" -> "rgba(255,69,87,.12)"
-      _ -> "rgba(139,145,167,.10)"
+      "#22E5FF" -> "rgba(34,229,255,.1)"
+      "#A794FF" -> "rgba(124,92,255,.15)"
+      "#C8FF2E" -> "rgba(200,255,46,.1)"
+      "#FF4557" -> "rgba(255,69,87,.15)"
+      _ -> "transparent"
     end
   end
 
   defp blink?(d), do: d.status in ~w(drafting drafted)
 
-  defp card_border(%{status: "drafted"}), do: "rgba(255,69,87,.4)"
-  defp card_border(%{status: s}) when s in ~w(accepted drafting), do: "rgba(200,255,46,.35)"
+  defp card_border(%{status: "drafting"}), do: "rgba(255,69,87,.45)"
   defp card_border(_), do: "#252A3A"
 
   defp av_bg(d, me), do: if(respond?(d, me), do: "rgba(124,92,255,.18)", else: "rgba(200,255,46,.10)")

@@ -54,9 +54,10 @@ defmodule HeadsUpWeb.Router do
     pipe_through [:browser, :web, :require_web_user]
 
     live_session :authenticated,
-      on_mount: [{HeadsUpWeb.UserAuth, :ensure_authenticated}],
+      on_mount: [{HeadsUpWeb.UserAuth, :ensure_authenticated}, {HeadsUpWeb.ShellHook, :default}],
       layout: {HeadsUpWeb.Layouts, :root} do
       live "/app", HomeLive, :index
+      live "/app/verify", VerifyLive, :index
       live "/app/duels", DuelsLive, :index
       live "/app/new", NewChallengeLive, :new
       live "/app/draft/:id", DraftLive, :show

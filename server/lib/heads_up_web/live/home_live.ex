@@ -73,6 +73,17 @@ defmodule HeadsUpWeb.HomeLive do
 
   @impl true
   def handle_event("accept", %{"id" => id}, socket) do
+    if not HeadsUpWeb.UserAuth.verified_for_duels?(socket.assigns.current_user) do
+      {:noreply,
+       socket
+       |> put_flash(:error, "Verify your email to duel — takes a few seconds.")
+       |> push_navigate(to: "/app/verify")}
+    else
+      do_accept(socket, id)
+    end
+  end
+
+  defp do_accept(socket, id) do
     case HeadsUp.Contests.accept_challenge(socket.assigns.current_user, String.to_integer(id)) do
       {:ok, _} ->
         {:noreply,
@@ -103,7 +114,7 @@ defmodule HeadsUpWeb.HomeLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.shell current_user={@current_user} flash={@flash}>
+    <Layouts.shell current_user={@current_user} flash={@flash} shell={assigns[:shell] || %{}}>
       <div style="flex:1;display:flex;flex-direction:column;gap:20px;max-width:920px;width:100%;margin:0 auto;box-sizing:border-box;animation:huw-rise .3s ease">
         <div style="display:flex;flex-direction:column;gap:20px">
           <%!-- season record hero --%>
@@ -198,24 +209,24 @@ defmodule HeadsUpWeb.HomeLive do
             </div>
 
             <div
-              :for={duel <- Enum.take(@summary.waiting_on_them, 2 - min(length(@summary.needs_response), 2))}
+              :for={duel <- Enum.drop(@summary.draft_ready, 1) |> Enum.take(2 - min(length(@summary.needs_response), 2))}
               style="border-radius:16px;border:1px solid #252A3A;background:#12141D;padding:17px;display:flex;flex-direction:column"
             >
               <div style="display:flex;align-items:center;justify-content:space-between">
-                <span style="font-size:11px;font-weight:900;letter-spacing:1.2px;color:var(--acc,#C8FF2E)">WAITING</span>
+                <span style="font-size:11px;font-weight:900;letter-spacing:1.2px;color:var(--acc,#C8FF2E)">READY</span>
                 <span style="display:inline-block;width:13px;height:13px;background:var(--acc,#C8FF2E);-webkit-mask:url('/icons/d986b787.svg') center/contain no-repeat;mask:url('/icons/d986b787.svg') center/contain no-repeat">
                 </span>
               </div>
               <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:23px;margin-top:8px;line-height:1.05">
-                {other_name(duel, @current_user.id)} is on the clock
+                Draft vs {other_name(duel, @current_user.id)} anytime
               </div>
               <div style="font-size:12px;color:#8B91A7;margin-top:6px;font-weight:600">{meta_line(duel)}</div>
               <.link
-                navigate={~p"/app/duels"}
+                navigate={~p"/app/draft/#{duel.id}"}
                 class="hu-cond"
                 style="cursor:pointer;margin-top:13px;align-self:flex-start;border:1px solid var(--acc,#C8FF2E);color:var(--acc,#C8FF2E);font-size:15px;border-radius:999px;padding:8px 20px"
               >
-                VIEW DUELS →
+                START DRAFT →
               </.link>
             </div>
           </div>
@@ -337,12 +348,9 @@ defmodule HeadsUpWeb.HomeLive do
   defp streak_label(_), do: ""
 
   defp pending_label(summary) do
-    n = length(summary.needs_response)
-
-    cond do
-      n == 0 -> "ALL QUIET"
-      n == 1 -> "1 NEEDS AN ANSWER"
-      true -> "#{n} NEED ANSWERS"
+    case length(summary.needs_response) do
+      0 -> "ALL QUIET"
+      n -> "#{n} PENDING"
     end
   end
 

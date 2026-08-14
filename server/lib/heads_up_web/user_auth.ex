@@ -130,6 +130,19 @@ defmodule HeadsUpWeb.UserAuth do
   @doc "Where to send someone after signing in — back where they were headed."
   def return_path(conn), do: get_session(conn, :return_to) || "/app"
 
+  @doc """
+  The LiveView twin of `require_verified_email/2`. The API plug gates the
+  phone's duel actions; the web's LiveViews bypass plugs entirely, which for a
+  while meant a browser signup could duel unverified. Call this before any
+  create/accept/counter/rematch and bounce to `/app/verify` when it says no.
+  Config-gated by the same `:require_verified_email` flag, so tests and
+  emergencies switch both surfaces off together.
+  """
+  def verified_for_duels?(user) do
+    not Application.get_env(:heads_up, :require_verified_email, true) or
+      (user != nil and user.email_verified_at != nil)
+  end
+
   # --- LiveView -------------------------------------------------------------
 
   @doc """

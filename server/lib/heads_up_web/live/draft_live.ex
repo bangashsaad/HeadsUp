@@ -67,7 +67,7 @@ defmodule HeadsUpWeb.DraftLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.shell current_user={@current_user} flash={@flash}>
+    <Layouts.shell current_user={@current_user} flash={@flash} shell={assigns[:shell] || %{}}>
       <div style="flex:1;display:flex;flex-direction:column;gap:16px;max-width:1060px;width:100%;margin:0 auto;box-sizing:border-box;animation:huw-rise .3s ease">
         <%!-- header: title + turn pill / go-live / ready --%>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
