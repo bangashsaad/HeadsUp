@@ -116,16 +116,23 @@ defmodule HeadsUpWeb.Layouts do
           <.link navigate="/app" class="text-lg font-black uppercase tracking-tight">
             Heads<span class="text-[#C8FF2E]">Up</span>
           </.link>
-          <div :if={@current_user} class="flex items-center gap-3">
-            <span class="text-sm text-[#8B91A7]">{@current_user.username}</span>
-            <.link
-              href="/logout"
-              method="delete"
-              class="text-xs font-bold uppercase tracking-wide text-[#565D73] hover:text-[#F4F5F7]"
-            >
-              Sign out
+          <nav :if={@current_user} class="flex items-center gap-4">
+            <.link navigate="/app" class="text-xs font-black uppercase tracking-wide text-[#8B91A7] hover:text-[#F4F5F7]">
+              Home
             </.link>
-          </div>
+            <.link navigate="/app/duels" class="text-xs font-black uppercase tracking-wide text-[#8B91A7] hover:text-[#F4F5F7]">
+              Duels
+            </.link>
+            <.link navigate="/app/games" class="text-xs font-black uppercase tracking-wide text-[#8B91A7] hover:text-[#F4F5F7]">
+              Games
+            </.link>
+            <.link navigate="/app/new" class="text-xs font-black uppercase tracking-wide text-[#C8FF2E] hover:brightness-110">
+              + New
+            </.link>
+            <.link navigate="/app/you" class="text-xs font-black uppercase tracking-wide text-[#8B91A7] hover:text-[#F4F5F7]">
+              You
+            </.link>
+          </nav>
         </div>
       </header>
 

@@ -57,7 +57,13 @@ defmodule HeadsUpWeb.Router do
       on_mount: [{HeadsUpWeb.UserAuth, :ensure_authenticated}],
       layout: {HeadsUpWeb.Layouts, :root} do
       live "/app", HomeLive, :index
+      live "/app/duels", DuelsLive, :index
+      live "/app/new", NewChallengeLive, :new
       live "/app/draft/:id", DraftLive, :show
+      live "/app/live/:id", LiveLive, :show
+      live "/app/results/:id", ResultsLive, :show
+      live "/app/you", YouLive, :index
+      live "/app/games", GamesLive, :index
     end
   end
 
@@ -143,6 +149,8 @@ defmodule HeadsUpWeb.Router do
     get "/duels/:id", DuelController, :show
     get "/duels/:id/result", DuelController, :result
     get "/duels/:id/live", DuelController, :live
+    get "/duels/:id/messages", DuelController, :messages
+    post "/duels/:id/messages", DuelController, :post_message
     post "/duels/:id/accept", DuelController, :accept
     post "/duels/:id/decline", DuelController, :decline
     post "/duels/:id/cancel", DuelController, :cancel

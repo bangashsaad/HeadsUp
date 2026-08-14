@@ -10,6 +10,12 @@ export const getResult = (token, id) => apiRequest(`/api/duels/${id}/result`, { 
 // duel is settled / not drafted — caller falls back to the final result.
 export const getLiveResult = (token, id) => apiRequest(`/api/duels/${id}/live`, { token });
 
+// Trash talk: the duel's message thread. Polled on the live screen alongside
+// the score, on the same cadence.
+export const getMessages = (token, id) => apiRequest(`/api/duels/${id}/messages`, { token });
+export const sendMessage = (token, id, body) =>
+  apiRequest(`/api/duels/${id}/messages`, { token, method: 'POST', body: { body } });
+
 export const createChallenge = (token, body) =>
   apiRequest('/api/duels', { method: 'POST', token, body });
 

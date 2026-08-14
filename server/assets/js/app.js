@@ -29,7 +29,34 @@ const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: {
+    ...colocatedHooks,
+    // Keeps the trash-talk thread pinned to the newest message.
+    ScrollToEnd: {
+      mounted() { this.el.scrollTop = this.el.scrollHeight },
+      updated() { this.el.scrollTop = this.el.scrollHeight },
+    },
+    // The pick clock. The engine owns the deadline; the browser only renders
+    // the countdown, correcting for its own clock skew via server_now.
+    PickClock: {
+      mounted() { this.start() },
+      updated() { this.start() },
+      destroyed() { clearInterval(this.timer) },
+      start() {
+        clearInterval(this.timer)
+        const deadline = new Date(this.el.dataset.deadline).getTime()
+        const serverNow = new Date(this.el.dataset.serverNow).getTime()
+        const skew = Date.now() - serverNow
+        const paint = () => {
+          const left = Math.max(0, Math.round((deadline - (Date.now() - skew)) / 1000))
+          this.el.textContent = `${left}s`
+          this.el.style.color = left <= 5 ? "#FF4557" : left <= 10 ? "#FFB021" : "#F4F5F7"
+        }
+        paint()
+        this.timer = setInterval(paint, 250)
+      },
+    },
+  },
 })
 
 // Show progress bar on live navigation and form submits

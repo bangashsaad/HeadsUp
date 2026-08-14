@@ -143,18 +143,30 @@ defmodule HeadsUpWeb.DraftLive do
 
     ~H"""
     <div class={[
-      "mb-4 rounded-2xl border px-4 py-3",
+      "mb-4 flex items-center justify-between gap-3 rounded-2xl border px-4 py-3",
       if(@my_turn?,
         do: "border-[#C8FF2E]/45 bg-[#C8FF2E]/10",
         else: "border-[#7C5CFF]/45 bg-[#7C5CFF]/10"
       )
     ]}>
-      <p class={["text-lg font-black uppercase", if(@my_turn?, do: "text-[#C8FF2E]", else: "text-[#9F8BFF]")]}>
-        {if @my_turn?, do: "You're on the clock", else: "#{picker_name(@state)} is picking…"}
-      </p>
-      <p class="mt-0.5 text-[11px] font-bold uppercase tracking-wider text-[#8B91A7]">
-        Pick {@state.pick_number} of {@state.total_picks}
-      </p>
+      <div class="min-w-0">
+        <p class={["truncate text-lg font-black uppercase", if(@my_turn?, do: "text-[#C8FF2E]", else: "text-[#9F8BFF]")]}>
+          {if @my_turn?, do: "You're on the clock", else: "#{picker_name(@state)} is picking…"}
+        </p>
+        <p class="mt-0.5 text-[11px] font-bold uppercase tracking-wider text-[#8B91A7]">
+          Pick {@state.pick_number} of {@state.total_picks}
+        </p>
+      </div>
+      <div
+        :if={@state.clock_deadline}
+        id="pick-clock"
+        phx-hook="PickClock"
+        data-deadline={@state.clock_deadline}
+        data-server-now={@state.server_now}
+        class="flex-none rounded-xl border border-[#252A3A] bg-[#0A0B10] px-3 py-2 text-2xl font-black tabular-nums"
+      >
+        —
+      </div>
     </div>
 
     <div class="mb-4 grid grid-cols-2 gap-3">
@@ -193,7 +205,8 @@ defmodule HeadsUpWeb.DraftLive do
           <p class="truncate font-bold">{player.name}</p>
           <p class="text-xs text-[#8B91A7]">
             {player.position} · {player.team}
-            <span :if={player[:injury]} class="text-[#FFB021]">· {injury_label(player.injury)}</span>
+            <span :if={player[:next_game_at]} class="text-[#565D73]">· {game_label(player.next_game_at)}</span>
+            <span :if={player[:injury]} class={injury_class(player.injury)}>· {injury_label(player.injury)}</span>
           </p>
         </div>
         <span class="text-sm font-black text-[#C8FF2E]">{fmt(player.projection)}</span>
@@ -243,7 +256,39 @@ defmodule HeadsUpWeb.DraftLive do
   end
 
   defp injury_label(%{status: status}), do: status |> to_string() |> String.upcase()
+  defp injury_label(%{"status" => status}), do: status |> to_string() |> String.upcase()
   defp injury_label(_), do: nil
+
+  # OUT is a red flag, questionable an amber one — same split as the app.
+  defp injury_class(%{status: :out}), do: "font-bold text-[#FF4557]"
+  defp injury_class(%{"status" => "out"}), do: "font-bold text-[#FF4557]"
+  defp injury_class(_), do: "font-bold text-[#FFB021]"
+
+  # "7:00 PM ET" for today's ET day, "Tmw 7:05 PM ET" for tomorrow's — the
+  # app's nextGameLabel, ported. ET is UTC-4 in season, same as everywhere.
+  defp game_label(iso) when is_binary(iso) do
+    normalized = Regex.replace(~r/T(\d{2}):(\d{2})Z$/, iso, "T\\1:\\2:00Z")
+
+    case DateTime.from_iso8601(normalized) do
+      {:ok, dt, _} ->
+        et = DateTime.add(dt, -4 * 3600, :second)
+        today = DateTime.utc_now() |> DateTime.add(-4 * 3600, :second) |> DateTime.to_date()
+        prefix = if DateTime.to_date(et) == today, do: "", else: "Tmw "
+        {h, m} = {et.hour, et.minute}
+        {h12, ap} = cond do
+          h == 0 -> {12, "AM"}
+          h < 12 -> {h, "AM"}
+          h == 12 -> {12, "PM"}
+          true -> {h - 12, "PM"}
+        end
+        "#{prefix}#{h12}:#{String.pad_leading(to_string(m), 2, "0")} #{ap} ET"
+
+      _ ->
+        nil
+    end
+  end
+
+  defp game_label(_), do: nil
 
   defp fmt(nil), do: "—"
   defp fmt(n) when is_float(n), do: :erlang.float_to_binary(n, decimals: 1)

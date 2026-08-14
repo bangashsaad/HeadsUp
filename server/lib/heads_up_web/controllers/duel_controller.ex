@@ -46,6 +46,40 @@ defmodule HeadsUpWeb.DuelController do
   end
 
   # GET /api/duels/:id/live  (live standings before the duel settles)
+  # --- trash talk: GET/POST /duels/:id/messages ----------------------------
+  # The phone polls the thread on the same cadence as the live score; the web
+  # LiveView gets pushes over PubSub. One Contests implementation behind both.
+
+  def messages(conn, %{"id" => id}) do
+    case Contests.list_messages(conn.assigns.current_user, int(id)) do
+      {:ok, messages} -> json(conn, %{messages: messages})
+      {:error, :not_found} -> conn |> put_status(:not_found) |> json(%{error: "not found"})
+      {:error, _} -> conn |> put_status(:forbidden) |> json(%{error: "not your duel"})
+    end
+  end
+
+  def post_message(conn, %{"id" => id} = params) do
+    case Contests.post_message(conn.assigns.current_user, int(id), params["body"] || "") do
+      {:ok, message} ->
+        json(conn, %{message: message})
+
+      {:error, %Ecto.Changeset{}} ->
+        conn |> put_status(:unprocessable_entity) |> json(%{error: "keep it under 280 characters"})
+
+      {:error, :no_room_yet} ->
+        conn |> put_status(:conflict) |> json(%{error: "the duel hasn't started yet"})
+
+      {:error, :not_found} ->
+        conn |> put_status(:not_found) |> json(%{error: "not found"})
+
+      {:error, _} ->
+        conn |> put_status(:forbidden) |> json(%{error: "not your duel"})
+    end
+  end
+
+  defp int(id) when is_binary(id), do: String.to_integer(id)
+  defp int(id), do: id
+
   def live(conn, %{"id" => id}) do
     user = conn.assigns.current_user
 

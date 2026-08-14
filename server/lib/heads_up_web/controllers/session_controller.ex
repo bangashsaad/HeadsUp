@@ -40,6 +40,8 @@ defmodule HeadsUpWeb.SessionController do
   def signup(conn, %{"user" => params}) do
     case Accounts.register_user(params) do
       {:ok, user} ->
+        # Same welcome the phone's signup gives — the page promises it.
+        _ = HeadsUp.Coins.grant_signup(user.id)
         return_to = UserAuth.return_path(conn)
 
         conn

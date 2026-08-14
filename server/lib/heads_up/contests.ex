@@ -13,7 +13,7 @@ defmodule HeadsUp.Contests do
   alias HeadsUp.Accounts.User
   alias HeadsUp.Coins
   alias HeadsUp.Social
-  alias HeadsUp.Contests.{Duel, Participant, Scoring}
+  alias HeadsUp.Contests.{Duel, Message, Participant, Scoring}
   alias HeadsUp.Drafts.Lineup
   alias HeadsUp.Sports.{Player, Season, Slate}
 
@@ -461,6 +461,74 @@ defmodule HeadsUp.Contests do
   end
 
   def player_ids(%Duel{} = duel), do: [duel.challenger_id, duel.opponent_id]
+
+  # --- trash talk -----------------------------------------------------------
+
+  @doc """
+  Posts a message to a duel's thread and broadcasts it to everyone watching —
+  the mobile channel and the web LiveView subscribe to the same
+  `"duel_chat:<id>"` topic, so one insert reaches every screen.
+
+  Only the duel's players may talk, and only while there is something to talk
+  about: from accepted through settled. A pending challenge has no room yet.
+  """
+  def post_message(%User{} = user, duel_id, body) do
+    with %Duel{} = duel <- Repo.get(Duel, duel_id) || {:error, :not_found},
+         true <- user.id in player_ids(duel) || {:error, :not_your_duel},
+         true <- duel.status in ~w(accepted drafting drafted settled) || {:error, :no_room_yet} do
+      %Message{duel_id: duel.id, user_id: user.id}
+      |> Message.changeset(%{"body" => body})
+      |> Repo.insert()
+      |> case do
+        {:ok, message} ->
+          payload = message_payload(%{message | user: user})
+
+          Phoenix.PubSub.broadcast(HeadsUp.PubSub, "duel_chat:#{duel.id}", {:duel_message, payload})
+
+          {:ok, payload}
+
+        {:error, changeset} ->
+          {:error, changeset}
+      end
+    else
+      {:error, _} = err -> err
+      false -> {:error, :not_your_duel}
+      nil -> {:error, :not_found}
+    end
+  end
+
+  @doc "The thread, oldest first. Capped — trash talk is a stream, not an archive."
+  def list_messages(%User{} = user, duel_id, limit \\ 100) do
+    with %Duel{} = duel <- Repo.get(Duel, duel_id) || {:error, :not_found},
+         true <- user.id in player_ids(duel) || {:error, :not_your_duel} do
+      messages =
+        from(m in Message,
+          where: m.duel_id == ^duel_id,
+          order_by: [desc: m.inserted_at, desc: m.id],
+          limit: ^limit,
+          preload: :user
+        )
+        |> Repo.all()
+        |> Enum.reverse()
+        |> Enum.map(&message_payload/1)
+
+      {:ok, messages}
+    else
+      {:error, _} = err -> err
+      false -> {:error, :not_your_duel}
+    end
+  end
+
+  defp message_payload(%Message{} = m) do
+    %{
+      id: m.id,
+      duel_id: m.duel_id,
+      user_id: m.user_id,
+      username: m.user.username,
+      body: m.body,
+      at: m.inserted_at
+    }
+  end
 
   @doc "The players of a duel as `[%{id, username}]` in seat order (for the draft room)."
   def draft_players(%Duel{opponent_id: nil} = duel) do
