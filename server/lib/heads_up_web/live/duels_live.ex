@@ -1,12 +1,9 @@
 defmodule HeadsUpWeb.DuelsLive do
   @moduledoc """
-  Every duel you're part of — the web counterpart of the app's Duels tab.
-
-  Same split the app uses: ACTIVE is anything that still wants something from
-  someone (pending/accepted/drafting/drafted), PAST is settled plus the
-  declined and cancelled. Actions mirror the app exactly: accept, decline,
-  cancel, rematch. Countering opens the challenge form seeded with the duel's
-  terms, same as the phone.
+  The duels list in the design's exact clothes: avatar-tile rows with status
+  badges on the active tab; W/L-railed rows with the coin swing and REMATCH
+  on the past tab, dead challenges dimmed below. DOM and inline styles from
+  the design export; data and actions are the app's.
   """
   use HeadsUpWeb, :live_view
 
@@ -21,261 +18,258 @@ defmodule HeadsUpWeb.DuelsLive do
     user = socket.assigns.current_user
     duels = Contests.list_duels(user)
 
-    active = Enum.filter(duels, &(&1.status in ~w(pending accepted drafting drafted)))
-    past = Enum.filter(duels, &(&1.status in ~w(settled declined cancelled expired)))
-
-    assign(socket, active: active, past: past)
+    assign(socket,
+      active: Enum.filter(duels, &(&1.status in ~w(pending accepted drafting drafted))),
+      settled: Enum.filter(duels, &(&1.status == "settled")),
+      dead: Enum.filter(duels, &(&1.status in ~w(declined cancelled expired)))
+    )
   end
 
   @impl true
-  def handle_event("tab", %{"tab" => tab}, socket) when tab in ~w(active past) do
-    {:noreply, assign(socket, tab: tab)}
-  end
+  def handle_event("tab", %{"tab" => tab}, socket) when tab in ~w(active past),
+    do: {:noreply, assign(socket, tab: tab)}
 
-  def handle_event("accept", %{"id" => id}, socket) do
-    case Contests.accept_challenge(socket.assigns.current_user, String.to_integer(id)) do
-      {:ok, _} -> {:noreply, socket |> put_flash(:info, "Locked in. Draft time.") |> load()}
-      {:error, reason} -> {:noreply, put_flash(socket, :error, humanize(reason))}
+  def handle_event("accept", %{"id" => id}, socket), do: act(socket, :accept_challenge, id, "Locked in. Draft time.")
+  def handle_event("decline", %{"id" => id}, socket), do: act(socket, :decline_challenge, id, "Declined.")
+  def handle_event("cancel", %{"id" => id}, socket), do: act(socket, :cancel_challenge, id, "Called off.")
+  def handle_event("rematch", %{"id" => id}, socket), do: act(socket, :rematch, id, "Rematch sent — same terms.")
+
+  defp act(socket, fun, id, ok_msg) do
+    case apply(Contests, fun, [socket.assigns.current_user, String.to_integer(id)]) do
+      {:ok, _} -> {:noreply, socket |> put_flash(:info, ok_msg) |> load()}
+      {:error, reason} when is_binary(reason) -> {:noreply, put_flash(socket, :error, reason)}
+      {:error, reason} -> {:noreply, put_flash(socket, :error, "Couldn't do that (#{inspect(reason)}).")}
     end
   end
 
-  def handle_event("decline", %{"id" => id}, socket) do
-    case Contests.decline_challenge(socket.assigns.current_user, String.to_integer(id)) do
-      {:ok, _} -> {:noreply, socket |> put_flash(:info, "Declined.") |> load()}
-      {:error, reason} -> {:noreply, put_flash(socket, :error, humanize(reason))}
-    end
-  end
-
-  def handle_event("cancel", %{"id" => id}, socket) do
-    case Contests.cancel_challenge(socket.assigns.current_user, String.to_integer(id)) do
-      {:ok, _} -> {:noreply, socket |> put_flash(:info, "Called off.") |> load()}
-      {:error, reason} -> {:noreply, put_flash(socket, :error, humanize(reason))}
-    end
-  end
-
-  def handle_event("rematch", %{"id" => id}, socket) do
-    case Contests.rematch(socket.assigns.current_user, String.to_integer(id)) do
-      {:ok, _} -> {:noreply, socket |> put_flash(:info, "Rematch sent — same terms.") |> load()}
-      {:error, reason} -> {:noreply, put_flash(socket, :error, humanize(reason))}
-    end
-  end
-
-  defp humanize(reason) when is_binary(reason), do: reason
-  defp humanize(reason), do: "Couldn't do that (#{inspect(reason)})."
-
-  # --- render ---------------------------------------------------------------
+  # --- render (the design's markup) ------------------------------------------
 
   @impl true
   def render(assigns) do
     ~H"""
     <Layouts.shell current_user={@current_user} flash={@flash}>
-      <div class="mb-5 flex items-center justify-between">
-        <h1 class="hu-cond text-3xl tracking-wide">DUELS</h1>
-        <.link
-          navigate={~p"/app/new"}
-          class="rounded-lg bg-[#C8FF2E] px-3.5 py-2 text-xs font-black uppercase tracking-wide text-[#0A0B10] hover:brightness-110"
-        >
-          + New challenge
-        </.link>
-      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:16px;max-width:860px;width:100%;margin:0 auto;box-sizing:border-box;animation:huw-rise .3s ease">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
+          <span class="hu-cond" style="font-size:24px;letter-spacing:.5px">DUELS</span>
+          <div style="display:flex;gap:6px">
+            <button
+              :for={{key, label} <- [{"active", "ACTIVE"}, {"past", "PAST"}]}
+              phx-click="tab"
+              phx-value-tab={key}
+              style={tab_style(@tab == key)}
+            >
+              {label}
+            </button>
+            <.link navigate={~p"/app/new"} class="hu-cond" style="cursor:pointer;background:var(--acc,#C8FF2E);color:#0A0B10;font-size:14px;border-radius:999px;padding:8px 18px;white-space:nowrap">
+              + NEW
+            </.link>
+          </div>
+        </div>
 
-      <div class="mb-5 flex gap-1 rounded-xl border border-[#1A1E2B] bg-[#0D0F16] p-1">
-        <button
-          :for={{key, label} <- [{"active", "Active"}, {"past", "Past"}]}
-          phx-click="tab"
-          phx-value-tab={key}
-          class={[
-            "flex-1 rounded-lg px-3 py-2 text-xs font-black uppercase tracking-wide",
-            if(@tab == key, do: "bg-[#C8FF2E] text-[#0A0B10]", else: "text-[#8B91A7] hover:text-[#F4F5F7]")
-          ]}
-        >
-          {label}
-        </button>
-      </div>
+        <div :if={@tab == "active"} style="display:flex;flex-direction:column;gap:10px">
+          <p :if={@active == []} style="font-size:12px;color:#565D73;font-weight:600;padding:24px 0;text-align:center">
+            Nothing going. Call somebody out.
+          </p>
+          <div :for={d <- @active} style={"border-radius:14px;border:1px solid #{card_border(d)};background:#12141D;padding:14px 16px"}>
+            <div style="display:flex;align-items:center;gap:12px">
+              <div style={"width:38px;height:38px;flex:none;border-radius:12px;background:#{av_bg(d, @current_user.id)};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#{av_ink(d, @current_user.id)}"}>
+                {initials(title(d, @current_user.id))}
+              </div>
+              <div style="display:flex;flex-direction:column;min-width:0;flex:1">
+                <span style="font-weight:800;font-size:14px">{title(d, @current_user.id)}</span>
+                <span style="font-size:11px;color:#8B91A7;font-weight:600;margin-top:2px">{meta_line(d)}</span>
+              </div>
+              <span style={"flex:none;display:inline-flex;align-items:center;gap:6px;background:#{badge_bg(d, @current_user.id)};border:1px solid #{badge_ink(d, @current_user.id)};border-radius:999px;padding:4px 12px"}>
+                <span :if={blink?(d)} class="huw-blink" style={"width:5px;height:5px;border-radius:3px;background:#{badge_ink(d, @current_user.id)}"}>
+                </span>
+                <span style={"color:#{badge_ink(d, @current_user.id)};font-size:10px;font-weight:900;letter-spacing:1px"}>
+                  {badge(d, @current_user.id)}
+                </span>
+              </span>
+            </div>
 
-      <div :if={@tab == "active"}>
-        <p :if={@active == []} class="rounded-xl border border-[#1A1E2B] bg-[#12141D] px-4 py-8 text-center text-sm text-[#565D73]">
-          Nothing going. Call somebody out.
-        </p>
-        <ul class="space-y-2.5">
-          <li :for={duel <- @active}><.duel_card duel={duel} me={@current_user.id} /></li>
-        </ul>
-      </div>
+            <div :if={respond?(d, @current_user.id)} style="display:flex;gap:8px;margin-top:12px">
+              <button phx-click="accept" phx-value-id={d.id} class="hu-cond" style="cursor:pointer;flex:1;text-align:center;background:var(--acc,#C8FF2E);color:#0A0B10;font-size:15px;border-radius:9px;padding:8px 0;border:none">
+                ACCEPT
+              </button>
+              <.link navigate={~p"/app/new?counter=#{d.id}"} class="hu-cond" style="cursor:pointer;flex:1;text-align:center;border:1px solid #252A3A;color:#F4F5F7;font-size:15px;border-radius:9px;padding:8px 0">
+                COUNTER
+              </.link>
+              <button phx-click="decline" phx-value-id={d.id} class="hu-cond" style="cursor:pointer;flex:1;text-align:center;border:1px solid rgba(255,69,87,.4);color:#FF4557;font-size:15px;border-radius:9px;padding:8px 0;background:transparent">
+                DECLINE
+              </button>
+            </div>
 
-      <div :if={@tab == "past"}>
-        <p :if={@past == []} class="rounded-xl border border-[#1A1E2B] bg-[#12141D] px-4 py-8 text-center text-sm text-[#565D73]">
-          No history yet.
-        </p>
-        <ul class="space-y-2.5">
-          <li :for={duel <- @past}><.past_card duel={duel} me={@current_user.id} /></li>
-        </ul>
+            <div :if={i_sent?(d, @current_user.id)} style="display:flex;gap:8px;margin-top:12px">
+              <button phx-click="cancel" phx-value-id={d.id} class="hu-cond" style="cursor:pointer;flex:none;text-align:center;border:1px solid #252A3A;color:#8B91A7;font-size:13px;border-radius:9px;padding:6px 18px;background:transparent">
+                CALL IT OFF
+              </button>
+            </div>
+
+            <div :if={d.status in ~w(accepted drafting)} style="margin-top:12px">
+              <.link navigate={~p"/app/draft/#{d.id}"} class="hu-cond" style="cursor:pointer;display:inline-block;background:var(--acc,#C8FF2E);color:#0A0B10;font-size:15px;border-radius:999px;padding:8px 22px">
+                ENTER ROOM →
+              </.link>
+            </div>
+            <div :if={d.status == "drafted"} style="margin-top:12px">
+              <.link navigate={~p"/app/live/#{d.id}"} class="hu-cond" style="cursor:pointer;display:inline-block;border:1px solid #FF4557;color:#FF4557;font-size:15px;border-radius:999px;padding:8px 22px">
+                WATCH LIVE →
+              </.link>
+            </div>
+          </div>
+        </div>
+
+        <div :if={@tab == "past"} style="display:flex;flex-direction:column;gap:10px">
+          <p :if={@settled == [] and @dead == []} style="font-size:12px;color:#565D73;font-weight:600;padding:24px 0;text-align:center">
+            No history yet.
+          </p>
+
+          <div :for={d <- @settled} style={"display:flex;align-items:center;gap:12px;border-radius:12px;border:1px solid #252A3A;border-left:3px solid #{res_tint(d, @current_user.id)};background:#12141D;padding:12px 14px"}>
+            <span class="hu-cond" style={"font-size:19px;color:#{res_tint(d, @current_user.id)};width:24px"}>
+              {res(d, @current_user.id)}
+            </span>
+            <.link navigate={~p"/app/results/#{d.id}"} style="cursor:pointer;display:flex;flex-direction:column;min-width:0;flex:1">
+              <span style="font-weight:800;font-size:13.5px">vs {title(d, @current_user.id) |> String.replace_prefix("vs ", "")}</span>
+              <span style="font-size:10.5px;color:#8B91A7;font-weight:600;margin-top:2px">{meta_line(d)}</span>
+            </.link>
+            <span :if={d.stake_coins > 0} style={"font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;color:#{res_tint(d, @current_user.id)}"}>
+              ◎ {swing(d, @current_user.id)}
+            </span>
+            <button
+              :if={d.opponent_id != nil}
+              phx-click="rematch"
+              phx-value-id={d.id}
+              style="cursor:pointer;flex:none;border:1px solid #252A3A;color:#8B91A7;font-size:10px;font-weight:900;letter-spacing:1px;border-radius:999px;padding:5px 12px;background:transparent"
+            >
+              REMATCH
+            </button>
+          </div>
+
+          <span :if={@dead != []} style="font-size:9.5px;font-weight:900;letter-spacing:2px;color:#565D73;margin-top:6px">
+            DECLINED &amp; CANCELLED
+          </span>
+          <div :for={d <- @dead} style="display:flex;align-items:center;gap:12px;border-radius:12px;border:1px solid #1A1E2B;background:#12141D;padding:12px 14px;opacity:.55">
+            <div style="width:32px;height:32px;flex:none;border-radius:10px;background:rgba(139,145,167,.12);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:#8B91A7">
+              {initials(title(d, @current_user.id))}
+            </div>
+            <div style="display:flex;flex-direction:column;min-width:0;flex:1">
+              <span style="font-weight:800;font-size:13px">{title(d, @current_user.id)}</span>
+              <span style="font-size:10.5px;color:#8B91A7;font-weight:600">{meta_line(d)}</span>
+            </div>
+            <span style="font-size:10px;font-weight:900;letter-spacing:1px;color:#565D73;border:1px solid #252A3A;border-radius:999px;padding:4px 11px">
+              {String.upcase(d.status)}
+            </span>
+          </div>
+        </div>
       </div>
     </Layouts.shell>
     """
   end
 
-  attr :duel, :map, required: true
-  attr :me, :integer, required: true
+  # --- design tokens per status ----------------------------------------------
 
-  defp duel_card(assigns) do
-    d = assigns.duel
-    me = assigns.me
+  defp tab_style(true),
+    do:
+      "cursor:pointer;font-size:12px;font-weight:800;letter-spacing:.5px;color:#0A0B10;background:var(--acc,#C8FF2E);border:1px solid var(--acc,#C8FF2E);border-radius:999px;padding:8px 18px;white-space:nowrap"
 
-    assigns =
-      assign(assigns,
-        vs: vs_name(d, me),
-        meta: meta_line(d),
-        i_was_challenged: d.status == "pending" and challenged?(d, me),
-        i_sent_it: d.status == "pending" and not challenged?(d, me)
-      )
-
-    ~H"""
-    <div class="rounded-xl border border-[#252A3A] bg-[#12141D] p-4">
-      <div class="flex items-start justify-between gap-3">
-        <div class="min-w-0">
-          <p class="truncate font-black">{@vs}</p>
-          <p class="mt-0.5 text-xs text-[#8B91A7]">{@meta}</p>
-        </div>
-        <span class={[
-          "flex-none rounded-md px-2 py-1 text-[10px] font-black uppercase tracking-wide",
-          status_tone(@duel.status)
-        ]}>
-          {status_label(@duel.status, @i_was_challenged)}
-        </span>
-      </div>
-
-      <div class="mt-3 flex flex-wrap gap-2">
-        <%= cond do %>
-          <% @i_was_challenged -> %>
-            <.act click="accept" id={@duel.id} primary>Accept</.act>
-            <.act click="decline" id={@duel.id}>Decline</.act>
-            <.link navigate={~p"/app/new?counter=#{@duel.id}"} class={btn(false)}>Counter</.link>
-          <% @i_sent_it -> %>
-            <.act click="cancel" id={@duel.id}>Cancel</.act>
-          <% @duel.status in ["accepted", "drafting"] -> %>
-            <.link navigate={~p"/app/draft/#{@duel.id}"} class={btn(true)}>Enter draft room →</.link>
-          <% @duel.status == "drafted" -> %>
-            <.link navigate={~p"/app/live/#{@duel.id}"} class={btn(true)}>Watch live →</.link>
-          <% true -> %>
-        <% end %>
-      </div>
-    </div>
-    """
-  end
-
-  attr :duel, :map, required: true
-  attr :me, :integer, required: true
-
-  defp past_card(assigns) do
-    d = assigns.duel
-    me = assigns.me
-
-    outcome =
-      cond do
-        d.status != "settled" -> nil
-        d.winner_id == nil -> "T"
-        d.winner_id == me -> "W"
-        true -> "L"
-      end
-
-    assigns = assign(assigns, vs: vs_name(d, me), meta: meta_line(d), outcome: outcome)
-
-    ~H"""
-    <div class="flex items-center gap-3 rounded-xl border border-[#1A1E2B] bg-[#12141D] p-4">
-      <span
-        :if={@outcome}
-        class={[
-          "flex h-9 w-9 flex-none items-center justify-center rounded-full text-sm font-black",
-          @outcome == "W" && "bg-[#C8FF2E]/15 text-[#C8FF2E]",
-          @outcome == "L" && "bg-[#FF4557]/15 text-[#FF4557]",
-          @outcome == "T" && "bg-[#8B91A7]/15 text-[#8B91A7]"
-        ]}
-      >
-        {@outcome}
-      </span>
-      <div class="min-w-0 flex-1">
-        <p class="truncate font-bold">{@vs}</p>
-        <p class="text-xs text-[#8B91A7]">{@meta}</p>
-      </div>
-      <.link
-        :if={@outcome}
-        navigate={~p"/app/results/#{@duel.id}"}
-        class="flex-none text-xs font-black uppercase tracking-wide text-[#C8FF2E] hover:underline"
-      >
-        Result
-      </.link>
-      <button
-        :if={@outcome && !group?(@duel)}
-        phx-click="rematch"
-        phx-value-id={@duel.id}
-        class="flex-none rounded-lg border border-[#252A3A] px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-[#F4F5F7] hover:border-[#C8FF2E]/50"
-      >
-        Rematch
-      </button>
-    </div>
-    """
-  end
-
-  attr :click, :string, required: true
-  attr :id, :integer, required: true
-  attr :primary, :boolean, default: false
-  slot :inner_block, required: true
-
-  defp act(assigns) do
-    ~H"""
-    <button phx-click={@click} phx-value-id={@id} class={btn(@primary)}>{render_slot(@inner_block)}</button>
-    """
-  end
-
-  defp btn(true),
-    do: "rounded-lg bg-[#C8FF2E] px-3.5 py-2 text-xs font-black uppercase tracking-wide text-[#0A0B10] hover:brightness-110"
-
-  defp btn(false),
-    do: "rounded-lg border border-[#252A3A] px-3.5 py-2 text-xs font-bold uppercase tracking-wide text-[#F4F5F7] hover:border-[#C8FF2E]/50"
-
-  # --- labels ---------------------------------------------------------------
+  defp tab_style(false),
+    do:
+      "cursor:pointer;font-size:12px;font-weight:800;letter-spacing:.5px;color:#8B91A7;background:transparent;border:1px solid #252A3A;border-radius:999px;padding:8px 18px;white-space:nowrap"
 
   defp group?(d), do: d.opponent_id == nil
 
-  defp challenged?(d, me) do
-    if group?(d) do
-      Enum.any?(d.participants, &(&1.user_id == me and &1.status == "invited"))
-    else
-      d.opponent_id == me
-    end
+  defp respond?(d, me) do
+    d.status == "pending" and
+      if group?(d),
+        do: Enum.any?(d.participants, &(&1.user_id == me and &1.status == "invited")),
+        else: d.opponent_id == me
   end
 
-  defp vs_name(d, me) do
+  defp i_sent?(d, me), do: d.status == "pending" and not respond?(d, me)
+
+  defp title(d, me) do
     cond do
       group?(d) ->
         host = Enum.find(d.participants, &(&1.seat == 0))
-        n = length(d.participants)
-        "#{(host && host.user.username) || "group"}'s #{n}-player match"
+        "#{(host && host.user.username) || "group"}'s #{length(d.participants)}-player match"
 
       d.challenger_id == me ->
-        "vs #{d.opponent && d.opponent.username}"
+        "vs #{(d.opponent && d.opponent.username) || "them"}"
 
       true ->
-        "vs #{d.challenger && d.challenger.username}"
+        "vs #{(d.challenger && d.challenger.username) || "them"}"
     end
   end
 
   defp meta_line(d) do
-    sport = String.upcase(d.sport)
-    stake = if d.stake_coins > 0, do: " · ◎ #{d.stake_coins} stake", else: " · friendly"
-    "#{sport} · #{d.roster_size} slots#{stake}"
+    emoji = %{"mlb" => "⚾️", "nfl" => "🏈"} |> Map.get(d.sport, "🏀")
+    stake = if d.stake_coins > 0, do: " · ◎ #{d.stake_coins} stake", else: " · no stake"
+    "#{emoji} #{String.upcase(d.sport)} · #{d.roster_size} slots#{stake}"
   end
 
-  defp status_label("pending", true), do: "your call"
-  defp status_label("pending", _), do: "waiting"
-  defp status_label("accepted", _), do: "draft set"
-  defp status_label("drafting", _), do: "drafting"
-  defp status_label("drafted", _), do: "live"
-  defp status_label(other, _), do: other
+  defp badge(d, me) do
+    case d.status do
+      "pending" -> if respond?(d, me), do: "YOUR CALL", else: "WAITING"
+      "accepted" -> "DRAFT SET"
+      "drafting" -> "DRAFTING"
+      "drafted" -> "LIVE"
+      other -> String.upcase(other)
+    end
+  end
 
-  defp status_tone("pending"), do: "bg-[#FFB021]/15 text-[#FFB021]"
-  defp status_tone("accepted"), do: "bg-[#C8FF2E]/15 text-[#C8FF2E]"
-  defp status_tone("drafting"), do: "bg-[#C8FF2E]/15 text-[#C8FF2E]"
-  defp status_tone("drafted"), do: "bg-[#FF4557]/15 text-[#FF4557]"
-  defp status_tone(_), do: "bg-[#8B91A7]/15 text-[#8B91A7]"
+  defp badge_ink(d, me) do
+    case d.status do
+      "pending" -> if respond?(d, me), do: "#FFB021", else: "#8B91A7"
+      "accepted" -> "#C8FF2E"
+      "drafting" -> "#C8FF2E"
+      "drafted" -> "#FF4557"
+      _ -> "#8B91A7"
+    end
+  end
+
+  defp badge_bg(d, me) do
+    case badge_ink(d, me) do
+      "#FFB021" -> "rgba(255,176,33,.12)"
+      "#C8FF2E" -> "rgba(200,255,46,.10)"
+      "#FF4557" -> "rgba(255,69,87,.12)"
+      _ -> "rgba(139,145,167,.10)"
+    end
+  end
+
+  defp blink?(d), do: d.status in ~w(drafting drafted)
+
+  defp card_border(%{status: "drafted"}), do: "rgba(255,69,87,.4)"
+  defp card_border(%{status: s}) when s in ~w(accepted drafting), do: "rgba(200,255,46,.35)"
+  defp card_border(_), do: "#252A3A"
+
+  defp av_bg(d, me), do: if(respond?(d, me), do: "rgba(124,92,255,.18)", else: "rgba(200,255,46,.10)")
+  defp av_ink(d, me), do: if(respond?(d, me), do: "#9F8BFF", else: "#C8FF2E")
+
+  defp initials(name) do
+    name |> String.replace_prefix("vs ", "") |> String.slice(0, 2) |> String.upcase()
+  end
+
+  defp res(d, me) do
+    cond do
+      d.winner_id == nil -> "T"
+      d.winner_id == me -> "W"
+      true -> "L"
+    end
+  end
+
+  defp res_tint(d, me) do
+    case res(d, me) do
+      "W" -> "#C8FF2E"
+      "L" -> "#FF4557"
+      _ -> "#8B91A7"
+    end
+  end
+
+  defp swing(d, me) do
+    case res(d, me) do
+      "W" -> "+#{d.stake_coins}"
+      "L" -> "−#{d.stake_coins}"
+      _ -> "0"
+    end
+  end
 end

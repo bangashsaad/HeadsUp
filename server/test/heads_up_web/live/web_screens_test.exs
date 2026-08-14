@@ -62,14 +62,14 @@ defmodule HeadsUpWeb.WebScreensTest do
       challenge(b, a)
 
       {:ok, view, html} = live(conn, ~p"/app/duels")
-      assert html =~ "your call"
-      assert html =~ "Accept"
+      assert html =~ "YOUR CALL"
+      assert html =~ "ACCEPT"
 
       duel = challenge_of(a)
       render_click(view, "accept", %{"id" => to_string(duel.id)})
 
       assert Repo.get(Duel, duel.id).status == "accepted"
-      assert render(view) =~ "Enter draft room"
+      assert render(view) =~ "ENTER ROOM"
     end
 
     test "declining ends it", %{conn: conn, a: a, b: b} do
@@ -84,7 +84,7 @@ defmodule HeadsUpWeb.WebScreensTest do
       duel = challenge(a, b)
       {:ok, view, html} = live(conn, ~p"/app/duels")
 
-      assert html =~ "waiting"
+      assert html =~ "WAITING"
       render_click(view, "cancel", %{"id" => to_string(duel.id)})
       assert Repo.get(Duel, duel.id).status == "cancelled"
     end
@@ -95,9 +95,9 @@ defmodule HeadsUpWeb.WebScreensTest do
       {:ok, view, html} = live(conn, ~p"/app/new")
 
       # The app's values, verbatim.
-      assert html =~ "5 slots"
+      assert html =~ "5 SLOTS"
       assert html =~ "15 sec"
-      refute html =~ "3 slots"
+      refute html =~ "3 SLOTS"
 
       render_click(view, "rival", %{"id" => to_string(b.id)})
       render_click(view, "roster", %{"n" => "7"})
@@ -150,10 +150,11 @@ defmodule HeadsUpWeb.WebScreensTest do
     test "renders record, standings, and the account controls", %{conn: conn} do
       {:ok, _view, html} = live(conn, ~p"/app/you")
 
-      assert html =~ "Friend standings"
-      assert html =~ "Change password"
-      assert html =~ "Delete account"
-      assert html =~ "Sign out"
+      assert html =~ "YOUR CREW"
+      assert html =~ "HOW YOU WIN"
+      assert html =~ "CHANGE PASSWORD"
+      assert html =~ "DELETE ACCOUNT"
+      assert html =~ "SIGN OUT"
     end
 
     test "change password round-trips", %{conn: conn, a: a} do

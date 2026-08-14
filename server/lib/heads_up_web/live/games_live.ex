@@ -1,9 +1,9 @@
 defmodule HeadsUpWeb.GamesLive do
   @moduledoc """
-  The scoreboard: real games and the player pool, same two lenses as the
-  app's Games tab. Reuses `Sports.Schedule` and `Sports.list_players`
-  directly — no new data paths, so the phone and the browser can't disagree
-  about tonight's slate.
+  The scoreboard in the design's clothes: big tinted game cards with team
+  logos and drop shadows for live games, compact rows for scheduled and final
+  ones, section rules between the states, plus the player-pool browse. Data
+  is the same `Sports.Schedule` the phone reads.
   """
   use HeadsUpWeb, :live_view
 
@@ -16,7 +16,7 @@ defmodule HeadsUpWeb.GamesLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(page_title: "Games", sport: "wnba", mode: "games", query: "")
+     |> assign(page_title: "Scoreboard", sport: "wnba", mode: "games", query: "", sports_list: @sports)
      |> load()}
   end
 
@@ -27,11 +27,21 @@ defmodule HeadsUpWeb.GamesLive do
         _ -> []
       end
 
-    assign(socket, games: games, players: [])
+    assign(socket,
+      live_games: Enum.filter(games, &(&1.state == "in")),
+      pre_games: Enum.filter(games, &(&1.state == "pre")),
+      post_games: Enum.filter(games, &(&1.state == "post")),
+      players: []
+    )
   end
 
   defp load(%{assigns: %{mode: "players", sport: sport, query: q}} = socket) do
-    assign(socket, players: Sports.list_players(sport, q: q, limit: 60), games: [])
+    assign(socket,
+      players: Sports.list_players(sport, q: q, limit: 60),
+      live_games: [],
+      pre_games: [],
+      post_games: []
+    )
   end
 
   @impl true
@@ -49,91 +59,152 @@ defmodule HeadsUpWeb.GamesLive do
 
   def handle_event(_other, _params, socket), do: {:noreply, socket}
 
-  # --- render ---------------------------------------------------------------
+  # --- render (the design's markup) -------------------------------------------
 
   @impl true
   def render(assigns) do
     ~H"""
     <Layouts.shell current_user={@current_user} flash={@flash}>
-      <div class="mb-4 flex items-center justify-between">
-        <h1 class="hu-cond text-3xl tracking-wide">SCOREBOARD</h1>
-        <div class="flex gap-1 rounded-lg border border-[#1A1E2B] bg-[#0D0F16] p-0.5">
+      <div style="flex:1;display:flex;flex-direction:column;gap:12px;max-width:780px;width:100%;margin:0 auto;box-sizing:border-box;animation:huw-rise .3s ease">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
+          <div style="display:flex;flex-direction:column">
+            <span class="hu-cond" style="font-size:24px;letter-spacing:.5px">SCOREBOARD</span>
+            <span style="font-size:11.5px;color:#8B91A7;font-weight:600">Real games, live box scores, fantasy leaders.</span>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button :for={s <- @sports_list} phx-click="sport" phx-value-key={s} class="hu-cond" style={league_pill(@sport == s)}>
+              {String.upcase(s)}
+            </button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:7px;flex-wrap:wrap">
           <button
-            :for={{m, label} <- [{"games", "Games"}, {"players", "Players"}]}
+            :for={{m, label} <- [{"games", "GAMES"}, {"players", "PLAYER POOL"}]}
             phx-click="mode"
             phx-value-m={m}
-            class={[
-              "rounded-md px-3 py-1.5 text-[11px] font-black uppercase tracking-wide",
-              if(@mode == m, do: "bg-[#C8FF2E] text-[#0A0B10]", else: "text-[#8B91A7]")
-            ]}
+            style={day_pill(@mode == m)}
           >
             {label}
           </button>
         </div>
-      </div>
 
-      <div class="mb-4 flex gap-2">
-        <button
-          :for={s <- ["wnba", "mlb", "nfl"]}
-          phx-click="sport"
-          phx-value-key={s}
-          class={[
-            "rounded-lg px-3.5 py-2 text-xs font-black uppercase tracking-wide",
-            if(@sport == s,
-              do: "bg-[#C8FF2E] text-[#0A0B10]",
-              else: "border border-[#252A3A] bg-[#12141D] text-[#B9BECF]"
-            )
-          ]}
-        >
-          {String.upcase(s)}
-        </button>
-      </div>
-
-      <div :if={@mode == "games"}>
-        <p :if={@games == []} class="rounded-xl border border-[#1A1E2B] bg-[#12141D] px-4 py-10 text-center text-sm text-[#565D73]">
-          Quiet night — no games on the slate.
-        </p>
-        <ul class="space-y-2">
-          <li :for={g <- @games} class="flex items-center justify-between rounded-xl border border-[#1A1E2B] bg-[#12141D] px-4 py-3">
-            <div class="flex items-center gap-3">
-              <span class="text-sm font-black">{g.away && g.away.abbrev} @ {g.home && g.home.abbrev}</span>
-              <span :if={g.state == "in"} class="flex items-center gap-1 text-[10px] font-black uppercase text-[#FF4557]">
-                <span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#FF4557]"></span> {g.status}
-              </span>
-              <span :if={g.state == "post"} class="text-[10px] font-black uppercase text-[#8B91A7]">Final</span>
-              <span :if={g.state == "pre"} class="text-[10px] font-bold uppercase text-[#565D73]">{g.status}</span>
+        <%= if @mode == "games" do %>
+          <%!-- LIVE --%>
+          <div :if={@live_games != []} style="display:flex;align-items:center;gap:6px;margin-top:8px">
+            <span class="huw-blink" style="width:6px;height:6px;border-radius:3px;background:#FF4557"></span>
+            <span style="font-size:9.5px;font-weight:900;letter-spacing:2px;color:#FF4557">LIVE NOW</span>
+          </div>
+          <div :for={g <- @live_games} style="position:relative;border-radius:18px;border:1px solid #252A3A;overflow:hidden;background:linear-gradient(120deg,rgba(124,92,255,.12),#12141D 50%,rgba(200,255,46,.06));padding:16px 14px 12px">
+            <div style="display:flex;align-items:center;position:relative">
+              <.team_col side={g.away} />
+              <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:14px">
+                <span class="hu-cond" style="font-size:44px;line-height:1">{(g.away && g.away.score) || "0"}</span>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:3px;min-width:56px">
+                  <div style="display:flex;align-items:center;gap:4px">
+                    <span class="huw-blink" style="width:5px;height:5px;border-radius:3px;background:#FF4557"></span>
+                    <span style="font-size:8px;font-weight:900;letter-spacing:1.5px;color:#FF4557">LIVE</span>
+                  </div>
+                  <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:12px;color:#8B91A7;text-align:center">
+                    {g.status}
+                  </span>
+                </div>
+                <span class="hu-cond" style="font-size:44px;line-height:1">{(g.home && g.home.score) || "0"}</span>
+              </div>
+              <.team_col side={g.home} />
             </div>
-            <span :if={g.state != "pre"} class="text-sm font-black tabular-nums">
-              {g.away && g.away.score}–{g.home && g.home.score}
+          </div>
+
+          <%!-- SCHEDULE --%>
+          <div :if={@pre_games != []} style="display:flex;align-items:center;gap:10px;margin-top:8px">
+            <span style="font-size:10px;font-weight:900;letter-spacing:2px;color:#565D73;white-space:nowrap">SCHEDULE</span>
+            <div style="flex:1;height:1px;background:#1A1E2B"></div>
+          </div>
+          <div :for={g <- @pre_games} style="display:flex;align-items:center;gap:12px;border-radius:13px;border:1px solid #1A1E2B;background:#12141D;padding:11px 15px">
+            <img :if={g.away && g.away.logo} src={g.away.logo} style="width:26px;height:26px;object-fit:contain" alt="" loading="lazy" />
+            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;min-width:100px">
+              {g.away && g.away.abbrev} @ {g.home && g.home.abbrev}
             </span>
-          </li>
-        </ul>
-      </div>
+            <img :if={g.home && g.home.logo} src={g.home.logo} style="width:26px;height:26px;object-fit:contain" alt="" loading="lazy" />
+            <span style="margin-left:auto;font-size:11px;font-weight:800;color:#565D73">{g.status}</span>
+          </div>
 
-      <div :if={@mode == "players"}>
-        <form id="pool-search" phx-change="search" class="mb-3">
-          <input
-            type="text"
-            name="q"
-            value={@query}
-            placeholder="Search the pool"
-            autocomplete="off"
-            class="w-full rounded-xl border border-[#252A3A] bg-[#12141D] px-4 py-2.5 text-sm outline-none focus:border-[#C8FF2E]/60"
-          />
-        </form>
-        <ul class="space-y-1.5">
-          <li :for={p <- @players} class="flex items-center gap-3 rounded-xl border border-[#1A1E2B] bg-[#12141D] px-3 py-2">
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-bold">{p.name}</p>
-              <p class="text-[11px] text-[#8B91A7]">{p.position} · {p.team}</p>
+          <%!-- FINAL --%>
+          <div :if={@post_games != []} style="display:flex;align-items:center;gap:10px;margin-top:8px">
+            <span style="font-size:10px;font-weight:900;letter-spacing:2px;color:#565D73;white-space:nowrap">FINAL</span>
+            <div style="flex:1;height:1px;background:#1A1E2B"></div>
+          </div>
+          <div :for={g <- @post_games} style="display:flex;align-items:center;gap:12px;border-radius:13px;border:1px solid #1A1E2B;background:#12141D;padding:11px 15px;opacity:.8">
+            <img :if={g.away && g.away.logo} src={g.away.logo} style="width:26px;height:26px;object-fit:contain" alt="" loading="lazy" />
+            <span style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:16px;min-width:100px">
+              {g.away && g.away.abbrev} @ {g.home && g.home.abbrev}
+            </span>
+            <img :if={g.home && g.home.logo} src={g.home.logo} style="width:26px;height:26px;object-fit:contain" alt="" loading="lazy" />
+            <span class="hu-cond" style="margin-left:auto;font-size:17px">
+              {(g.away && g.away.score) || ""}–{(g.home && g.home.score) || ""}
+            </span>
+          </div>
+
+          <div :if={@live_games == [] and @pre_games == [] and @post_games == []} style="padding:32px;text-align:center">
+            <p class="hu-cond" style="font-size:22px;color:#8B91A7">QUIET NIGHT</p>
+            <p style="font-size:12px;color:#565D73;font-weight:600">No games on that date — pick another league.</p>
+          </div>
+        <% else %>
+          <form phx-change="search" id="pool-search" style="display:flex;align-items:center;gap:8px;background:#0D0F16;border:1px solid #252A3A;border-radius:999px;padding:9px 15px;margin-top:8px">
+            <span style="width:13px;height:13px;flex:none;background:#565D73;-webkit-mask:url('/icons/bd194911.svg') center/contain no-repeat;mask:url('/icons/bd194911.svg') center/contain no-repeat">
+            </span>
+            <input
+              type="text"
+              name="q"
+              value={@query}
+              autocomplete="off"
+              placeholder="Search the pool"
+              style="flex:1;min-width:0;background:transparent;border:none;color:#F4F5F7;font-family:'Archivo',sans-serif;font-size:12.5px;outline:none"
+            />
+          </form>
+          <div :for={p <- @players} style="display:flex;align-items:center;gap:11px;border-radius:12px;border:1px solid #14171F;background:#12141D;padding:9px 14px">
+            <div style="display:flex;flex-direction:column;min-width:0;flex:1">
+              <span style="font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{p.name}</span>
+              <span style="font-size:10.5px;color:#565D73;font-weight:700">{p.position} · {p.team}</span>
             </div>
-            <span class="text-sm font-black text-[#C8FF2E]">{proj(p.projection)}</span>
-          </li>
-        </ul>
+            <span class="hu-cond" style="font-size:20px;color:#C7CBD9">{proj(p.projection)}</span>
+          </div>
+          <p :if={@players == []} style="padding:22px;text-align:center;font-size:12px;color:#565D73;font-weight:600">
+            No players match — clear the search.
+          </p>
+        <% end %>
       </div>
     </Layouts.shell>
     """
   end
+
+  attr :side, :map, default: nil
+
+  defp team_col(assigns) do
+    ~H"""
+    <div :if={@side} style="width:90px;display:flex;flex-direction:column;align-items:center;gap:2px">
+      <img :if={@side.logo} src={@side.logo} style="width:48px;height:48px;object-fit:contain" alt="" loading="lazy" />
+      <span class="hu-black" style="font-size:16px;margin-top:4px">{@side.abbrev}</span>
+      <span style="font-size:8.5px;font-weight:800;letter-spacing:1px;color:#8B91A7">{@side.name}</span>
+    </div>
+    """
+  end
+
+  defp league_pill(true),
+    do:
+      "cursor:pointer;border:1px solid var(--acc,#C8FF2E);background:rgba(200,255,46,.1);color:var(--acc,#C8FF2E);font-size:15px;border-radius:999px;padding:8px 18px;white-space:nowrap"
+
+  defp league_pill(false),
+    do:
+      "cursor:pointer;border:1px solid #252A3A;background:transparent;color:#8B91A7;font-size:15px;border-radius:999px;padding:8px 18px;white-space:nowrap"
+
+  defp day_pill(true),
+    do:
+      "cursor:pointer;border:1px solid var(--acc,#C8FF2E);background:var(--acc,#C8FF2E);color:#0A0B10;font-size:11px;font-weight:800;letter-spacing:.5px;border-radius:999px;padding:6px 14px;white-space:nowrap"
+
+  defp day_pill(false),
+    do:
+      "cursor:pointer;border:1px solid #252A3A;background:transparent;color:#8B91A7;font-size:11px;font-weight:800;letter-spacing:.5px;border-radius:999px;padding:6px 14px;white-space:nowrap"
 
   defp proj(nil), do: "—"
   defp proj(n) when is_float(n), do: :erlang.float_to_binary(n, decimals: 1)

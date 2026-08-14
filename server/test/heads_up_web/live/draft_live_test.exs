@@ -76,10 +76,10 @@ defmodule HeadsUpWeb.DraftLiveTest do
   test "the lobby renders both players and readying up is broadcast", %{conn: conn, duel: duel, draft: draft, a: a, b: b} do
     {:ok, view, html} = live(conn, ~p"/app/draft/#{duel.id}")
 
-    assert html =~ "Draft lobby"
+    assert html =~ "READY"
     assert html =~ "weba"
     assert html =~ "webb"
-    assert html =~ "I&#39;m ready" or html =~ "I'm ready"
+    assert html =~ "I&#39;M READY" or html =~ "I'M READY"
 
     # Readying from the browser must reach the same engine the phones use.
     render_click(view, "ready", %{})
@@ -87,7 +87,7 @@ defmodule HeadsUpWeb.DraftLiveTest do
 
     # And the other player readying (as a phone would) must reach the browser.
     Server.ready(draft.id, b.id)
-    assert render(view) =~ "on the clock" or render(view) =~ "is picking"
+    assert render(view) =~ "YOUR PICK" or render(view) =~ "PICKING"
   end
 
   test "a pick made on a phone appears in the browser without a refresh", %{conn: conn, duel: duel, draft: draft, a: a, b: b} do
@@ -105,7 +105,10 @@ defmodule HeadsUpWeb.DraftLiveTest do
     Server.make_pick(draft.id, picker, player.id)
 
     html = render(view)
-    assert html =~ player.name
+    # The board shows the pick as a last-name slot chip.
+    assert html =~ (player.name |> String.split() |> List.last())
+    # And the picked player has left the pool list.
+    refute html =~ ">#{player.name}<"
     assert Server.get_state(draft.id).pick_number == 2
   end
 
