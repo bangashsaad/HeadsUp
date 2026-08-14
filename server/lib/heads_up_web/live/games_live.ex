@@ -65,7 +65,7 @@ defmodule HeadsUpWeb.GamesLive do
             <span class="huw-blink" style="width:6px;height:6px;border-radius:3px;background:#FF4557"></span>
             <span style="font-size:9.5px;font-weight:900;letter-spacing:2px;color:#FF4557">LIVE NOW</span>
           </div>
-          <div :for={g <- @live_games} style="position:relative;border-radius:18px;border:1px solid #252A3A;overflow:hidden;background:linear-gradient(120deg,rgba(124,92,255,.12),#12141D 50%,rgba(200,255,46,.06));padding:16px 14px 12px">
+          <.link :for={g <- @live_games} navigate={~p"/app/games/#{g.id}?sport=#{@sport}"} style="display:block;position:relative;border-radius:18px;border:1px solid #252A3A;overflow:hidden;background:linear-gradient(120deg,rgba(124,92,255,.12),#12141D 50%,rgba(200,255,46,.06));padding:16px 14px 12px">
             <div style="display:flex;align-items:center;position:relative">
               <.team_col side={g.away} />
               <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:14px">
@@ -83,19 +83,30 @@ defmodule HeadsUpWeb.GamesLive do
               </div>
               <.team_col side={g.home} />
             </div>
-          </div>
+          </.link>
 
           <%!-- SCHEDULE (the design's two-row card with the right rail) --%>
           <span :if={@pre_games != []} style="font-size:9.5px;font-weight:900;letter-spacing:2px;color:#565D73;margin-top:8px">SCHEDULE</span>
-          <.game_card :for={g <- @pre_games} game={g} right={g.status} right_ink="var(--acc,#C8FF2E)" right_sub="START" dim={false} />
+          <.link :for={g <- @pre_games} navigate={~p"/app/games/#{g.id}?sport=#{@sport}"} style="display:block">
+            <.game_card game={g} right={g.status} right_ink="var(--acc,#C8FF2E)" right_sub="START" dim={false} />
+          </.link>
 
           <%!-- FINAL --%>
           <span :if={@post_games != []} style="font-size:9.5px;font-weight:900;letter-spacing:2px;color:#565D73;margin-top:8px">FINAL</span>
-          <.game_card :for={g <- @post_games} game={g} right="FINAL" right_ink="#565D73" right_sub={nil} dim={true} />
+          <.link :for={g <- @post_games} navigate={~p"/app/games/#{g.id}?sport=#{@sport}"} style="display:block">
+            <.game_card game={g} right="FINAL" right_ink="#565D73" right_sub={nil} dim={true} />
+          </.link>
 
-          <div :if={@live_games == [] and @pre_games == [] and @post_games == []} style="padding:32px;text-align:center">
-            <p class="hu-cond" style="font-size:22px;color:#8B91A7">QUIET NIGHT</p>
-            <p style="font-size:12px;color:#565D73;font-weight:600">No games on that date — pick another day.</p>
+          <div :if={@live_games == [] and @pre_games == [] and @post_games == []} style="padding:60px 20px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px">
+            <span class="hu-cond" style="font-size:20px;color:#8B91A7;letter-spacing:1px">QUIET NIGHT</span>
+            <span style="font-size:12px;color:#565D73;font-weight:600">No games on that date — but tomorrow's slate is loaded.</span>
+            <.link
+              navigate={~p"/app/new"}
+              class="hu-cond"
+              style="cursor:pointer;margin-top:6px;background:var(--acc,#C8FF2E);color:#0A0B10;font-size:16px;letter-spacing:.5px;border-radius:999px;padding:10px 26px"
+            >
+              LINE UP TOMORROW'S DUEL →
+            </.link>
           </div>
         <% end %>
       </div>

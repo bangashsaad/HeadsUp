@@ -28,7 +28,7 @@ defmodule HeadsUpWeb.DraftLive do
       {:ok,
        socket
        |> assign(duel_id: duel_id, draft_id: draft.id, page_title: "Draft room")
-       |> assign(state: Server.get_state(draft.id), search: "", pos: nil)}
+       |> assign(state: Server.get_state(draft.id), search: "", pos: nil, bursts: [])}
     else
       _ ->
         {:ok, socket |> put_flash(:error, "That draft isn't yours to join.") |> redirect(to: "/app")}
@@ -37,6 +37,18 @@ defmodule HeadsUpWeb.DraftLive do
 
   @impl true
   def handle_info({:draft_update, %{state: state}}, socket), do: {:noreply, assign(socket, state: state)}
+
+  # A reaction — from a phone (channel broadcast!) or another browser. Both
+  # arrive on the same topic as a %Phoenix.Socket.Broadcast{}.
+  def handle_info(%Phoenix.Socket.Broadcast{event: "reaction", payload: %{emoji: emoji, user_id: uid}}, socket) do
+    burst = %{id: System.unique_integer([:positive]), emoji: emoji, uid: uid}
+    Process.send_after(self(), {:expire_burst, burst.id}, 2500)
+    {:noreply, update(socket, :bursts, &Enum.take([burst | &1], 6))}
+  end
+
+  def handle_info({:expire_burst, id}, socket),
+    do: {:noreply, update(socket, :bursts, &Enum.reject(&1, fn b -> b.id == id end))}
+
   def handle_info(_other, socket), do: {:noreply, socket}
 
   @impl true
@@ -51,6 +63,20 @@ defmodule HeadsUpWeb.DraftLive do
       _ -> {:noreply, socket}
     end
   end
+
+  @reaction_emojis ~w(🔥 😂 😭 🥶 💀 👑)
+
+  def handle_event("react", %{"e" => emoji}, socket) when emoji in @reaction_emojis do
+    HeadsUpWeb.Endpoint.broadcast(
+      "draft:#{socket.assigns.duel_id}",
+      "reaction",
+      %{emoji: emoji, user_id: socket.assigns.current_user.id}
+    )
+
+    {:noreply, socket}
+  end
+
+  def handle_event("react", _params, socket), do: {:noreply, socket}
 
   def handle_event("search", %{"q" => q}, socket), do: {:noreply, assign(socket, search: q)}
 
@@ -76,7 +102,7 @@ defmodule HeadsUpWeb.DraftLive do
               DRAFT ROOM · VS {@state.players |> rivals(@current_user.id) |> Enum.map(&String.upcase(&1.username)) |> Enum.join(" + ")}
             </span>
             <span style="font-size:11.5px;color:#8B91A7;font-weight:600">
-              {String.upcase(@state.sport)} · snake · {length(@state.slots)} rounds · winner takes the rivalry lead
+              {String.upcase(@state.sport)} · snake · {length(@state.slots)} slots · {@state.pick_clock_seconds}s clock · winner takes the rivalry lead
             </span>
           </div>
 
@@ -131,6 +157,25 @@ defmodule HeadsUpWeb.DraftLive do
             </div>
             <.board_side state={@state} player={rival} mine={false} first={false} />
           <% end %>
+        </div>
+
+        <%!-- REACT (his bar) + the floating bursts --%>
+        <div :if={phase(@state) == :active} style="display:flex;align-items:center;gap:8px;position:relative">
+          <span style="font-size:9.5px;font-weight:900;letter-spacing:2px;color:#565D73">REACT</span>
+          <button
+            :for={e <- ~w(🔥 😂 😭 🥶 💀 👑)}
+            phx-click="react"
+            phx-value-e={e}
+            style="cursor:pointer;width:34px;height:34px;border-radius:999px;border:1px solid #252A3A;background:#12141D;display:flex;align-items:center;justify-content:center;font-size:15px"
+          >
+            {e}
+          </button>
+          <span style="font-size:10px;font-weight:700;color:#565D73">
+            {@state.players |> rivals(@current_user.id) |> Enum.map(& &1.username) |> List.first() || "They"} sees it instantly
+          </span>
+          <div style="position:absolute;right:0;top:-8px;display:flex;gap:6px;pointer-events:none">
+            <span :for={b <- @bursts} class="huw-rise" style="font-size:22px">{b.emoji}</span>
+          </div>
         </div>
 
         <%!-- the pool --%>

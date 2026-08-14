@@ -1,10 +1,28 @@
 <!-- ========== DRAFT ROOM ========== -->
     <sc-if value="{{ isDraft }}" hint-placeholder-val="{{ false }}">
     <div data-screen-label="Web · Draft room" style="flex:1;display:flex;flex-direction:column;gap:16px;padding:28px 34px 50px;max-width:1060px;width:100%;margin:0 auto;box-sizing:border-box;animation:huw-rise .3s ease">
+      <sc-if value="{{ draftEmptyState }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:14px;padding:46px 20px;text-align:center">
+          <div style="display:flex;gap:8px;opacity:.6">
+            <div style="width:46px;height:46px;border-radius:13px;border:1px dashed #3A4157;display:flex;align-items:center;justify-content:center"><span style="font-size:10px;font-weight:800;color:#565D73">G</span></div>
+            <div style="width:46px;height:46px;border-radius:13px;border:1px dashed #3A4157;display:flex;align-items:center;justify-content:center"><span style="font-size:10px;font-weight:800;color:#565D73">G</span></div>
+            <div style="width:46px;height:46px;border-radius:13px;border:1px dashed #3A4157;display:flex;align-items:center;justify-content:center"><span style="font-size:10px;font-weight:800;color:#565D73">F</span></div>
+            <div style="width:46px;height:46px;border-radius:13px;border:1px dashed #3A4157;display:flex;align-items:center;justify-content:center"><span style="font-size:10px;font-weight:800;color:#565D73">F</span></div>
+            <div style="width:46px;height:46px;border-radius:13px;border:1px dashed #3A4157;display:flex;align-items:center;justify-content:center"><span style="font-size:10px;font-weight:800;color:#565D73">FLX</span></div>
+          </div>
+          <span style="font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:32px;line-height:1">WAR ROOM'S DARK<span style="color:var(--acc,#C8FF2E)">.</span></span>
+          <span style="font-size:13px;color:#8B91A7;font-weight:600;max-width:360px">No draft on the clock. Accept a challenge — or send one — and the coin flip starts it.</span>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:6px">
+            <span sc-camel-on-click="{{ goDuels }}" style="cursor:pointer;background:var(--acc,#C8FF2E);color:#0A0B10;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:17px;border-radius:999px;padding:12px 26px" style-hover="filter:brightness(1.08)">VIEW CHALLENGES →</span>
+            <span sc-camel-on-click="{{ goNew }}" style="cursor:pointer;border:1px solid #252A3A;color:#8B91A7;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:17px;border-radius:999px;padding:12px 26px" style-hover="border-color:var(--acc,#C8FF2E);color:var(--acc,#C8FF2E)">+ NEW CHALLENGE</span>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ hasDraftRoom }}" hint-placeholder-val="{{ true }}">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
         <div style="display:flex;flex-direction:column">
           <span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:24px;letter-spacing:.5px">DRAFT ROOM · VS MIKE_HOOPS</span>
-          <span style="font-size:11.5px;color:#8B91A7;font-weight:600">WNBA · snake · 5 rounds · winner takes the rivalry lead</span>
+          <span style="font-size:11.5px;color:#8B91A7;font-weight:600">WNBA · snake · 5 slots · 30s clock · winner takes the rivalry lead</span>
         </div>
         <sc-if value="{{ draftActive }}" hint-placeholder-val="{{ true }}">
           <div style="display:flex;align-items:center;gap:10px;flex:none;white-space:nowrap;background:{{ turnBg }};border:1px solid {{ turnBorder }};border-radius:999px;padding:9px 18px">
@@ -29,7 +47,7 @@
                   <span style="font-size:9px;font-weight:700;color:#C7CBD9;max-width:44px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.name }}</span>
                 </sc-if>
                 <sc-if value="{{ s.empty }}" hint-placeholder-val="{{ true }}">
-                  <div style="width:42px;height:42px;border-radius:12px;border:1px dashed #3A4157;display:flex;align-items:center;justify-content:center"><span style="font-size:9.5px;font-weight:800;color:#565D73">R{{ s.n }}</span></div>
+                  <div style="width:42px;height:42px;border-radius:12px;border:1px dashed #3A4157;display:flex;align-items:center;justify-content:center"><span style="font-size:9.5px;font-weight:800;color:#565D73">{{ s.slot }}</span></div>
                 </sc-if>
               </div>
             </sc-for>
@@ -48,7 +66,7 @@
                   <span style="font-size:9px;font-weight:700;color:#C7CBD9;max-width:44px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ s.name }}</span>
                 </sc-if>
                 <sc-if value="{{ s.empty }}" hint-placeholder-val="{{ true }}">
-                  <div style="width:42px;height:42px;border-radius:12px;border:1px dashed #3A4157;display:flex;align-items:center;justify-content:center"><span style="font-size:9.5px;font-weight:800;color:#565D73">R{{ s.n }}</span></div>
+                  <div style="width:42px;height:42px;border-radius:12px;border:1px dashed #3A4157;display:flex;align-items:center;justify-content:center"><span style="font-size:9.5px;font-weight:800;color:#565D73">{{ s.slot }}</span></div>
                 </sc-if>
               </div>
             </sc-for>
@@ -56,12 +74,20 @@
         </div>
       </div>
 
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:9.5px;font-weight:900;letter-spacing:2px;color:#565D73">REACT</span>
+        <sc-for list="{{ reactOpts }}" as="r" hint-placeholder-count="6">
+          <span sc-camel-on-click="{{ r.send }}" style="cursor:pointer;width:34px;height:34px;border-radius:999px;border:1px solid #252A3A;background:#12141D;display:flex;align-items:center;justify-content:center;font-size:15px" style-hover="border-color:var(--acc,#C8FF2E);transform:scale(1.1)" style-active="transform:scale(.92)">{{ r.e }}</span>
+        </sc-for>
+        <span style="font-size:10px;font-weight:700;color:#565D73;margin-left:4px">Mike sees it instantly</span>
+      </div>
+
       <!-- pool with search + position filters -->
       <div style="border-radius:16px;border:1px solid #252A3A;background:#12141D;overflow:hidden">
         <div style="padding:12px 16px;border-bottom:1px solid #1A1E2B;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
           <span style="font-size:11px;font-weight:900;letter-spacing:1.5px;color:#8B91A7;flex:none">PLAYER POOL</span>
           <div style="display:flex;align-items:center;gap:8px;background:#0D0F16;border:1px solid #252A3A;border-radius:999px;padding:8px 14px;flex:1;min-width:170px;max-width:280px">
-            <span style="width:13px;height:13px;flex:none;background:#565D73;-webkit-mask:url(&quot;bd194911-ca75-46ee-a45b-ffb61325afaf&quot;) center/contain no-repeat;mask:url(&quot;bd194911-ca75-46ee-a45b-ffb61325afaf&quot;) center/contain no-repeat"></span>
+            <span style="width:13px;height:13px;flex:none;background:#565D73;-webkit-mask:url(&quot;64f7d9d4-1a5a-4a8a-bb70-c5adc4dd6e46&quot;) center/contain no-repeat;mask:url(&quot;64f7d9d4-1a5a-4a8a-bb70-c5adc4dd6e46&quot;) center/contain no-repeat"></span>
             <input value="{{ draftQuery }}" sc-camel-on-input="{{ onDraftQuery }}" placeholder="Search the pool…" style="flex:1;min-width:0;background:transparent;border:none;color:#F4F5F7;font-family:'Archivo',sans-serif;font-size:12.5px;outline:none">
           </div>
           <div style="display:flex;gap:6px">
@@ -76,7 +102,7 @@
             <div sc-camel-on-click="{{ p.pick }}" style="cursor:{{ p.cursor }};opacity:{{ p.op }};display:flex;align-items:center;gap:11px;padding:9px 16px;border-bottom:1px solid #14171F" style-hover="background:#151827">
               <img src="{{ p.img }}" style="width:38px;height:38px;flex:none;border-radius:11px;object-fit:cover;object-position:top;background:#1A1E2B" alt="">
               <div style="display:flex;flex-direction:column;min-width:0">
-                <span style="font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.name }}</span>
+                <span style="font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.name }} <span style="font-size:9px;font-weight:900;letter-spacing:1px;color:{{ p.injInk }}">{{ p.inj }}</span></span>
                 <span style="font-size:10.5px;color:#565D73;font-weight:700">{{ p.meta }}</span>
               </div>
               <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
@@ -90,6 +116,7 @@
           <div style="padding:26px;text-align:center;font-size:12px;color:#565D73;font-weight:600">No players match — clear the search or position filter.</div>
         </sc-if>
       </div>
+      </sc-if>
     </div>
     </sc-if>
 

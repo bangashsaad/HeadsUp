@@ -70,40 +70,56 @@ defmodule HeadsUpWeb.ResultsLive do
   def render(assigns) do
     ~H"""
     <Layouts.shell current_user={@current_user} flash={@flash} shell={assigns[:shell] || %{}}>
-      <div class="mx-auto max-w-2xl">
-        <div class={[
-          "rounded-2xl border p-6 text-center",
-          @r.my_outcome == "win" && "border-[#C8FF2E]/50 bg-[#C8FF2E]/10",
-          @r.my_outcome == "loss" && "border-[#FF4557]/40 bg-[#FF4557]/5",
-          @r.my_outcome == "tie" && "border-[#252A3A] bg-[#12141D]"
-        ]}>
-          <p class="hu-cond text-4xl uppercase tracking-wide">
-            {case @r.my_outcome do
-              "win" -> "You took it 🏆"
-              "loss" -> "They got you"
-              _ -> "Dead even"
-            end}
-          </p>
-          <p :if={@r.pot_coins > 0} class="mt-1.5 text-sm font-bold text-[#8B91A7]">
-            {cond do
-              @r.my_outcome == "win" -> "◎ #{@r.pot_coins} pot — yours"
-              @r.my_outcome == "tie" -> "Stakes returned"
-              true -> "◎ #{@r.stake_coins} to the winner"
-            end}
-          </p>
+      <div class="mx-auto max-w-2xl" style="animation:huw-rise .3s ease">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <.link navigate={~p"/app/duels"} style="font-size:11px;font-weight:800;letter-spacing:1px;color:#8B91A7">← BACK TO DUELS</.link>
+          <span style="font-size:11px;font-weight:800;letter-spacing:1px;color:#565D73">{String.upcase(@sport)} · SETTLED</span>
+        </div>
+
+        <%!-- his hero: the big letter, the badges, the score row, the actions --%>
+        <div style={"position:relative;overflow:hidden;border-radius:18px;border:1px solid #{hero_border(@r.my_outcome)};background:#{hero_bg(@r.my_outcome)};padding:22px 24px;display:flex;gap:20px;align-items:center;flex-wrap:wrap"}>
+          <div style={"width:84px;height:84px;flex:none;border-radius:22px;display:flex;align-items:center;justify-content:center;background:#{letter_bg(@r.my_outcome)};border:1px solid #{hero_border(@r.my_outcome)}"}>
+            <span class="hu-cond" style={"font-size:52px;color:#{letter_ink(@r.my_outcome)}"}>{letter(@r.my_outcome)}</span>
+          </div>
+          <div style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:8px">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <span style={"font-size:10px;font-weight:900;letter-spacing:1.5px;color:#{letter_ink(@r.my_outcome)}"}>{badge_text(@r.my_outcome)}</span>
+              <span :if={@r.pot_coins > 0 and @r.my_outcome == "win"} style="font-size:12px;font-weight:800;color:#FFB021">◎ +{@r.pot_coins - @r.stake_coins}</span>
+              <span :if={@r.stake_coins > 0 and @r.my_outcome == "loss"} style="font-size:12px;font-weight:800;color:#565D73">◎ −{@r.stake_coins}</span>
+            </div>
+            <div class="hu-cond" style="font-size:34px;line-height:1">{title(@r.my_outcome)}<span style="color:var(--acc,#C8FF2E)">.</span></div>
+            <div :if={length(@r.standings) == 2} style="display:flex;align-items:center;gap:18px">
+              <div :for={side <- @r.standings} style="display:flex;align-items:baseline;gap:8px">
+                <span style={"font-size:11px;font-weight:900;letter-spacing:1px;color:#{if side.is_me, do: "var(--acc,#C8FF2E)", else: "#8B91A7"}"}>
+                  {if side.is_me, do: "YOU", else: String.upcase(side.username || "THEM")}
+                </span>
+                <span class="hu-cond" style="font-size:28px">{side.total}</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
+              <button
+                :if={length(@r.standings) == 2}
+                phx-click="rematch"
+                class="hu-cond"
+                style="cursor:pointer;background:var(--acc,#C8FF2E);color:#0A0B10;font-size:16px;letter-spacing:.5px;border-radius:999px;padding:11px 24px;border:none"
+              >
+                REMATCH · SAME TERMS →
+              </button>
+              <button
+                id="share-receipt"
+                phx-hook="CopyLink"
+                class="hu-cond"
+                style="cursor:pointer;border:1px solid #252A3A;color:#8B91A7;font-size:16px;letter-spacing:.5px;border-radius:999px;padding:11px 24px;background:transparent"
+              >
+                SHARE THE RECEIPT
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="mt-4 space-y-3">
           <.lineup :for={side <- @r.standings} side={side} sport={@sport} />
         </div>
-
-        <button
-          :if={length(@r.standings) == 2}
-          phx-click="rematch"
-          class="mt-5 w-full rounded-xl bg-[#C8FF2E] px-4 py-3.5 text-sm font-black uppercase tracking-wide text-[#0A0B10] hover:brightness-110"
-        >
-          Run it back — same terms
-        </button>
 
         <.thread chat={@chat} draft={@draft} me={@current_user.id} />
       </div>
@@ -187,4 +203,36 @@ defmodule HeadsUpWeb.ResultsLive do
   defp ordinal(2), do: "2nd"
   defp ordinal(3), do: "3rd"
   defp ordinal(n), do: "#{n}th"
+
+  defp letter("win"), do: "W"
+  defp letter("loss"), do: "L"
+  defp letter(_), do: "T"
+
+  defp letter_ink("win"), do: "var(--acc,#C8FF2E)"
+  defp letter_ink("loss"), do: "#FF4557"
+  defp letter_ink(_), do: "#8B91A7"
+
+  defp letter_bg("win"), do: "rgba(200,255,46,.1)"
+  defp letter_bg("loss"), do: "rgba(255,69,87,.08)"
+  defp letter_bg(_), do: "rgba(139,145,167,.08)"
+
+  defp hero_border("win"), do: "rgba(200,255,46,.45)"
+  defp hero_border("loss"), do: "rgba(255,69,87,.4)"
+  defp hero_border(_), do: "#252A3A"
+
+  defp hero_bg("win"),
+    do: "radial-gradient(500px 240px at 10% 0%,rgba(200,255,46,.12),transparent 65%),#12141D"
+
+  defp hero_bg("loss"),
+    do: "radial-gradient(500px 240px at 10% 0%,rgba(255,69,87,.1),transparent 65%),#12141D"
+
+  defp hero_bg(_), do: "#12141D"
+
+  defp badge_text("win"), do: "VICTORY"
+  defp badge_text("loss"), do: "SETTLED"
+  defp badge_text(_), do: "DEAD EVEN"
+
+  defp title("win"), do: "YOU TOOK IT"
+  defp title("loss"), do: "THEY GOT YOU"
+  defp title(_), do: "SPLIT THE NIGHT"
 end

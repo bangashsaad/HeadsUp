@@ -83,9 +83,29 @@ defmodule HeadsUpWeb.DuelsLive do
         </div>
 
         <div :if={@tab == "active"} style="display:flex;flex-direction:column;gap:10px">
-          <p :if={@active == []} style="font-size:12px;color:#565D73;font-weight:600;padding:24px 0;text-align:center">
-            Nothing going. Call somebody out.
-          </p>
+          <div :if={@active == []} style="display:flex;flex-direction:column;gap:10px">
+            <div style="border-radius:14px;border:1px dashed #3A4157;padding:14px 16px;display:flex;align-items:center;gap:12px;opacity:.55">
+              <div style="width:38px;height:38px;flex:none;border-radius:12px;border:1px dashed #3A4157"></div>
+              <div style="display:flex;flex-direction:column;gap:6px;flex:1">
+                <div style="width:120px;height:9px;border-radius:5px;background:#1A1E2B"></div>
+                <div style="width:190px;height:7px;border-radius:4px;background:#14171F"></div>
+              </div>
+              <div style="width:64px;height:20px;border-radius:999px;border:1px dashed #3A4157"></div>
+            </div>
+            <div style="border-radius:18px;border:1px solid #252A3A;background:radial-gradient(420px 200px at 50% 0%,rgba(124,92,255,.14),transparent 70%),#12141D;padding:30px 24px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">
+              <span class="hu-cond" style="font-size:36px;line-height:1">NO BEEF YET<span style="color:var(--acc,#C8FF2E)">.</span></span>
+              <span style="font-size:13px;color:#8B91A7;font-weight:600;max-width:340px">
+                Your first duel starts with one callout. Pick the terms, pick the rival, let the coin flip.
+              </span>
+              <.link
+                navigate={~p"/app/new"}
+                class="hu-cond huw-pulse"
+                style="cursor:pointer;margin-top:8px;background:var(--acc,#C8FF2E);color:#0A0B10;font-size:18px;letter-spacing:.5px;border-radius:999px;padding:13px 30px"
+              >
+                START YOUR FIRST DUEL →
+              </.link>
+            </div>
+          </div>
           <div :for={d <- @active} style={"border-radius:14px;border:1px solid #{card_border(d)};background:#12141D;padding:14px 16px"}>
             <div style="display:flex;align-items:center;gap:12px">
               <div style={"width:38px;height:38px;flex:none;border-radius:12px;background:#{av_bg(d, @current_user.id)};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#{av_ink(d, @current_user.id)}"}>

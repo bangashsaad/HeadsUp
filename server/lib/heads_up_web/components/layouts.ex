@@ -123,6 +123,7 @@ defmodule HeadsUpWeb.Layouts do
         nav_active: Map.get(assigns.shell, :active),
         nav_duel_count: Map.get(assigns.shell, :duel_count, 0),
         nav_live_path: Map.get(assigns.shell, :live_path),
+        nav_live?: Map.get(assigns.shell, :live?, false),
         nav_draft_path: Map.get(assigns.shell, :draft_path),
         shell_coins: Map.get(assigns.shell, :coins),
         shell_record: Map.get(assigns.shell, :record)
@@ -142,8 +143,8 @@ defmodule HeadsUpWeb.Layouts do
         <nav style="padding:0 12px;display:flex;flex-direction:column;gap:3px">
           <.nav_item navigate="/app" icon="home" label="HOME" active={@nav_active == :home} />
           <.nav_item navigate="/app/duels" icon="flame" label="DUELS" count={@nav_duel_count} active={@nav_active == :duels} />
-          <.nav_item navigate={@nav_draft_path || "/app/duels"} icon="timer" label="DRAFT" active={@nav_active == :draft} />
-          <.nav_item navigate={@nav_live_path || "/app/duels"} icon="pulse" label="LIVE" live={@nav_live_path != nil} active={@nav_active == :live} />
+          <.nav_item navigate={@nav_draft_path || "/app/draft"} icon="timer" label="DRAFT" active={@nav_active == :draft} />
+          <.nav_item navigate={@nav_live_path || "/app/live"} icon="pulse" label="LIVE" live={@nav_live?} active={@nav_active == :live} />
           <.nav_item navigate="/app/games" icon="basketball" label="SCOREBOARD" active={@nav_active == :players} />
           <.nav_item navigate="/app/you" icon="person-circle" label="YOU" active={@nav_active == :profile} />
         </nav>
@@ -205,7 +206,7 @@ defmodule HeadsUpWeb.Layouts do
                 Duels
               </.link>
               <.link
-                :if={@nav_live_path}
+                :if={@nav_live?}
                 navigate={@nav_live_path}
                 class="text-xs font-black uppercase tracking-wide text-[#FF4557]"
               >

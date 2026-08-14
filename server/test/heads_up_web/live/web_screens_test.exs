@@ -152,9 +152,9 @@ defmodule HeadsUpWeb.WebScreensTest do
 
       assert html =~ "YOUR CREW"
       assert html =~ "HOW YOU WIN"
-      assert html =~ "CHANGE PASSWORD"
-      assert html =~ "DELETE ACCOUNT"
-      assert html =~ "SIGN OUT"
+      assert html =~ "Change password"
+      assert html =~ "Delete account"
+      assert html =~ "Sign out"
     end
 
     test "change password round-trips", %{conn: conn, a: a} do

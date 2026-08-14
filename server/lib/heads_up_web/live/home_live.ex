@@ -133,7 +133,7 @@ defmodule HeadsUpWeb.HomeLive do
                 </span>
               </div>
               <span style="font-size:12px;font-weight:700;color:#8B91A7">
-                {win_pct(@record)}% WIN{streak_label(@record)} · ◎ {@coins}
+                {win_pct(@record)}% WIN{streak_label(@record)}
               </span>
             </div>
           </div>
@@ -141,6 +141,27 @@ defmodule HeadsUpWeb.HomeLive do
           <div style="display:flex;align-items:baseline;justify-content:space-between">
             <span class="hu-cond" style="font-size:19px;letter-spacing:1px">YOUR MOVE</span>
             <span style="font-size:11px;font-weight:800;letter-spacing:1px;color:#565D73">{pending_label(@summary)}</span>
+          </div>
+
+          <%!-- his empty state: nobody owes you a move --%>
+          <div
+            :if={@summary.draft_ready == [] and @summary.needs_response == [] and @summary.waiting_on_them == []}
+            style="position:relative;overflow:hidden;border-radius:18px;border:1px dashed #3A4157;padding:28px 24px;display:flex;align-items:center;gap:24px;flex-wrap:wrap"
+          >
+            <div style="position:absolute;right:-10px;top:-34px;font-family:'Archivo Black',sans-serif;font-style:italic;font-size:130px;color:transparent;-webkit-text-stroke:1px rgba(244,245,247,.06);pointer-events:none">
+              VS
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:240px">
+              <span class="hu-cond" style="font-size:34px;line-height:1">ALL QUIET. TOO QUIET<span style="color:var(--acc,#C8FF2E)">.</span></span>
+              <span style="font-size:13px;color:#8B91A7;font-weight:600">Nobody owes you a move — go make someone answer for it.</span>
+            </div>
+            <.link
+              navigate={~p"/app/new"}
+              class="hu-cond huw-pulse"
+              style="cursor:pointer;background:var(--acc,#C8FF2E);color:#0A0B10;font-size:18px;letter-spacing:.5px;border-radius:999px;padding:13px 28px;white-space:nowrap"
+            >
+              CALL SOMEONE OUT →
+            </.link>
           </div>
 
           <%!-- the hero card: your live draft, or the one that's set --%>

@@ -1,0 +1,63 @@
+<!-- ========== RESULTS ========== -->
+    <sc-if value="{{ isResults }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Web · Results" style="flex:1;display:flex;flex-direction:column;gap:16px;padding:28px 34px 50px;max-width:860px;width:100%;margin:0 auto;box-sizing:border-box;animation:huw-rise .3s ease">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <span sc-camel-on-click="{{ goDuels }}" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;color:#8B91A7;font-size:12px;font-weight:800;letter-spacing:.5px" style-hover="color:#F4F5F7"><span style="width:12px;height:12px;background:#8B91A7;-webkit-mask:url(&quot;bd75dbf4-55bf-493b-918e-df0d9a27a1cd&quot;) center/contain no-repeat;mask:url(&quot;bd75dbf4-55bf-493b-918e-df0d9a27a1cd&quot;) center/contain no-repeat"></span>BACK TO DUELS</span>
+        <span style="font-size:11px;font-weight:800;letter-spacing:1px;color:#565D73">{{ resMeta }}</span>
+      </div>
+
+      <div style="position:relative;overflow:hidden;border-radius:20px;border:1px solid {{ resBorder }};background:radial-gradient(640px 300px at 50% -20%,{{ resGlow }},transparent 65%),#12141D;padding:26px 24px 22px">
+        <div style="position:absolute;right:-14px;top:-44px;font-family:'Archivo Black',sans-serif;font-style:italic;font-size:170px;line-height:1;color:transparent;-webkit-text-stroke:1px {{ resStroke }};pointer-events:none">{{ resLetter }}</div>
+        <div style="display:flex;flex-direction:column;gap:16px;position:relative">
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="background:{{ resBadgeBg }};color:#0A0B10;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:15px;letter-spacing:.5px;border-radius:999px;padding:5px 15px">{{ resBadge }}</span>
+            <sc-if value="{{ resSwing }}" hint-placeholder-val="{{ true }}">
+              <span style="border:1px solid {{ resSwingInk }};color:{{ resSwingInk }};font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;border-radius:999px;padding:5px 13px">◎ {{ resSwing }}</span>
+            </sc-if>
+            <span style="margin-left:auto;font-size:11px;font-weight:800;letter-spacing:1px;color:{{ resLeadInk }}">{{ resLead }}</span>
+          </div>
+          <div style="font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:clamp(30px,4.5vw,44px);line-height:1">{{ resTitle }}</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:clamp(24px,5vw,60px)">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+              <span style="font-size:12px;font-weight:900;letter-spacing:1.5px;color:var(--acc,#C8FF2E)">SP1KE</span>
+              <span style="font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:clamp(50px,7vw,80px);line-height:.9;color:{{ resMyInk }}">{{ resMyScore }}</span>
+            </div>
+            <span style="font-family:'Archivo Black',sans-serif;font-style:italic;font-size:22px;color:#565D73">VS</span>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+              <span style="font-size:12px;font-weight:900;letter-spacing:1.5px;color:#8B91A7">{{ resRival }}</span>
+              <span style="font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:clamp(50px,7vw,80px);line-height:.9;color:{{ resTheirInk }}">{{ resTheirScore }}</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+            <span sc-camel-on-click="{{ resRematch }}" style="cursor:pointer;background:var(--acc,#C8FF2E);color:#0A0B10;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:17px;letter-spacing:.5px;border-radius:999px;padding:12px 28px" style-hover="filter:brightness(1.08)" style-active="transform:scale(.98)">REMATCH · SAME TERMS →</span>
+            <span sc-camel-on-click="{{ resShare }}" style="cursor:pointer;border:1px solid #252A3A;color:#8B91A7;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:17px;border-radius:999px;padding:12px 24px" style-hover="border-color:var(--acc,#C8FF2E);color:var(--acc,#C8FF2E)">SHARE THE RECEIPT</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px">
+        <div style="border-radius:16px;border:1px solid {{ resMyCardBorder }};background:#12141D;overflow:hidden">
+          <div style="padding:11px 16px;border-bottom:1px solid #1A1E2B;display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:900;letter-spacing:1.5px;color:var(--acc,#C8FF2E)">YOUR FIVE</span><span style="font-size:11px;font-weight:800;color:#565D73">{{ resMyScore }}</span></div>
+          <sc-for list="{{ resMine }}" as="p" hint-placeholder-count="5">
+            <div style="display:flex;align-items:center;gap:11px;padding:8px 16px;border-bottom:1px solid #14171F;background:{{ p.bg }}">
+              <img src="{{ p.img }}" style="width:34px;height:34px;flex:none;border-radius:10px;object-fit:cover;object-position:top;background:#1A1E2B" alt="">
+              <div style="display:flex;flex-direction:column;min-width:0"><span style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.name }}</span><span style="font-size:10px;font-weight:900;letter-spacing:1px;color:{{ p.tagInk }}">{{ p.tag }}</span></div>
+              <span style="margin-left:auto;font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:21px;color:{{ p.ptsInk }}">{{ p.pts }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="border-radius:16px;border:1px solid #252A3A;background:#12141D;overflow:hidden">
+          <div style="padding:11px 16px;border-bottom:1px solid #1A1E2B;display:flex;justify-content:space-between"><span style="font-size:11px;font-weight:900;letter-spacing:1.5px;color:#8B91A7">{{ resRival }}'S FIVE</span><span style="font-size:11px;font-weight:800;color:#565D73">{{ resTheirScore }}</span></div>
+          <sc-for list="{{ resTheirs }}" as="p" hint-placeholder-count="5">
+            <div style="display:flex;align-items:center;gap:11px;padding:8px 16px;border-bottom:1px solid #14171F">
+              <img src="{{ p.img }}" style="width:34px;height:34px;flex:none;border-radius:10px;object-fit:cover;object-position:top;background:#1A1E2B" alt="">
+              <div style="display:flex;flex-direction:column;min-width:0"><span style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.name }}</span><span style="font-size:10px;font-weight:900;letter-spacing:1px;color:{{ p.tagInk }}">{{ p.tag }}</span></div>
+              <span style="margin-left:auto;font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:21px;color:{{ p.ptsInk }}">{{ p.pts }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    

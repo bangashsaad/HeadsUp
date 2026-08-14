@@ -32,6 +32,17 @@ const liveSocket = new LiveSocket("/live", Socket, {
   hooks: {
     ...colocatedHooks,
     // Keeps the trash-talk thread pinned to the newest message.
+    CopyLink: {
+      mounted() {
+        this.el.addEventListener("click", () => {
+          navigator.clipboard.writeText(window.location.href).then(() => {
+            const prev = this.el.textContent;
+            this.el.textContent = "LINK COPIED ✓";
+            setTimeout(() => (this.el.textContent = prev), 1600);
+          });
+        });
+      },
+    },
     ScrollToEnd: {
       mounted() { this.el.scrollTop = this.el.scrollHeight },
       updated() { this.el.scrollTop = this.el.scrollHeight },

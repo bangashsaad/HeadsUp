@@ -14,7 +14,7 @@
                 <span style="width:22px;height:22px;border-radius:7px;background:{{ r.bg }};border:1px solid {{ r.ink }};color:{{ r.ink }};font-size:11px;font-weight:900;display:flex;align-items:center;justify-content:center">{{ r.l }}</span>
               </sc-for>
             </div>
-            <span style="font-size:12px;font-weight:700;color:#8B91A7">57% WIN · 2.1 AVG PLACE</span>
+            <span style="font-size:12px;font-weight:700;color:#8B91A7">57% WIN · 🔥 W3 STREAK</span>
           </div>
         </div>
 
@@ -23,6 +23,17 @@
           <span style="font-size:11px;font-weight:800;letter-spacing:1px;color:#565D73">{{ pendingLabel }}</span>
         </div>
 
+        <sc-if value="{{ movesEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="position:relative;overflow:hidden;border-radius:18px;border:1px dashed #3A4157;padding:28px 24px;display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+            <div style="position:absolute;right:-10px;top:-34px;font-family:'Archivo Black',sans-serif;font-style:italic;font-size:130px;color:transparent;-webkit-text-stroke:1px rgba(244,245,247,.06);pointer-events:none">VS</div>
+            <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:240px">
+              <span style="font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:34px;line-height:1">ALL QUIET. TOO QUIET<span style="color:var(--acc,#C8FF2E)">.</span></span>
+              <span style="font-size:13px;color:#8B91A7;font-weight:600">Nobody owes you a move — go make someone answer for it.</span>
+            </div>
+            <span sc-camel-on-click="{{ goNew }}" style="cursor:pointer;background:var(--acc,#C8FF2E);color:#0A0B10;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:18px;letter-spacing:.5px;border-radius:999px;padding:13px 28px;animation:huw-pulse 2.4s infinite;white-space:nowrap" style-hover="filter:brightness(1.08)">CALL SOMEONE OUT →</span>
+          </div>
+        </sc-if>
+        <sc-if value="{{ hasMoves }}" hint-placeholder-val="{{ true }}">
         <div sc-camel-on-click="{{ goDraft }}" style="cursor:pointer;position:relative;overflow:hidden;border-radius:18px;border:1px solid color-mix(in srgb,var(--acc,#C8FF2E) 45%,transparent);background:linear-gradient(120deg,color-mix(in srgb,var(--acc,#C8FF2E) 15%,#12141D),#12141D 55%,rgba(124,92,255,.14));padding:20px 24px" style-hover="border-color:var(--acc,#C8FF2E)" style-active="transform:scale(.995)">
           <div style="position:absolute;right:-10px;top:-30px;font-family:'Archivo Black',sans-serif;font-style:italic;font-size:120px;color:transparent;-webkit-text-stroke:1px rgba(244,245,247,.09);pointer-events:none">VS</div>
           <div style="display:flex;align-items:center;justify-content:space-between">
@@ -48,17 +59,19 @@
               </div>
             </sc-if>
             <sc-if value="{{ sarahAccepted }}" hint-placeholder-val="{{ false }}">
-              <div style="margin-top:13px;display:flex;align-items:center;gap:7px;background:rgba(200,255,46,.08);border:1px solid rgba(200,255,46,.35);border-radius:999px;padding:8px 14px;align-self:flex-start"><span style="width:13px;height:13px;background:var(--acc,#C8FF2E);-webkit-mask:url(&quot;39393f35-1c81-4c77-ae93-5d223566f2cb&quot;) center/contain no-repeat;mask:url(&quot;39393f35-1c81-4c77-ae93-5d223566f2cb&quot;) center/contain no-repeat"></span><span style="font-size:12px;font-weight:800;color:var(--acc,#C8FF2E)">ACCEPTED · DRAFT SET FOR 6:30</span></div>
+              <div style="margin-top:13px;display:flex;align-items:center;gap:7px;background:rgba(200,255,46,.08);border:1px solid rgba(200,255,46,.35);border-radius:999px;padding:8px 14px;align-self:flex-start"><span style="width:13px;height:13px;background:var(--acc,#C8FF2E);-webkit-mask:url(&quot;6cde3d56-8bbd-4171-bf4e-d74074ee354e&quot;) center/contain no-repeat;mask:url(&quot;6cde3d56-8bbd-4171-bf4e-d74074ee354e&quot;) center/contain no-repeat"></span><span style="font-size:12px;font-weight:800;color:var(--acc,#C8FF2E)">ACCEPTED · DRAFT SET FOR 6:30</span></div>
             </sc-if>
           </div>
           <div style="border-radius:16px;border:1px solid #252A3A;background:#12141D;padding:17px;display:flex;flex-direction:column">
-            <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px;font-weight:900;letter-spacing:1.2px;color:var(--acc,#C8FF2E)">READY</span><span style="display:inline-block;width:13px;height:13px;background:var(--acc,#C8FF2E);-webkit-mask:url(&quot;d986b787-f251-4cbb-acf1-b94c93abd94f&quot;) center/contain no-repeat;mask:url(&quot;d986b787-f251-4cbb-acf1-b94c93abd94f&quot;) center/contain no-repeat"></span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:11px;font-weight:900;letter-spacing:1.2px;color:var(--acc,#C8FF2E)">READY</span><span style="display:inline-block;width:13px;height:13px;background:var(--acc,#C8FF2E);-webkit-mask:url(&quot;a20f7b81-0e7f-4e42-9bbb-e38c9b7b7098&quot;) center/contain no-repeat;mask:url(&quot;a20f7b81-0e7f-4e42-9bbb-e38c9b7b7098&quot;) center/contain no-repeat"></span></div>
             <div style="font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:23px;margin-top:8px;line-height:1.05">Draft vs tbone anytime</div>
-            <div style="font-size:12px;color:#8B91A7;margin-top:6px;font-weight:600">⚾️ MLB · 7 slots · no stake · async clock</div>
+            <div style="font-size:12px;color:#8B91A7;margin-top:6px;font-weight:600">⚾️ MLB · 7 slots · no stake · 60s clock</div>
             <span sc-camel-on-click="{{ goDraft }}" style="cursor:pointer;margin-top:13px;align-self:flex-start;border:1px solid var(--acc,#C8FF2E);color:var(--acc,#C8FF2E);font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:15px;border-radius:999px;padding:8px 20px" style-hover="background:rgba(200,255,46,.1)">START DRAFT →</span>
           </div>
         </div>
+        </sc-if>
 
+        <sc-if value="{{ hasMoves }}" hint-placeholder-val="{{ true }}">
         <div style="display:flex;align-items:baseline;justify-content:space-between;margin-top:4px">
           <span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:19px;letter-spacing:1px">RIVALRIES</span>
           <span sc-camel-on-click="{{ goProfile }}" style="cursor:pointer;font-size:11px;font-weight:800;letter-spacing:1px;color:var(--acc,#C8FF2E)">ALL RIVALS →</span>
@@ -77,10 +90,12 @@
             </div>
           </sc-for>
         </div>
+        </sc-if>
       </div>
 
       <!-- live duel + slate, side by side -->
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:14px;align-items:start">
+        <sc-if value="{{ hasLiveDuel }}" hint-placeholder-val="{{ true }}">
         <div style="border-radius:16px;border:1px solid #252A3A;background:#12141D;overflow:hidden">
           <div sc-camel-on-click="{{ goLive }}" style="cursor:pointer;padding:13px 16px;border-bottom:1px solid #1A1E2B;display:flex;align-items:center;justify-content:space-between" style-hover="background:#151827">
             <span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:15px;letter-spacing:1px">LIVE DUEL · MIKE_HOOPS</span>
@@ -96,6 +111,7 @@
             <div style="display:flex;justify-content:space-between;margin-top:8px"><span style="font-size:11px;font-weight:700;color:#8B91A7">3 of 5 played</span><span sc-camel-on-click="{{ goLive }}" style="cursor:pointer;font-size:11px;font-weight:900;letter-spacing:1px;color:var(--acc,#C8FF2E)">WATCH →</span></div>
           </div>
         </div>
+        </sc-if>
 
         <div style="border-radius:16px;border:1px solid #252A3A;background:#12141D;overflow:hidden">
           <div style="padding:13px 16px;border-bottom:1px solid #1A1E2B;display:flex;align-items:center;justify-content:space-between">

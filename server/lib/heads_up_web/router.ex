@@ -60,11 +60,14 @@ defmodule HeadsUpWeb.Router do
       live "/app/verify", VerifyLive, :index
       live "/app/duels", DuelsLive, :index
       live "/app/new", NewChallengeLive, :new
+      live "/app/draft", DraftHubLive, :index
       live "/app/draft/:id", DraftLive, :show
+      live "/app/live", LiveHubLive, :index
       live "/app/live/:id", LiveLive, :show
       live "/app/results/:id", ResultsLive, :show
       live "/app/you", YouLive, :index
       live "/app/games", GamesLive, :index
+      live "/app/games/:id", GameDetailLive, :show
     end
   end
 

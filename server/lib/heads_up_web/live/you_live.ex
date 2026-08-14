@@ -159,8 +159,8 @@ defmodule HeadsUpWeb.YouLive do
               <span style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:#565D73">RECORD</span>
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end">
-              <span class="hu-cond" style="font-size:38px;line-height:1">{@record.played}</span>
-              <span style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:#565D73">DUELS</span>
+              <span class="hu-cond" style="font-size:38px;line-height:1">{streak_tile(@record)}</span>
+              <span style="font-size:10px;font-weight:800;letter-spacing:1.5px;color:#565D73">STREAK</span>
             </div>
             <div style="display:flex;flex-direction:column;align-items:flex-end">
               <span class="hu-cond" style="font-size:38px;line-height:1;color:var(--acc,#C8FF2E)">{win_pct(@record)}%</span>
@@ -257,9 +257,35 @@ defmodule HeadsUpWeb.YouLive do
               </div>
             </div>
 
-            <p :if={@friends == []} style="padding:18px;font-size:12px;color:#565D73;font-weight:600">
-              No crew yet. Add friends and the rivalries start.
-            </p>
+            <div :if={@friends == []}>
+              <div style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid #14171F;opacity:.55">
+                <div style="width:36px;height:36px;flex:none;border-radius:11px;border:1px dashed #3A4157"></div>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <div style="width:110px;height:9px;border-radius:5px;background:#1A1E2B"></div>
+                  <div style="width:150px;height:7px;border-radius:4px;background:#14171F"></div>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid #14171F;opacity:.3">
+                <div style="width:36px;height:36px;flex:none;border-radius:11px;border:1px dashed #3A4157"></div>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <div style="width:120px;height:9px;border-radius:5px;background:#1A1E2B"></div>
+                  <div style="width:80px;height:7px;border-radius:4px;background:#14171F"></div>
+                </div>
+              </div>
+              <div style="padding:22px 18px 24px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center">
+                <span class="hu-cond" style="font-size:26px;line-height:1">RIDING SOLO<span style="color:var(--acc,#C8FF2E)">.</span></span>
+                <span style="font-size:12px;color:#8B91A7;font-weight:600;max-width:280px">
+                  Every rivalry starts with a username. Search your people and call them out.
+                </span>
+                <button
+                  phx-click="add-friend-toggle"
+                  class="hu-cond"
+                  style="cursor:pointer;margin-top:4px;background:var(--acc,#C8FF2E);color:#0A0B10;font-size:15px;border-radius:999px;padding:10px 24px;border:none"
+                >
+                  FIND YOUR RIVALS →
+                </button>
+              </div>
+            </div>
             <div
               :for={f <- crew(@friends, @groups, @crew_tab)}
               phx-click="select"
@@ -340,17 +366,32 @@ defmodule HeadsUpWeb.YouLive do
           </div>
         </div>
 
-        <%!-- account --%>
+        <%!-- account (his row list + the verified badge) --%>
         <div style="border-radius:16px;border:1px solid #252A3A;background:#12141D;overflow:hidden">
-          <div style="padding:13px 18px;border-bottom:1px solid #1A1E2B">
+          <div style="padding:13px 18px;border-bottom:1px solid #1A1E2B;display:flex;align-items:center;justify-content:space-between">
             <span style="font-size:10.5px;font-weight:900;letter-spacing:1.5px;color:#565D73">ACCOUNT</span>
+            <span :if={@current_user.email_verified_at} style="display:inline-flex;align-items:center;gap:6px">
+              <span style="width:12px;height:12px;background:var(--acc,#C8FF2E);-webkit-mask:url('/icons/6cde3d56.svg') center/contain no-repeat;mask:url('/icons/6cde3d56.svg') center/contain no-repeat">
+              </span>
+              <span style="font-size:10px;font-weight:800;color:var(--acc,#C8FF2E)">EMAIL VERIFIED</span>
+            </span>
+            <.link :if={!@current_user.email_verified_at} navigate={~p"/app/verify"} style="font-size:10px;font-weight:800;color:#FFB021">
+              VERIFY EMAIL →
+            </.link>
           </div>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;padding:14px 18px">
-            <button phx-click="danger" phx-value-which="password" style={acct_btn()}>CHANGE PASSWORD</button>
-            <.link href="/logout" method="delete" style={acct_btn()}>SIGN OUT</.link>
-            <button phx-click="danger" phx-value-which="delete" style={acct_btn() <> ";color:#FF4557;border-color:rgba(255,69,87,.4)"}>
-              DELETE ACCOUNT
-            </button>
+          <div phx-click="danger" phx-value-which="password" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid #14171F">
+            <span style="font-size:13px;font-weight:700">Change password</span>
+            <span style="width:13px;height:13px;background:#565D73;-webkit-mask:url('/icons/b6200cf4.svg') center/contain no-repeat;mask:url('/icons/b6200cf4.svg') center/contain no-repeat">
+            </span>
+          </div>
+          <.link href="/logout" method="delete" style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid #14171F">
+            <span style="font-size:13px;font-weight:700;color:#F4F5F7">Sign out</span>
+            <span style="width:13px;height:13px;background:#565D73;-webkit-mask:url('/icons/b6200cf4.svg') center/contain no-repeat;mask:url('/icons/b6200cf4.svg') center/contain no-repeat">
+            </span>
+          </.link>
+          <div phx-click="danger" phx-value-which="delete" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px">
+            <span style="font-size:13px;font-weight:700;color:#FF4557">Delete account</span>
+            <span style="font-size:10.5px;color:#565D73;font-weight:600">Permanent — duels are anonymized, coins are gone</span>
           </div>
 
           <div :if={@danger == "password"} style="padding:0 18px 16px">
@@ -508,4 +549,11 @@ defmodule HeadsUpWeb.YouLive do
 
   defp fmt_pts(n) when is_float(n), do: :erlang.float_to_binary(n, decimals: 1)
   defp fmt_pts(n), do: to_string(n)
+
+  defp streak_tile(%{streak: %{count: c, type: t}}) when c > 0 do
+    prefix = if t == "win", do: "🔥 W", else: "L"
+    "#{prefix}#{c}"
+  end
+
+  defp streak_tile(_), do: "—"
 end
