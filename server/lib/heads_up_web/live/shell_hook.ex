@@ -28,6 +28,7 @@ defmodule HeadsUpWeb.ShellHook do
     draft_duel = Enum.find(active, &(&1.status in ~w(accepted drafting)))
 
     shell = %{
+      active: nav_key(socket.view),
       ticker: game_ticker() ++ duel_ticker(active, user.id),
       duel_count: length(active),
       live_path: live_duel && "/app/live/#{live_duel.id}",
@@ -121,4 +122,13 @@ defmodule HeadsUpWeb.ShellHook do
 
   defp score(nil), do: ""
   defp score(side), do: side.score || "0"
+
+  # Which sidebar item this LiveView is.
+  defp nav_key(HeadsUpWeb.HomeLive), do: :home
+  defp nav_key(HeadsUpWeb.DuelsLive), do: :duels
+  defp nav_key(HeadsUpWeb.DraftLive), do: :draft
+  defp nav_key(HeadsUpWeb.LiveLive), do: :live
+  defp nav_key(HeadsUpWeb.GamesLive), do: :players
+  defp nav_key(HeadsUpWeb.YouLive), do: :profile
+  defp nav_key(_), do: nil
 end

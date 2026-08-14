@@ -168,12 +168,10 @@ defmodule HeadsUpWeb.WebScreensTest do
   end
 
   describe "games screen" do
-    test "renders and switches modes without a feed", %{conn: conn} do
-      {:ok, view, html} = live(conn, ~p"/app/games")
+    test "renders games only — the design's scoreboard has no player-pool tab", %{conn: conn} do
+      {:ok, _view, html} = live(conn, ~p"/app/games")
       assert html =~ "SCOREBOARD"
-
-      html = render_click(view, "mode", %{"m" => "players"})
-      assert html =~ "Search the pool"
+      refute html =~ "PLAYER POOL"
     end
   end
 end

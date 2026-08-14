@@ -7,7 +7,6 @@ defmodule HeadsUpWeb.GamesLive do
   """
   use HeadsUpWeb, :live_view
 
-  alias HeadsUp.Sports
   alias HeadsUp.Sports.Schedule
 
   @sports ~w(wnba mlb nfl)
@@ -16,11 +15,11 @@ defmodule HeadsUpWeb.GamesLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(page_title: "Scoreboard", sport: "wnba", mode: "games", query: "", sports_list: @sports)
+     |> assign(page_title: "Scoreboard", sport: "wnba", sports_list: @sports)
      |> load()}
   end
 
-  defp load(%{assigns: %{mode: "games", sport: sport}} = socket) do
+  defp load(%{assigns: %{sport: sport}} = socket) do
     games =
       case Schedule.upcoming(sport) do
         {:ok, list} -> list
@@ -30,31 +29,13 @@ defmodule HeadsUpWeb.GamesLive do
     assign(socket,
       live_games: Enum.filter(games, &(&1.state == "in")),
       pre_games: Enum.filter(games, &(&1.state == "pre")),
-      post_games: Enum.filter(games, &(&1.state == "post")),
-      players: []
-    )
-  end
-
-  defp load(%{assigns: %{mode: "players", sport: sport, query: q}} = socket) do
-    assign(socket,
-      players: Sports.list_players(sport, q: q, limit: 60),
-      live_games: [],
-      pre_games: [],
-      post_games: []
+      post_games: Enum.filter(games, &(&1.state == "post"))
     )
   end
 
   @impl true
   def handle_event("sport", %{"key" => key}, socket) when key in @sports do
     {:noreply, socket |> assign(sport: key) |> load()}
-  end
-
-  def handle_event("mode", %{"m" => m}, socket) when m in ~w(games players) do
-    {:noreply, socket |> assign(mode: m) |> load()}
-  end
-
-  def handle_event("search", %{"q" => q}, socket) do
-    {:noreply, socket |> assign(query: q) |> load()}
   end
 
   def handle_event(_other, _params, socket), do: {:noreply, socket}
@@ -78,18 +59,7 @@ defmodule HeadsUpWeb.GamesLive do
           </div>
         </div>
 
-        <div style="display:flex;gap:7px;flex-wrap:wrap">
-          <button
-            :for={{m, label} <- [{"games", "GAMES"}, {"players", "PLAYER POOL"}]}
-            phx-click="mode"
-            phx-value-m={m}
-            style={day_pill(@mode == m)}
-          >
-            {label}
-          </button>
-        </div>
-
-        <%= if @mode == "games" do %>
+        <%= if true do %>
           <%!-- LIVE --%>
           <div :if={@live_games != []} style="display:flex;align-items:center;gap:6px;margin-top:8px">
             <span class="huw-blink" style="width:6px;height:6px;border-radius:3px;background:#FF4557"></span>
@@ -117,7 +87,7 @@ defmodule HeadsUpWeb.GamesLive do
 
           <%!-- SCHEDULE (the design's two-row card with the right rail) --%>
           <span :if={@pre_games != []} style="font-size:9.5px;font-weight:900;letter-spacing:2px;color:#565D73;margin-top:8px">SCHEDULE</span>
-          <.game_card :for={g <- @pre_games} game={g} right={g.status} right_ink="var(--acc,#C8FF2E)" right_sub="TIP" dim={false} />
+          <.game_card :for={g <- @pre_games} game={g} right={g.status} right_ink="var(--acc,#C8FF2E)" right_sub="START" dim={false} />
 
           <%!-- FINAL --%>
           <span :if={@post_games != []} style="font-size:9.5px;font-weight:900;letter-spacing:2px;color:#565D73;margin-top:8px">FINAL</span>
@@ -127,29 +97,6 @@ defmodule HeadsUpWeb.GamesLive do
             <p class="hu-cond" style="font-size:22px;color:#8B91A7">QUIET NIGHT</p>
             <p style="font-size:12px;color:#565D73;font-weight:600">No games on that date — pick another day.</p>
           </div>
-        <% else %>
-          <form phx-change="search" id="pool-search" style="display:flex;align-items:center;gap:8px;background:#0D0F16;border:1px solid #252A3A;border-radius:999px;padding:9px 15px;margin-top:8px">
-            <span style="width:13px;height:13px;flex:none;background:#565D73;-webkit-mask:url('/icons/bd194911.svg') center/contain no-repeat;mask:url('/icons/bd194911.svg') center/contain no-repeat">
-            </span>
-            <input
-              type="text"
-              name="q"
-              value={@query}
-              autocomplete="off"
-              placeholder="Search the pool"
-              style="flex:1;min-width:0;background:transparent;border:none;color:#F4F5F7;font-family:'Archivo',sans-serif;font-size:12.5px;outline:none"
-            />
-          </form>
-          <div :for={p <- @players} style="display:flex;align-items:center;gap:11px;border-radius:12px;border:1px solid #14171F;background:#12141D;padding:9px 14px">
-            <div style="display:flex;flex-direction:column;min-width:0;flex:1">
-              <span style="font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{p.name}</span>
-              <span style="font-size:10.5px;color:#565D73;font-weight:700">{p.position} · {p.team}</span>
-            </div>
-            <span class="hu-cond" style="font-size:20px;color:#C7CBD9">{proj(p.projection)}</span>
-          </div>
-          <p :if={@players == []} style="padding:22px;text-align:center;font-size:12px;color:#565D73;font-weight:600">
-            No players match — clear the search.
-          </p>
         <% end %>
       </div>
     </Layouts.shell>

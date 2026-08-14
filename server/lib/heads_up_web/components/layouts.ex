@@ -120,6 +120,7 @@ defmodule HeadsUpWeb.Layouts do
     assigns =
       Phoenix.Component.assign(assigns,
         ticker: Map.get(assigns.shell, :ticker, []),
+        nav_active: Map.get(assigns.shell, :active),
         nav_duel_count: Map.get(assigns.shell, :duel_count, 0),
         nav_live_path: Map.get(assigns.shell, :live_path),
         nav_draft_path: Map.get(assigns.shell, :draft_path),
@@ -139,12 +140,12 @@ defmodule HeadsUpWeb.Layouts do
         </.link>
 
         <nav style="padding:0 12px;display:flex;flex-direction:column;gap:3px">
-          <.nav_item navigate="/app" icon="home" label="HOME" />
-          <.nav_item navigate="/app/duels" icon="flame" label="DUELS" count={@nav_duel_count} />
-          <.nav_item navigate={@nav_draft_path || "/app/duels"} icon="timer" label="DRAFT" />
-          <.nav_item navigate={@nav_live_path || "/app/duels"} icon="pulse" label="LIVE" live={@nav_live_path != nil} />
-          <.nav_item navigate="/app/games" icon="basketball" label="SCOREBOARD" />
-          <.nav_item navigate="/app/you" icon="person-circle" label="YOU" />
+          <.nav_item navigate="/app" icon="home" label="HOME" active={@nav_active == :home} />
+          <.nav_item navigate="/app/duels" icon="flame" label="DUELS" count={@nav_duel_count} active={@nav_active == :duels} />
+          <.nav_item navigate={@nav_draft_path || "/app/duels"} icon="timer" label="DRAFT" active={@nav_active == :draft} />
+          <.nav_item navigate={@nav_live_path || "/app/duels"} icon="pulse" label="LIVE" live={@nav_live_path != nil} active={@nav_active == :live} />
+          <.nav_item navigate="/app/games" icon="basketball" label="SCOREBOARD" active={@nav_active == :players} />
+          <.nav_item navigate="/app/you" icon="person-circle" label="YOU" active={@nav_active == :profile} />
         </nav>
 
         <div style="padding:16px 12px">
@@ -249,17 +250,18 @@ defmodule HeadsUpWeb.Layouts do
   attr :label, :string, required: true
   attr :count, :integer, default: 0
   attr :live, :boolean, default: false
+  attr :active, :boolean, default: false
 
   defp nav_item(assigns) do
     ~H"""
     <.link
       navigate={@navigate}
       class="hover:bg-[#151827]"
-      style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px"
+      style={"cursor:pointer;display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;background:#{if @active, do: "rgba(200,255,46,.08)", else: "transparent"};border:1px solid #{if @active, do: "rgba(200,255,46,.35)", else: "transparent"}"}
     >
-      <span style={"width:16px;height:16px;flex:none;background:#8B91A7;-webkit-mask:url('/icons/#{@icon}.svg') center/contain no-repeat;mask:url('/icons/#{@icon}.svg') center/contain no-repeat"}>
+      <span style={"width:16px;height:16px;flex:none;background:#{if @active, do: "var(--acc,#C8FF2E)", else: "#8B91A7"};-webkit-mask:url('/icons/#{@icon}.svg') center/contain no-repeat;mask:url('/icons/#{@icon}.svg') center/contain no-repeat"}>
       </span>
-      <span style="font-weight:800;font-size:12.5px;letter-spacing:.5px;color:#B9BECF">{@label}</span>
+      <span style={"font-weight:800;font-size:12.5px;letter-spacing:.5px;color:#{if @active, do: "var(--acc,#C8FF2E)", else: "#B9BECF"}"}>{@label}</span>
       <span
         :if={@live}
         style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;background:rgba(255,69,87,.15);border:1px solid #FF4557;border-radius:999px;padding:2px 7px"
