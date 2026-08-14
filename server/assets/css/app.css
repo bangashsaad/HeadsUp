@@ -106,3 +106,19 @@
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
 /* This file is for your main application CSS */
+
+
+/* ---- Heads Up design language (ported from the Claude Design export) ---- */
+/* The brand faces: Archivo for body, Archivo Black for the wordmark, Barlow
+   Condensed italic for the shouty display type. Same faces the app loads. */
+.hu-body { font-family: 'Archivo', system-ui, sans-serif; }
+.hu-black { font-family: 'Archivo Black', sans-serif; font-style: italic; }
+.hu-cond { font-family: 'Barlow Condensed', sans-serif; font-weight: 800; font-style: italic; }
+
+@keyframes huw-blink { 0%, 100% { opacity: 1 } 50% { opacity: .25 } }
+@keyframes huw-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(200,255,46,.35) } 50% { box-shadow: 0 0 0 8px rgba(200,255,46,0) } }
+@keyframes huw-rise { 0% { transform: translateY(8px); opacity: 0 } 100% { transform: translateY(0); opacity: 1 } }
+@keyframes huw-toast { 0% { transform: translateY(14px); opacity: 0 } 100% { transform: translateY(0); opacity: 1 } }
+.huw-blink { animation: huw-blink 1.1s infinite }
+.huw-pulse { animation: huw-pulse 2.6s infinite }
+.huw-rise { animation: huw-rise .3s ease }

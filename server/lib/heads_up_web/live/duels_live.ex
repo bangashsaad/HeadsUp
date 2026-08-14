@@ -70,7 +70,7 @@ defmodule HeadsUpWeb.DuelsLive do
     ~H"""
     <Layouts.shell current_user={@current_user} flash={@flash}>
       <div class="mb-5 flex items-center justify-between">
-        <h1 class="text-2xl font-black">Duels</h1>
+        <h1 class="hu-cond text-3xl tracking-wide">DUELS</h1>
         <.link
           navigate={~p"/app/new"}
           class="rounded-lg bg-[#C8FF2E] px-3.5 py-2 text-xs font-black uppercase tracking-wide text-[#0A0B10] hover:brightness-110"

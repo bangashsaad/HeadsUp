@@ -56,7 +56,7 @@ defmodule HeadsUpWeb.GamesLive do
     ~H"""
     <Layouts.shell current_user={@current_user} flash={@flash}>
       <div class="mb-4 flex items-center justify-between">
-        <h1 class="text-2xl font-black">Scoreboard</h1>
+        <h1 class="hu-cond text-3xl tracking-wide">SCOREBOARD</h1>
         <div class="flex gap-1 rounded-lg border border-[#1A1E2B] bg-[#0D0F16] p-0.5">
           <button
             :for={{m, label} <- [{"games", "Games"}, {"players", "Players"}]}

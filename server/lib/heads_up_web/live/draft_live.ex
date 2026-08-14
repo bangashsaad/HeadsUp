@@ -150,7 +150,7 @@ defmodule HeadsUpWeb.DraftLive do
       )
     ]}>
       <div class="min-w-0">
-        <p class={["truncate text-lg font-black uppercase", if(@my_turn?, do: "text-[#C8FF2E]", else: "text-[#9F8BFF]")]}>
+        <p class={["hu-cond truncate text-xl uppercase tracking-wide", if(@my_turn?, do: "text-[#C8FF2E]", else: "text-[#9F8BFF]")]}>
           {if @my_turn?, do: "You're on the clock", else: "#{picker_name(@state)} is picking…"}
         </p>
         <p class="mt-0.5 text-[11px] font-bold uppercase tracking-wider text-[#8B91A7]">

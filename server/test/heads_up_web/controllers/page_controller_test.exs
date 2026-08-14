@@ -8,7 +8,7 @@ defmodule HeadsUpWeb.PageControllerTest do
     html = conn |> get(~p"/") |> html_response(200)
 
     assert html =~ "Heads"
-    assert html =~ "Challenge a friend"
+    assert html =~ "CALL OUT"
     assert html =~ "/signup"
     # The stock Phoenix page is what shipped here by accident once.
     refute html =~ "Phoenix Framework"

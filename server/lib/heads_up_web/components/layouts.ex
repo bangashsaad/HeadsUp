@@ -110,35 +110,85 @@ defmodule HeadsUpWeb.Layouts do
 
   def shell(assigns) do
     ~H"""
-    <div class="min-h-dvh bg-[#0A0B10] text-[#F4F5F7]">
-      <header class="sticky top-0 z-20 border-b border-[#1A1E2B] bg-[#0A0B10]/95 backdrop-blur">
-        <div class="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
-          <.link navigate="/app" class="text-lg font-black uppercase tracking-tight">
-            Heads<span class="text-[#C8FF2E]">Up</span>
-          </.link>
-          <nav :if={@current_user} class="flex items-center gap-4">
-            <.link navigate="/app" class="text-xs font-black uppercase tracking-wide text-[#8B91A7] hover:text-[#F4F5F7]">
-              Home
-            </.link>
-            <.link navigate="/app/duels" class="text-xs font-black uppercase tracking-wide text-[#8B91A7] hover:text-[#F4F5F7]">
-              Duels
-            </.link>
-            <.link navigate="/app/games" class="text-xs font-black uppercase tracking-wide text-[#8B91A7] hover:text-[#F4F5F7]">
-              Games
-            </.link>
-            <.link navigate="/app/new" class="text-xs font-black uppercase tracking-wide text-[#C8FF2E] hover:brightness-110">
-              + New
-            </.link>
-            <.link navigate="/app/you" class="text-xs font-black uppercase tracking-wide text-[#8B91A7] hover:text-[#F4F5F7]">
-              You
-            </.link>
-          </nav>
-        </div>
-      </header>
+    <div class="flex min-h-dvh bg-[#07080C] text-[#F4F5F7]">
+      <%!-- The design's sidebar — desktop only; phones get the top bar below. --%>
+      <aside class="sticky top-0 hidden h-dvh w-[230px] flex-none flex-col border-r border-[#1A1E2B] bg-[#0D0F16] lg:flex">
+        <.link navigate="/app" class="flex flex-col px-[22px] pb-5 pt-6">
+          <span class="hu-black text-[23px] leading-none tracking-[-0.5px]">
+            <span class="text-[#F4F5F7]">HEADS</span><span class="text-[#C8FF2E]">UP</span>
+          </span>
+          <span class="mt-1 text-[9px] font-extrabold tracking-[3.5px] text-[#565D73]">FANTASY DUELS</span>
+        </.link>
 
-      <.flash_group flash={@flash} />
-      <main class="mx-auto max-w-3xl px-4 py-5">{render_slot(@inner_block)}</main>
+        <nav class="flex flex-col gap-[3px] px-3">
+          <.side_item navigate="/app" label="HOME" />
+          <.side_item navigate="/app/duels" label="DUELS" />
+          <.side_item navigate="/app/games" label="SCOREBOARD" />
+          <.side_item navigate="/app/you" label="PROFILE" />
+        </nav>
+
+        <div class="p-3 pt-4">
+          <.link
+            navigate="/app/new"
+            class="hu-cond huw-pulse block rounded-xl bg-[#C8FF2E] p-3 text-center text-[17px] tracking-[0.5px] text-[#0A0B10] hover:brightness-105"
+          >
+            + NEW DUEL
+          </.link>
+        </div>
+
+        <div :if={@current_user} class="mt-auto border-t border-[#1A1E2B] px-[22px] py-4">
+          <p class="truncate text-xs font-extrabold text-[#B9BECF]">{@current_user.username}</p>
+          <.link href="/logout" method="delete" class="text-[10px] font-bold uppercase tracking-wide text-[#565D73] hover:text-[#F4F5F7]">
+            Sign out
+          </.link>
+        </div>
+      </aside>
+
+      <div class="min-w-0 flex-1">
+        <%!-- Phone chrome: wordmark + the same nav, horizontal. --%>
+        <header class="sticky top-0 z-20 border-b border-[#1A1E2B] bg-[#0A0B10]/95 backdrop-blur lg:hidden">
+          <div class="flex items-center justify-between px-4 py-3">
+            <.link navigate="/app" class="hu-black text-lg leading-none tracking-[-0.5px]">
+              <span class="text-[#F4F5F7]">HEADS</span><span class="text-[#C8FF2E]">UP</span>
+            </.link>
+            <nav :if={@current_user} class="flex items-center gap-4">
+              <.link navigate="/app" class="text-xs font-black uppercase tracking-wide text-[#8B91A7] hover:text-[#F4F5F7]">
+                Home
+              </.link>
+              <.link navigate="/app/duels" class="text-xs font-black uppercase tracking-wide text-[#8B91A7] hover:text-[#F4F5F7]">
+                Duels
+              </.link>
+              <.link navigate="/app/games" class="text-xs font-black uppercase tracking-wide text-[#8B91A7] hover:text-[#F4F5F7]">
+                Games
+              </.link>
+              <.link navigate="/app/new" class="text-xs font-black uppercase tracking-wide text-[#C8FF2E] hover:brightness-110">
+                + New
+              </.link>
+              <.link navigate="/app/you" class="text-xs font-black uppercase tracking-wide text-[#8B91A7] hover:text-[#F4F5F7]">
+                You
+              </.link>
+            </nav>
+          </div>
+        </header>
+
+        <.flash_group flash={@flash} />
+        <main class="mx-auto max-w-3xl px-4 py-5 lg:max-w-none lg:px-8 lg:py-7">{render_slot(@inner_block)}</main>
+      </div>
     </div>
+    """
+  end
+
+  attr :navigate, :string, required: true
+  attr :label, :string, required: true
+
+  defp side_item(assigns) do
+    ~H"""
+    <.link
+      navigate={@navigate}
+      class="flex items-center gap-3 rounded-[10px] px-3.5 py-[11px] text-[12.5px] font-extrabold tracking-[0.5px] text-[#8B91A7] hover:bg-[#151827] hover:text-[#F4F5F7]"
+    >
+      {@label}
+    </.link>
     """
   end
 

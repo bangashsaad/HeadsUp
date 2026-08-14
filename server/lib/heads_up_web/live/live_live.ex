@@ -119,7 +119,7 @@ defmodule HeadsUpWeb.LiveLive do
     ~H"""
     <div class="rounded-2xl border border-[#252A3A] bg-[#12141D] p-5">
       <div class="mb-3 flex items-center justify-between">
-        <span class="text-[10px] font-black uppercase tracking-[0.2em] text-[#8B91A7]">Head-to-head</span>
+        <span class="hu-cond text-[15px] tracking-[1px] text-[#8B91A7]">HEAD-TO-HEAD</span>
         <span class="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wide text-[#FF4557]">
           <span class="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-[#FF4557]"></span> Live
         </span>
@@ -196,7 +196,7 @@ defmodule HeadsUpWeb.LiveLive do
     ~H"""
     <div class="flex max-h-[70vh] flex-col rounded-2xl border border-[#252A3A] bg-[#0D0F16]">
       <div class="flex flex-none items-center justify-between border-b border-[#1A1E2B] px-4 py-3">
-        <span class="text-sm font-black uppercase tracking-wide">Trash talk</span>
+        <span class="hu-cond text-[15px] tracking-[1px]">TRASH TALK</span>
         <span class="text-[10px] font-bold uppercase tracking-wide text-[#565D73]">Duel only</span>
       </div>
 

@@ -75,7 +75,7 @@ defmodule HeadsUpWeb.YouLive do
     <Layouts.shell current_user={@current_user} flash={@flash}>
       <div class="mx-auto max-w-2xl">
         <div class="flex items-baseline justify-between">
-          <h1 class="text-2xl font-black">{@current_user.username}</h1>
+          <h1 class="hu-cond text-3xl tracking-wide">{@current_user.username}</h1>
           <span class="text-sm font-bold text-[#C8FF2E]">◎ {@coins}</span>
         </div>
 

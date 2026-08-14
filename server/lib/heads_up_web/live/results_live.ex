@@ -77,7 +77,7 @@ defmodule HeadsUpWeb.ResultsLive do
           @r.my_outcome == "loss" && "border-[#FF4557]/40 bg-[#FF4557]/5",
           @r.my_outcome == "tie" && "border-[#252A3A] bg-[#12141D]"
         ]}>
-          <p class="text-3xl font-black uppercase">
+          <p class="hu-cond text-4xl uppercase tracking-wide">
             {case @r.my_outcome do
               "win" -> "You took it 🏆"
               "loss" -> "They got you"

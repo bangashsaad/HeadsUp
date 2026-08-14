@@ -230,7 +230,7 @@ defmodule HeadsUpWeb.NewChallengeLive do
     ~H"""
     <Layouts.shell current_user={@current_user} flash={@flash}>
       <div class="mx-auto max-w-xl">
-        <h1 class="text-2xl font-black">{if @counter, do: "Counter offer", else: "New challenge"}</h1>
+        <h1 class="hu-cond text-3xl tracking-wide">{if @counter, do: "COUNTER OFFER", else: "NEW CHALLENGE"}</h1>
         <p class="mt-1 text-sm text-[#8B91A7]">
           {if @counter,
             do: "You're editing #{@counter.challenger.username}'s terms — sending returns it to them.",

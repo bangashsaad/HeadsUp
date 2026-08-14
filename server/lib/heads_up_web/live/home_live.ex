@@ -27,7 +27,7 @@ defmodule HeadsUpWeb.HomeLive do
     ~H"""
     <Layouts.shell current_user={@current_user} flash={@flash}>
       <div class="mb-6 flex items-baseline justify-between">
-        <h1 class="text-2xl font-black">Your duels</h1>
+        <h1 class="hu-cond text-3xl tracking-wide">YOUR MOVE</h1>
         <span class="text-sm font-bold text-[#C8FF2E]">{@coins} coins</span>
       </div>
 

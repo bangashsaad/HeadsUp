@@ -14,6 +14,15 @@ defmodule HeadsUpWeb.WebScreensTest do
   alias HeadsUpWeb.UserAuth
 
   setup %{conn: conn} do
+    # NewChallengeLive's mount probes Season, which caches per sport for an
+    # hour in persistent_term. A fail-open probe cached HERE would leak into
+    # season_test's positively-gated assertions — clear ours on the way out.
+    on_exit(fn ->
+      for sport <- ~w(wnba nba mlb nfl) do
+        :persistent_term.erase({HeadsUp.Sports.Season, sport})
+      end
+    end)
+
     a = user("weba2")
     b = user("webb2")
     Repo.insert!(%Friendship{requester_id: a.id, addressee_id: b.id, status: "accepted"})
@@ -160,7 +169,7 @@ defmodule HeadsUpWeb.WebScreensTest do
   describe "games screen" do
     test "renders and switches modes without a feed", %{conn: conn} do
       {:ok, view, html} = live(conn, ~p"/app/games")
-      assert html =~ "Scoreboard"
+      assert html =~ "SCOREBOARD"
 
       html = render_click(view, "mode", %{"m" => "players"})
       assert html =~ "Search the pool"
