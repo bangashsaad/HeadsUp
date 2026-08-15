@@ -1,4 +1,7 @@
-# Live-app snapshots — what the web app ACTUALLY looks like right now
+# WEBSITE snapshots — what the web app ACTUALLY looks like right now
+
+> These are the **website's** screens. For the **iPhone app**, use
+> `../app-snapshots/` instead.
 
 Each file here is the real rendered HTML of one screen, captured from
 production and made self-contained (styles inlined, LiveView plumbing
