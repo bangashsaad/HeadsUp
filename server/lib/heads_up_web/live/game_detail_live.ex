@@ -71,6 +71,56 @@ defmodule HeadsUpWeb.GameDetailLive do
 
   def handle_info(_other, socket), do: {:noreply, socket}
 
+
+  @doc false
+  attr :box, :map, required: true
+  attr :sport, :string, required: true
+  attr :state, :string, required: true
+
+  def box_section(assigns) do
+    ~H"""
+    <%= if @box != nil do %>
+                  <%= for t <- @box.teams do %>
+                    <div style="display:flex;flex-direction:column;gap:8px">
+                      <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
+                        <img src={t.logo} style="width:19px;height:19px;object-fit:contain" alt="">
+                        <span style="font-family:'Archivo Black',sans-serif;font-style:italic;font-size:15px;letter-spacing:1px">{t.head}</span>
+                        <div style="flex:1;height:1px;background:#1A1E2B"></div>
+                      </div>
+                      <%= for g <- t.groups do %>
+                        <div style="display:flex;flex-direction:column;gap:5px">
+                          <%= if g.label != nil do %><span style="font-size:9px;font-weight:900;letter-spacing:1.5px;color:#565D73;margin-left:2px">{g.label}</span><% end %>
+                          <div style="border-radius:14px;border:1px solid #252A3A;background:#12141D;overflow-x:auto">
+                            <div style="min-width:480px">
+                              <div style="display:flex;align-items:center;background:#191C28;padding:7px 0">
+                                <span style="flex:1;min-width:130px;padding-left:14px;font-size:9px;font-weight:900;letter-spacing:.5px;color:#8B91A7">PLAYER</span>
+                                <span style="width:48px;text-align:center;font-size:9px;font-weight:900;letter-spacing:.5px;color:var(--acc,#C8FF2E)">FAN</span>
+                                <%= for c <- g.columns do %>
+                                  <span style="width:44px;text-align:center;font-size:9px;font-weight:900;letter-spacing:.5px;color:#8B91A7">{c}</span>
+                                <% end %>
+                              </div>
+                              <%= for r <- g.rows do %>
+                                <div style={"display:flex;align-items:center;border-bottom:1px solid #14171F;background:transparent"}>
+                                  <span style={"flex:1;min-width:130px;padding:10px 0 10px 14px;font-size:12px;font-weight:600;color:#C7CBD9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"}>{r.name}</span>
+                                  <span style="width:48px;text-align:center;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:15px;color:var(--acc,#C8FF2E)">{r.fan}</span>
+                                  <%= for s <- r.stats do %>
+                                    <span style="width:44px;text-align:center;font-family:'Barlow Condensed',sans-serif;font-weight:500;font-size:13px;color:#8B91A7">{s}</span>
+                                  <% end %>
+                                </div>
+                              <% end %>
+                            </div>
+                          </div>
+                        </div>
+                      <% end %>
+                    </div>
+                  <% end %>
+                  <%= if @state == "in" and @sport == "mlb" do %>
+                    <span style="font-size:11px;color:#565D73;text-align:center;font-weight:600">Fantasy is approximate mid-game (extra-base hits finalize after the game).</span>
+                  <% end %>
+                <% end %>
+    """
+  end
+
   # --- data shaping -----------------------------------------------------------
 
   # The template binds t.head / g.label / r.fan — shape the box to those names.
@@ -317,45 +367,7 @@ defmodule HeadsUpWeb.GameDetailLive do
               </div>
             <% end %>
 
-            <%= if @box != nil do %>
-              <%= for t <- @box.teams do %>
-                <div style="display:flex;flex-direction:column;gap:8px">
-                  <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-                    <img src={t.logo} style="width:19px;height:19px;object-fit:contain" alt="">
-                    <span style="font-family:'Archivo Black',sans-serif;font-style:italic;font-size:15px;letter-spacing:1px">{t.head}</span>
-                    <div style="flex:1;height:1px;background:#1A1E2B"></div>
-                  </div>
-                  <%= for g <- t.groups do %>
-                    <div style="display:flex;flex-direction:column;gap:5px">
-                      <%= if g.label != nil do %><span style="font-size:9px;font-weight:900;letter-spacing:1.5px;color:#565D73;margin-left:2px">{g.label}</span><% end %>
-                      <div style="border-radius:14px;border:1px solid #252A3A;background:#12141D;overflow-x:auto">
-                        <div style="min-width:480px">
-                          <div style="display:flex;align-items:center;background:#191C28;padding:7px 0">
-                            <span style="flex:1;min-width:130px;padding-left:14px;font-size:9px;font-weight:900;letter-spacing:.5px;color:#8B91A7">PLAYER</span>
-                            <span style="width:48px;text-align:center;font-size:9px;font-weight:900;letter-spacing:.5px;color:var(--acc,#C8FF2E)">FAN</span>
-                            <%= for c <- g.columns do %>
-                              <span style="width:44px;text-align:center;font-size:9px;font-weight:900;letter-spacing:.5px;color:#8B91A7">{c}</span>
-                            <% end %>
-                          </div>
-                          <%= for r <- g.rows do %>
-                            <div style={"display:flex;align-items:center;border-bottom:1px solid #14171F;background:#{r.bg}"}>
-                              <span style={"flex:1;min-width:130px;padding:10px 0 10px 14px;font-size:12px;font-weight:600;color:#{r.nameInk};white-space:nowrap;overflow:hidden;text-overflow:ellipsis"}>{r.name}</span>
-                              <span style="width:48px;text-align:center;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:15px;color:var(--acc,#C8FF2E)">{r.fan}</span>
-                              <%= for s <- r.stats do %>
-                                <span style="width:44px;text-align:center;font-family:'Barlow Condensed',sans-serif;font-weight:500;font-size:13px;color:#8B91A7">{s}</span>
-                              <% end %>
-                            </div>
-                          <% end %>
-                        </div>
-                      </div>
-                    </div>
-                  <% end %>
-                </div>
-              <% end %>
-              <%= if @g.state == "in" and @sport == "mlb" do %>
-                <span style="font-size:11px;color:#565D73;text-align:center;font-weight:600">Fantasy is approximate mid-game (extra-base hits finalize after the game).</span>
-              <% end %>
-            <% end %>
+            <.box_section :if={@box != nil} box={@box} sport={@sport} state={@g.state} />
 
             <%= if @g.state == "pre" do %>
               <span style="font-size:9px;font-weight:900;letter-spacing:2px;color:#565D73;text-align:center;margin-top:4px">SCOUT BOTH ROSTERS BEFORE {String.upcase(start_word(@sport))}</span>

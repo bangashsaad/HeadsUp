@@ -69,4 +69,33 @@ defmodule HeadsUpWeb.LiveComponentsTest do
     assert html =~ "YOUR"
     assert html =~ "Test Player"
   end
+
+  describe "game detail box rendering" do
+    # The template-conversion bug class: a binding the mock had that the data
+    # doesn't. Rendering the shaped box exercises every row attribute.
+    test "box rows render from the shaped data without mock-only keys" do
+      box = %{
+        teams: [
+          %{
+            logo: nil,
+            head: "TST BOX SCORE",
+            groups: [
+              %{
+                label: "HITTING",
+                columns: ["AB", "H"],
+                rows: [%{name: "Row Player", fan: 7.5, stats: ["4", "2"]}]
+              }
+            ]
+          }
+        ]
+      }
+
+      html =
+        render_component(&HeadsUpWeb.GameDetailLive.box_section/1, box: box, sport: "mlb", state: "post")
+
+      assert html =~ "TST BOX SCORE"
+      assert html =~ "Row Player"
+      assert html =~ "7.5"
+    end
+  end
 end
