@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html data-theme="dark" phx-r lang="en">
+<html data-theme="dark" lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title phx-r data-default="Heads Up Fantasy" data-suffix=" · Heads Up Fantasy">Heads Up Fantasy · Heads Up Fantasy</title>
+    <title data-default="Heads Up Fantasy" data-suffix=" · Heads Up Fantasy">Heads Up Fantasy · Heads Up Fantasy</title>
     <style>
 /* Heads Up Fantasy — compact design system (real app tokens) */
 @import url('https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400..900;1,400..900&family=Archivo+Black&family=Barlow+Condensed:ital,wght@1,700;1,800&display=swap');
@@ -95,10 +95,10 @@ html,body{background:#07080C;color:#F4F5F7;margin:0;font-family:'Archivo',system
 </style>
 </head>
   <body class="hu-body">
-    <main phx-r class="flex min-h-dvh flex-col items-center justify-center bg-[#0A0B10] px-5 py-12">
+    <main class="flex min-h-dvh flex-col items-center justify-center bg-[#0A0B10] px-5 py-12">
   <div class="w-full max-w-sm">
-    <a phx-r href="/" class="mb-8 block text-center">
-      <span phx-r class="text-2xl font-black uppercase tracking-tight text-[#F4F5F7]">
+    <a href="/" class="mb-8 block text-center">
+      <span class="text-2xl font-black uppercase tracking-tight text-[#F4F5F7]">
         Heads<span class="text-[#C8FF2E]">Up</span>
       </span>
     </a>
@@ -107,38 +107,38 @@ html,body{background:#07080C;color:#F4F5F7;margin:0;font-family:'Archivo',system
     <p class="mt-1.5 mb-7 text-center text-sm text-[#8B91A7]">Takes a few seconds. 1,000 coins on the house.</p>
 
     
-  <form phx-r action="/signup" method="post" class="space-y-4">
+  <form action="/signup" method="post" class="space-y-4">
   
   <input name="_csrf_token" type="hidden" hidden value="IWQQIlMFFwIpCTIELT0HPQsfPCUYCDs9T7hx4pFaC9t1kJdqdvRgAXbD">
   
     
 
-    <label phx-r class="block">
+    <label class="block">
       <span class="mb-1.5 block text-[11px] font-black uppercase tracking-[0.15em] text-[#8B91A7]">Username</span>
       <input type="text" name="user[username]" required autocomplete="nickname" autofocus class="w-full rounded-xl border border-[#252A3A] bg-[#12141D] px-4 py-3 text-[#F4F5F7] outline-none focus:border-[#C8FF2E]/60">
     </label>
 
-    <label phx-r class="block">
+    <label class="block">
       <span class="mb-1.5 block text-[11px] font-black uppercase tracking-[0.15em] text-[#8B91A7]">Email</span>
       <input type="email" name="user[email]" required autocomplete="email" class="w-full rounded-xl border border-[#252A3A] bg-[#12141D] px-4 py-3 text-[#F4F5F7] outline-none focus:border-[#C8FF2E]/60">
     </label>
 
-    <label phx-r class="block">
+    <label class="block">
       <span class="mb-1.5 block text-[11px] font-black uppercase tracking-[0.15em] text-[#8B91A7]">Password</span>
       <input type="password" name="user[password]" required minlength="8" autocomplete="new-password" class="w-full rounded-xl border border-[#252A3A] bg-[#12141D] px-4 py-3 text-[#F4F5F7] outline-none focus:border-[#C8FF2E]/60">
       <span class="mt-1.5 block text-xs text-[#565D73]">At least 8 characters.</span>
     </label>
 
-    <button phx-r type="submit" class="w-full rounded-xl bg-[#C8FF2E] px-4 py-3.5 text-[15px] font-black uppercase tracking-wide text-[#0A0B10] transition hover:brightness-110">
+    <button type="submit" class="w-full rounded-xl bg-[#C8FF2E] px-4 py-3.5 text-[15px] font-black uppercase tracking-wide text-[#0A0B10] transition hover:brightness-110">
       Create account
     </button>
 
   
 </form>
 
-  <p phx-r class="mt-6 text-center text-sm text-[#8B91A7]">
+  <p class="mt-6 text-center text-sm text-[#8B91A7]">
     Already have one?
-    <a phx-r href="/login" class="font-bold text-[#C8FF2E] hover:underline">Sign in</a>
+    <a href="/login" class="font-bold text-[#C8FF2E] hover:underline">Sign in</a>
   </p>
 
   </div>
