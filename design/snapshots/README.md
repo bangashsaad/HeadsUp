@@ -7,11 +7,22 @@ use these when you want Claude Design to edit against reality.
 
 ## How to use with Claude Design
 
-1. Start your session by pasting the design brief (`docs/design-brief.md`).
-2. Attach (or paste the contents of) the snapshot for the screen you're
-   editing and say: *"This is the current live implementation of the <name>
-   screen. Edit from this."*
-3. When you're happy, export per screen as usual and hand it back.
+These files are deliberately SMALL and READABLE — clean markup plus a compact
+stylesheet of the app's real design tokens. That's the format a design tool
+actually consumes (earlier fully-embedded versions were unreadable to it).
+
+1. **Getting a file out of GitHub the right way:** open the file → click the
+   **Raw** button → select-all and copy (or Save As). Do NOT copy from
+   GitHub's normal file viewer — that includes GitHub's own page markup.
+2. Start your Claude Design session by pasting the brief
+   (`docs/design-brief.md`).
+3. Paste (or attach) the snapshot for the screen you're editing and say:
+   *"This is the current live implementation of the <name> screen — real
+   markup and real design tokens. Edit from this."*
+4. Images show as empty placeholders marked `data-note="player-or-team-image"`
+   — that's intentional; the markup and styles are the design, the photos are
+   content.
+5. When you're happy, export per screen as usual and hand it back.
 
 Snapshots were captured with demo accounts (`snap_sp1ke` vs `snap_mike`, plus
 a fresh account for the empty states), since deleted. Names/scores in the
