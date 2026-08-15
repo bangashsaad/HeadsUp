@@ -125,6 +125,7 @@ defmodule HeadsUpWeb.Layouts do
         nav_live_path: Map.get(assigns.shell, :live_path),
         nav_live?: Map.get(assigns.shell, :live?, false),
         nav_draft_path: Map.get(assigns.shell, :draft_path),
+        nav_req_count: Map.get(assigns.shell, :req_count, 0),
         shell_coins: Map.get(assigns.shell, :coins),
         shell_record: Map.get(assigns.shell, :record)
       )
@@ -146,6 +147,7 @@ defmodule HeadsUpWeb.Layouts do
           <.nav_item navigate={@nav_draft_path || "/app/draft"} icon="timer" label="DRAFT" active={@nav_active == :draft} />
           <.nav_item navigate={@nav_live_path || "/app/live"} icon="pulse" label="LIVE" live={@nav_live?} active={@nav_active == :live} />
           <.nav_item navigate="/app/games" icon="basketball" label="SCOREBOARD" active={@nav_active == :players} />
+          <.nav_item navigate="/app/friends" icon="people" label="FRIENDS" count={@nav_req_count} active={@nav_active == :friends} />
           <.nav_item navigate="/app/you" icon="person-circle" label="YOU" active={@nav_active == :profile} />
         </nav>
 
@@ -214,6 +216,9 @@ defmodule HeadsUpWeb.Layouts do
               </.link>
               <.link navigate="/app/games" class="text-xs font-black uppercase tracking-wide text-[#8B91A7] hover:text-[#F4F5F7]">
                 Scores
+              </.link>
+              <.link navigate="/app/friends" class="text-xs font-black uppercase tracking-wide text-[#8B91A7] hover:text-[#F4F5F7]">
+                Crew
               </.link>
               <.link navigate="/app/new" class="text-xs font-black uppercase tracking-wide text-[#C8FF2E] hover:brightness-110">
                 + New

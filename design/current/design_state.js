@@ -1,4 +1,3 @@
-
 class Component extends DCLogic {
   state = {
     view: 'landing', toast: '',
@@ -10,25 +9,28 @@ class Component extends DCLogic {
       { who: 'YOU', me: true, txt: 'So does my 13 point lead' }
     ],
     pool: [], myPicks: [], rivalPicks: [], turn: 'you',
-    league: 'WNBA', roster: 5, stake: '◎ 25', clock: '6 hours', slate: 'Tonight',
-    duelsTab: 'active', counterFor: null, coins: 240,
+    league: 'WNBA', roster: 5, stake: '◎ 25', clock: '30s', slate: 'Tonight',
+    duelsTab: 'active', counterFor: null, coins: 240, clockLeft: 30, friendReq: true,
     duels: [
       { id: 1, who: 'rocket_ray', st: 'drafting', title: 'rocket_ray\u2019s 4-player match', meta: '🏀 WNBA · 4-way · 5 slots · ◎ 100 pot', stake: 25 },
       { id: 2, who: 'mike_hoops', st: 'drafted', title: 'mike_hoops', meta: '🏀 WNBA · snake · 5 slots · ◎ 50 pot', stake: 25, score: '118.4 – 104.9', pct: '53%' },
-      { id: 3, who: 'sarah_j', st: 'respond', title: 'sarah_j', meta: '🏀 WNBA · snake · 5 slots · ◎ 100 pot · they set the terms', stake: 50 },
+      { id: 3, who: 'sarah_j', st: 'respond', title: 'sarah_j', meta: '🏀 WNBA · snake · 5 slots · ◎ 200 pot · they set the terms', stake: 100 },
       { id: 4, who: 'jchef', st: 'countered', title: 'jchef', meta: '⚾️ MLB · snake · 5 slots · ◎ 50 pot · terms changed', stake: 25 },
       { id: 5, who: 'tbone', st: 'ready', title: 'tbone', meta: '⚾️ MLB · snake · 7 slots · room is open', stake: 0 },
       { id: 6, who: 'lex_22', st: 'waiting', title: 'lex_22\u2019s 4-player match', meta: '🏀 WNBA · 2/4 in · 5 slots · ◎ 100 pot', stake: 25 }
     ],
+    resultsFor: 7,
     past: [
-      { id: 7, who: 'kdub', res: 'W', meta: '🏀 WNBA · AUG 9', stake: 25, sport: '🏀 WNBA', slots: 5 },
-      { id: 8, who: 'sarah_j', res: 'L', meta: '🏀 WNBA · AUG 6', stake: 50, sport: '🏀 WNBA', slots: 5 },
-      { id: 9, who: 'tbone', res: 'W', meta: '⚾️ MLB · AUG 2', stake: 0, sport: '⚾️ MLB', slots: 7 },
+      { id: 7, who: 'kdub', res: 'W', meta: '🏀 WNBA · AUG 9', stake: 25, sport: '🏀 WNBA', slots: 5, score: '121.7 – 109.2', hh: 'YOU LEAD 2–0' },
+      { id: 8, who: 'sarah_j', res: 'L', meta: '🏀 WNBA · AUG 6', stake: 100, sport: '🏀 WNBA', slots: 5, score: '88.1 – 94.5', hh: 'SARAH LEADS 4–2' },
+      { id: 9, who: 'tbone', res: 'W', meta: '⚾️ MLB · AUG 2', stake: 0, sport: '⚾️ MLB', slots: 7, score: '131.6 – 120.2', hh: 'YOU LEAD 3–1' },
       { id: 10, who: 'marisol', st: 'declined', meta: '⚾️ MLB · 5 slots · JUL 30' }
     ],
     group: 'ALL', rivalsPicked: ['mike_hoops'],
-    browseLeague: 'WNBA', playerQuery: '', sbDay: 'UPCOMING',
+    browseLeague: 'WNBA', playerQuery: '', sbDay: 'UPCOMING', gameId: 'ind-ny',
     winTab: 'BY LEAGUE', crewTab: 'ALL', selRival: 'mike_hoops',
+    frTab: 'ALL', frQ: '', frEdit: null, frNewName: '', memberships: null, customGroups: [], extraFriends: [], sentReqs: [],
+    frReqs: [{ who: 'dee_train' }, { who: 'coach_carter' }],
     wn: null, ml: null
   };
   chatRef = React.createRef();
@@ -45,30 +47,221 @@ class Component extends DCLogic {
   ];
   AVATARS = { mike_hoops: ['rgba(255,69,87,.18)', '#FF4557'], sarah_j: ['rgba(124,92,255,.2)', '#A794FF'], tbone: ['rgba(34,229,255,.15)', '#22E5FF'], jchef: ['rgba(255,176,33,.16)', '#FFB021'], kdub: ['rgba(200,255,46,.14)', '#C8FF2E'], lex_22: ['rgba(255,69,87,.14)', '#FF8896'], marisol: ['rgba(34,229,255,.12)', '#7FE8F5'], rocket_ray: ['rgba(124,92,255,.16)', '#B9A8FF'] };
   GROUPS = ['ALL', 'HOOPS CREW', 'WORK', 'LEAGUE BOYS'];
+  INJ = { 'Chelsea Gray': ['GTD', '#FFB021'], 'Natasha Howard': ['OUT', '#FF4557'], 'Jonquel Jones': ['GTD', '#FFB021'] };
+  STRANGERS = [{ name: 'hoops_hannah', meta: '14–9 · plays WNBA' }, { name: 'draft_dan', meta: '8–11 · plays both' }, { name: 'buckets_bob', meta: '3–2 · new this month' }];
+  getMemberships() {
+    if (!this.state.memberships) {
+      const m = {};
+      this.CREW.forEach((c) => { m[c.name] = [...c.groups]; });
+      return m;
+    }
+    return this.state.memberships;
+  }
   // Scoreboard mock slates. Team tuple: [abbrev, name, logoSlug, color, score]
   SB = {
     wnba: {
       'UPCOMING': { head: 'TONIGHT · THU AUG 13 · 4 GAMES',
-        live: [{ a: ['IND', 'FEVER', 'ind', '#FFCD00', 58], h: ['NY', 'LIBERTY', 'ny', '#6ECEB2', 54], clock: 'Q3 5:12', note: 'CLARK · 31.8 FAN PTS' }],
-        sched: [{ a: ['LV', 'ACES', 'lv', '#C8102E'], h: ['SEA', 'STORM', 'sea', '#FE5000'], time: '7:00 PM' }, { a: ['PHX', 'MERCURY', 'phx', '#E56020'], h: ['LA', 'SPARKS', 'la', '#FDB927'], time: '10:00 PM' }],
-        final: [{ a: ['MIN', 'LYNX', 'min', '#78BE20', 88], h: ['CHI', 'SKY', 'chi', '#5091CD', 79] }] },
+        live: [{ id: 'ind-ny', a: ['IND', 'FEVER', 'ind', '#FFCD00', 58], h: ['NY', 'LIBERTY', 'ny', '#6ECEB2', 54], clock: 'Q3 5:12', note: 'CLARK · 31.8 FAN PTS' }],
+        sched: [{ id: 'lv-sea', a: ['LV', 'ACES', 'lv', '#C8102E'], h: ['SEA', 'STORM', 'sea', '#FE5000'], time: '7:00 PM' }, { id: 'phx-la', a: ['PHX', 'MERCURY', 'phx', '#E56020'], h: ['LA', 'SPARKS', 'la', '#FDB927'], time: '10:00 PM' }],
+        final: [{ id: 'min-chi', a: ['MIN', 'LYNX', 'min', '#78BE20', 88], h: ['CHI', 'SKY', 'chi', '#5091CD', 79] }] },
       'AUG 12': { head: 'WED AUG 12 · 2 GAMES', live: [], sched: [],
         final: [{ a: ['NY', 'LIBERTY', 'ny', '#6ECEB2', 92], h: ['ATL', 'DREAM', 'atl', '#E31837', 80] }, { a: ['DAL', 'WINGS', 'dal', '#C4D600', 77], h: ['MIN', 'LYNX', 'min', '#78BE20', 84] }] },
       'AUG 11': { head: 'TUE AUG 11', live: [], sched: [], final: [] }
     },
     mlb: {
       'UPCOMING': { head: 'TONIGHT · THU AUG 13 · 4 GAMES',
-        live: [{ a: ['LAD', 'DODGERS', 'lad', '#4B8DDE', 4], h: ['SF', 'GIANTS', 'sf', '#FD5A1E', 2], clock: 'BOT 6', note: 'OHTANI · 12.4 FAN PTS' }],
-        sched: [{ a: ['NYY', 'YANKEES', 'nyy', '#8CA3C6'], h: ['BOS', 'RED SOX', 'bos', '#BD3039'], time: '7:05 PM' }, { a: ['HOU', 'ASTROS', 'hou', '#EB6E1F'], h: ['TEX', 'RANGERS', 'tex', '#4E9FE0'], time: '8:05 PM' }],
-        final: [{ a: ['SD', 'PADRES', 'sd', '#FFC425', 3], h: ['CHC', 'CUBS', 'chc', '#6CACE4', 1] }] },
+        live: [{ id: 'lad-sf', a: ['LAD', 'DODGERS', 'lad', '#4B8DDE', 4], h: ['SF', 'GIANTS', 'sf', '#FD5A1E', 2], clock: 'BOT 6', note: 'OHTANI · 12.4 FAN PTS' }],
+        sched: [{ id: 'nyy-bos', a: ['NYY', 'YANKEES', 'nyy', '#8CA3C6'], h: ['BOS', 'RED SOX', 'bos', '#BD3039'], time: '7:05 PM' }, { id: 'hou-tex', a: ['HOU', 'ASTROS', 'hou', '#EB6E1F'], h: ['TEX', 'RANGERS', 'tex', '#4E9FE0'], time: '8:05 PM' }],
+        final: [{ id: 'sd-chc', a: ['SD', 'PADRES', 'sd', '#FFC425', 3], h: ['CHC', 'CUBS', 'chc', '#6CACE4', 1] }] },
       'AUG 12': { head: 'WED AUG 12 · 1 GAME', live: [], sched: [],
         final: [{ a: ['TEX', 'RANGERS', 'tex', '#4E9FE0', 5], h: ['HOU', 'ASTROS', 'hou', '#EB6E1F', 7] }] },
       'AUG 11': { head: 'TUE AUG 11', live: [], sched: [], final: [] }
     }
   };
+  // Game-detail mock (mirrors the app's GameDetailScreen states per sport)
+  GDC = {
+    'ind-ny': { sport: 'wnba', state: 'in', status: 'Q3 5:12', a: ['IND', 'FEVER', 'ind', '#FFCD00', 58, [18, 21, 19]], h: ['NY', 'LIBERTY', 'ny', '#6ECEB2', 54, [15, 22, 17]] },
+    'min-chi': { sport: 'wnba', state: 'post', a: ['MIN', 'LYNX', 'min', '#78BE20', 88, [22, 20, 25, 21]], h: ['CHI', 'SKY', 'chi', '#5091CD', 79, [18, 22, 19, 20]] },
+    'lv-sea': { sport: 'wnba', state: 'pre', tip: '7:00 PM', a: ['LV', 'ACES', 'lv', '#C8102E', 0, [], '24–8'], h: ['SEA', 'STORM', 'sea', '#FE5000', 0, [], '19–13'] },
+    'phx-la': { sport: 'wnba', state: 'pre', tip: '10:00 PM', a: ['PHX', 'MERCURY', 'phx', '#E56020', 0, [], '15–17'], h: ['LA', 'SPARKS', 'la', '#FDB927', 0, [], '14–18'] },
+    'nyy-bos': { sport: 'mlb', state: 'pre', tip: '7:05 PM', a: ['NYY', 'YANKEES', 'nyy', '#8CA3C6', 0, [], '68–52'], h: ['BOS', 'RED SOX', 'bos', '#BD3039', 0, [], '64–57'] },
+    'hou-tex': { sport: 'mlb', state: 'pre', tip: '8:05 PM', a: ['HOU', 'ASTROS', 'hou', '#EB6E1F', 0, [], '66–55'], h: ['TEX', 'RANGERS', 'tex', '#4E9FE0', 0, [], '61–60'] },
+    'lad-sf': { sport: 'mlb', state: 'in', status: 'BOT 6', a: ['LAD', 'DODGERS', 'lad', '#4B8DDE', 4, [0, 1, 0, 2, 0, 1]], h: ['SF', 'GIANTS', 'sf', '#FD5A1E', 2, [0, 0, 2, 0, 0]] },
+    'sd-chc': { sport: 'mlb', state: 'post', a: ['SD', 'PADRES', 'sd', '#FFC425', 3, [0, 0, 1, 0, 2, 0, 0, 0, 0]], h: ['CHC', 'CUBS', 'chc', '#6CACE4', 1, [1, 0, 0, 0, 0, 0, 0, 0, 0]] }
+  };
+  hnum(name, salt, min, span) { let h = salt; for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) % 9973; return min + (h % span); }
+  FANFIX = { 'Caitlin Clark': 31.8 };
+  PITCHERS = { LAD: [['Yoshinobu Yamamoto', 'RHP · 2.94 ERA'], ['Evan Phillips', 'RHP']], SF: [['Logan Webb', 'RHP · 3.28 ERA'], ['Camilo Doval', 'RHP']], SD: [['Dylan Cease', 'RHP · 3.47 ERA'], ['Robert Suarez', 'RHP']], CHC: [['Shota Imanaga', 'LHP · 2.91 ERA'], ['Porter Hodge', 'RHP']], NYY: [['Gerrit Cole', 'RHP · 3.41 ERA'], ['Luke Weaver', 'RHP']], BOS: [['Brayan Bello', 'RHP · 3.12 ERA'], ['Kenley Jansen', 'RHP']], HOU: [['Framber Valdez', 'LHP · 2.88 ERA'], ['Josh Hader', 'LHP']], TEX: [['Nathan Eovaldi', 'RHP · 3.35 ERA'], ['Kirby Yates', 'RHP']] };
+  // Away/home draw from disjoint pools so no athlete ever appears on both sides.
+  teamPair(list, aAb, hAb) {
+    const src = list || [];
+    const t1 = src.filter((p) => p.team === aAb), t2 = src.filter((p) => p.team === hAb);
+    const used = new Set([...t1, ...t2].map((p) => p.name));
+    const rest = src.filter((p) => !used.has(p.name));
+    const tpA = t1.length >= 5 ? t1 : [...t1, ...rest.filter((_, i) => i % 2 === 0)].slice(0, 8);
+    const tpH = t2.length >= 5 ? t2 : [...t2, ...rest.filter((_, i) => i % 2 === 1)].slice(0, 8);
+    return [tpA, tpH];
+  }
+  buildFriendsVals(acc, av, emptyOn) {
+    const S = this.state;
+    const mem = this.getMemberships();
+    const allGroups = [...this.GROUPS.slice(1), ...S.customGroups];
+    const q = S.frQ.trim().toLowerCase();
+    const allFriends = [...this.CREW.map((c) => ({ name: c.name, w: c.w, l: c.l })), ...S.extraFriends];
+    const friends = emptyOn ? [] : allFriends
+      .filter((f) => !q || f.name.toLowerCase().includes(q))
+      .filter((f) => S.frEdit || S.frTab === 'ALL' || (mem[f.name] || []).includes(S.frTab));
+    const frRows = friends.map((f) => {
+      const gs = mem[f.name] || [];
+      const inGroup = S.frEdit && gs.includes(S.frEdit);
+      return { name: f.name, init: f.name[0].toUpperCase(), avBg: av(f.name)[0], avInk: av(f.name)[1],
+        groups: gs.length ? gs.join(' · ') : 'No groups yet',
+        rec: f.w + '–' + f.l, recInk: f.w >= f.l ? acc : '#FF4557',
+        editMode: !!S.frEdit, normalMode: !S.frEdit,
+        ckBorder: inGroup ? 'var(--acc,#C8FF2E)' : '#3A4157', ckBg: inGroup ? 'var(--acc,#C8FF2E)' : 'transparent', ckOp: inGroup ? '1' : '0',
+        click: S.frEdit
+          ? () => this.setState({ memberships: { ...mem, [f.name]: inGroup ? gs.filter((g) => g !== S.frEdit) : [...gs, S.frEdit] } })
+          : () => this.setState({ view: 'profile', selRival: f.name }),
+        challenge: (e) => { e.stopPropagation(); this.setState({ view: 'new', rivalsPicked: [f.name] }); } };
+    });
+    const strangers = q ? this.STRANGERS.filter((s) => s.name.toLowerCase().includes(q)) : [];
+    const frStrangerRows = strangers.map((s) => {
+      const sent = S.sentReqs.includes(s.name);
+      return { name: s.name, init: s.name[0].toUpperCase(), meta: s.meta,
+        btnLabel: sent ? 'SENT ✓' : 'SEND REQUEST', btnBg: sent ? 'transparent' : 'var(--acc,#C8FF2E)',
+        btnBorder: sent ? '#252A3A' : 'var(--acc,#C8FF2E)', btnInk: sent ? '#565D73' : '#0A0B10',
+        send: sent ? null : () => { this.setState((st) => ({ sentReqs: [...st.sentReqs, s.name] })); this.pop('Request sent to ' + s.name); } };
+    });
+    const frReqRows = (emptyOn ? [] : S.frReqs).map((r) => ({
+      name: r.who, init: r.who[0].toUpperCase(), avBg: av(r.who)[0], avInk: av(r.who)[1],
+      accept: () => { this.setState((st) => ({ frReqs: st.frReqs.filter((x) => x.who !== r.who), extraFriends: [...st.extraFriends, { name: r.who, w: 0, l: 0 }] })); this.pop(r.who + ' is in your crew'); },
+      decline: () => { this.setState((st) => ({ frReqs: st.frReqs.filter((x) => x.who !== r.who) })); this.pop('Request declined'); }
+    }));
+    const frGroupRows = allGroups.map((g) => {
+      const n = emptyOn ? 0 : allFriends.filter((f) => (mem[f.name] || []).includes(g)).length;
+      const editing = S.frEdit === g;
+      return { name: g, count: n + (n === 1 ? ' member' : ' members'), bg: editing ? 'rgba(124,92,255,.08)' : 'transparent',
+        editLabel: editing ? 'EDITING…' : 'EDIT', editBorder: editing ? '#7C5CFF' : '#252A3A', editInk: editing ? '#A794FF' : '#8B91A7',
+        edit: () => this.setState({ frEdit: editing ? null : g, frTab: 'ALL' }) };
+    });
+    const mkName = S.frNewName.trim();
+    const createGroup = () => {
+      if (!mkName) return;
+      const nm = mkName.toUpperCase();
+      if (allGroups.includes(nm)) { this.pop('You already have a group named ' + nm); return; }
+      this.setState((st) => ({ customGroups: [...st.customGroups, nm], frNewName: '', frEdit: nm }));
+      this.pop(nm + ' created — click friends to add them');
+    };
+    return {
+      frQ: S.frQ, onFrQ: (e) => this.setState({ frQ: e.target.value }),
+      frCount: emptyOn ? 0 : allFriends.length,
+      frTabs: ['ALL', ...allGroups].map((g) => {
+        const on = !S.frEdit && g === S.frTab;
+        return { label: g, set: () => this.setState({ frTab: g, frEdit: null }),
+          bg: on ? 'rgba(124,92,255,.15)' : 'transparent', border: on ? '#7C5CFF' : '#252A3A', ink: on ? '#A794FF' : '#8B91A7' };
+      }),
+      frEditing: !!S.frEdit, frEditName: S.frEdit || '', frDoneEdit: () => this.setState({ frEdit: null }),
+      frRows,
+      frStrangers: frStrangerRows.length > 0, frStrangerRows,
+      frNoMatch: !!q && frRows.length === 0 && frStrangerRows.length === 0,
+      frReqRows, frReqCount: String(frReqRows.length), frReqCountShow: frReqRows.length > 0, frNoReqs: frReqRows.length === 0,
+      frGroupRows,
+      frNewName: S.frNewName, onFrNewName: (e) => this.setState({ frNewName: e.target.value }),
+      onFrNewKey: (e) => { if (e.key === 'Enter') createGroup(); },
+      frCreateGroup: createGroup
+    };
+  }
+  buildGameVals(acc) {
+    const S = this.state;
+    const cfg = this.GDC[S.gameId] || this.GDC['ind-ny'];
+    const mlb = cfg.sport === 'mlb';
+    const logo = (slug) => 'https://a.espncdn.com/i/teamlogos/' + cfg.sport + '/500/' + slug + '.png';
+    const [aAb, aName, aSlug, aC, aS] = cfg.a, [hAb, hName, hSlug, hC, hS] = cfg.h;
+    const live = cfg.state === 'in', pre = cfg.state === 'pre', fin = cfg.state === 'post';
+    const src = mlb ? S.ml : S.wn;
+    const [tpA, tpH] = this.teamPair(src, aAb, hAb);
+    const lineA = cfg.a[5] || [], lineH = cfg.h[5] || [];
+    const n = Math.max(lineA.length, lineH.length);
+    const gdLineCols = Array.from({ length: n }, (_, i) => ({
+      l: mlb ? String(i + 1) : (i < 4 ? 'Q' + (i + 1) : 'OT'),
+      a: lineA[i] != null ? String(lineA[i]) : '–', h: lineH[i] != null ? String(lineH[i]) : '–'
+    }));
+    const wRow = (p, i) => {
+      const fan = this.FANFIX[p.name] ?? parseFloat(this.avg(p.name)), pts = Math.round(fan * 0.62);
+      const reb = this.hnum(p.name, 7, 2, 9), ast = this.hnum(p.name, 13, 1, 8);
+      return { name: p.name, fan: fan.toFixed(1), stats: [String(34 - i * 3), String(pts), String(reb), String(ast), String(this.hnum(p.name, 3, 0, 3)), String(this.hnum(p.name, 5, 0, 3))], sum: pts + ' PTS · ' + reb + ' REB · ' + ast + ' AST', v: fan, p };
+    };
+    const bRow = (p) => {
+      const h = this.hnum(p.name, 11, 0, 4), ab = 3 + this.hnum(p.name, 17, 0, 3);
+      const fan = (4 + this.hnum(p.name, 19, 0, 11)) + '.' + this.hnum(p.name, 23, 0, 10);
+      return { name: p.name, fan, stats: [String(ab), String(this.hnum(p.name, 29, 0, 3)), String(Math.min(h, ab)), String(this.hnum(p.name, 31, 0, 4)), String(this.hnum(p.name, 37, 0, 2))], sum: Math.min(h, ab) + '-' + ab + ', ' + this.hnum(p.name, 31, 0, 4) + ' RBI', v: parseFloat(fan), p };
+    };
+    const mkGroup = (tp, team) => {
+      if (!mlb) {
+        const rows = tp.slice(0, 6).map(wRow);
+        const best = Math.max(...rows.map((r) => r.v), 0);
+        return [{ label: 'BOX SCORE', showLabel: false, cols: ['MIN', 'PTS', 'REB', 'AST', 'STL', 'BLK'],
+          rows: rows.map((r, i) => ({ name: r.name, fan: r.fan, stats: r.stats, bg: r.v === best ? 'rgba(200,255,46,.05)' : 'transparent', nameInk: i < 5 ? '#F4F5F7' : '#8B91A7' })), all: rows, team }];
+      }
+      const pitNames = new Set(Object.values(this.PITCHERS).flat().map(([n]) => n));
+      const bat = tp.filter((p) => !pitNames.has(p.name)).slice(0, 5).map(bRow);
+      const bestB = Math.max(...bat.map((r) => r.v), 0);
+      const pit = (this.PITCHERS[team.ab] || []).map(([nm], i) => ({ name: nm, fan: (8 - i * 3) + '.' + this.hnum(nm, 41, 0, 10), stats: [i === 0 ? '5.2' : '1.1', String(this.hnum(nm, 43, 2, 6)), String(this.hnum(nm, 47, 0, 3)), String(this.hnum(nm, 53, 2, 7))], bg: 'transparent', nameInk: '#F4F5F7' }));
+      return [
+        { label: 'BATTING', showLabel: true, cols: ['AB', 'R', 'H', 'RBI', 'HR'], rows: bat.map((r) => ({ name: r.name, fan: r.fan, stats: r.stats, bg: r.v === bestB ? 'rgba(200,255,46,.05)' : 'transparent', nameInk: '#F4F5F7' })), all: bat, team },
+        { label: 'PITCHING', showLabel: true, cols: ['IP', 'H', 'ER', 'K'], rows: pit, all: [], team }
+      ];
+    };
+    const gA = mkGroup(tpA, { ab: aAb, c: aC }), gH = mkGroup(tpH, { ab: hAb, c: hC });
+    const heaters = [...gA.flatMap((g) => g.all), ...gH.flatMap((g) => g.all)]
+      .sort((x, y) => y.v - x.v).slice(0, 3)
+      .map((r) => {
+        const mine = gA.some((g) => g.all.includes(r));
+        const c = mine ? aC : hC;
+        return { img: r.p.headshot, name: r.p.name, team: mine ? aAb : hAb, pts: String(r.fan), line: r.sum, border: c + '59' };
+      });
+    const leadBlock = (tp, ab, rec) => ({ team: ab + (rec ? ' · ' + rec : ''),
+      items: [['PTS', 0], ['REB', 7], ['AST', 13]].map(([cat, salt], i) => {
+        const p = tp[i] || tp[0] || { name: '—' };
+        return { cat, name: p.name, val: cat === 'PTS' ? this.avg(p.name) : (this.hnum(p.name, salt, 2, 9) + '.' + this.hnum(p.name, salt + 1, 0, 10)) };
+      }) });
+    const starter = (tp, ab, rec) => {
+      const [nm, line] = (this.PITCHERS[ab] || [['Starter TBA', '']])[0];
+      return { team: ab + (rec ? ' · ' + rec : ''), init: nm.split(' ').map((w) => w[0]).join(''), name: nm, line };
+    };
+    return {
+      gdKicker: (mlb ? 'MLB' : 'WNBA') + ' · REAL GAME',
+      gdLive: live, gdPre: pre, gdFinal: fin, gdShowScores: !pre, gdStatus: cfg.status || '',
+      gdATint: aC + '2E', gdHTint: hC + '2E', gdAGlow: aC + '8C', gdHGlow: hC + '8C',
+      gdALogo: logo(aSlug), gdHLogo: logo(hSlug), gdAAb: aAb, gdHAb: hAb, gdAName: aName, gdHName: hName,
+      gdAS: String(aS), gdHS: String(hS), gdAInk: aS >= hS ? acc : '#F4F5F7', gdHInk: hS >= aS ? acc : '#F4F5F7',
+      gdTip: cfg.tip || '', gdTipLabel: mlb ? 'FIRST PITCH · ET' : 'TIP-OFF · ET',
+      gdHasLines: !pre && n > 0, gdLineCols, gdTotLabel: mlb ? 'R' : 'T',
+      gdHasHeaters: !pre, gdHeatTitle: live ? 'FANTASY LEADERS · LIVE' : 'BEST FANTASY NIGHTS', gdHeaters: heaters,
+      gdHasStarters: pre && mlb, gdStartA: starter(tpA, aAb, cfg.a[6]), gdStartH: starter(tpH, hAb, cfg.h[6]),
+      gdHasLeaders: pre && !mlb, gdLeaderBlocks: [leadBlock(tpA, aAb, cfg.a[6]), leadBlock(tpH, hAb, cfg.h[6])],
+      gdHasBox: !pre, gdApprox: mlb && live,
+      gdBoxTeams: [{ head: aName, logo: logo(aSlug), groups: gA }, { head: hName, logo: logo(hSlug), groups: gH }],
+      gdHasRosters: pre, gdStartWord: mlb ? 'FIRST PITCH' : 'TIP',
+      gdRosterCards: [{ title: aName, rows: tpA.slice(0, 6).map((p) => ({ img: p.headshot, name: p.name, pos: p.pos || '—', proj: this.avg(p.name) })) },
+                      { title: hName, rows: tpH.slice(0, 6).map((p) => ({ img: p.headshot, name: p.name, pos: p.pos || '—', proj: this.avg(p.name) })) }]
+    };
+  }
 
   componentDidMount() {
     if (this.props.startInApp) this.setState({ view: 'home' });
+    this._ck = setInterval(() => {
+      const s = this.state;
+      if (s.view !== 'draft') return;
+      const done = s.myPicks.length >= 5 && s.rivalPicks.length >= 5;
+      const myTurn = s.turn === 'you' && s.myPicks.length < 5;
+      if (done || !myTurn) return;
+      if (s.clockLeft <= 1) {
+        const taken = new Set([...s.myPicks, ...s.rivalPicks].map((x) => x.name));
+        const next = s.pool.find((p) => !taken.has(p.name));
+        if (next) { this.pop('Clock hit zero — auto-picked ' + next.name); this.draftPick(next); }
+      } else this.setState({ clockLeft: s.clockLeft - 1 });
+    }, 1000);
     import('./espn-players.js').then((m) => {
       Promise.all([m.loadLeague('wnba'), m.loadLeague('mlb')]).then(([wn, ml]) => {
         const seen = {};
@@ -91,8 +284,18 @@ class Component extends DCLogic {
   componentDidUpdate(pp, ps) {
     const el = this.chatRef.current;
     if (el && ps.chat !== this.state.chat) el.scrollTop = el.scrollHeight;
+    this.syncDraftComplete(pp);
   }
-  componentWillUnmount() { clearTimeout(this._tt); clearTimeout(this._dt); }
+  syncDraftComplete(pp) {
+    const on = this.props.draftComplete, was = pp && pp.draftComplete;
+    const S = this.state;
+    if (on && S.pool.length && S.myPicks.length === 0 && S.rivalPicks.length === 0) {
+      this.setState({ myPicks: S.pool.slice(0, 9).filter((_, i) => i % 2 === 0).slice(0, 5), rivalPicks: S.pool.slice(0, 10).filter((_, i) => i % 2 === 1).slice(0, 5), turn: 'done' });
+    } else if (!on && was) {
+      this.setState({ myPicks: [], rivalPicks: [], turn: 'you', clockLeft: 30 });
+    }
+  }
+  componentWillUnmount() { clearTimeout(this._tt); clearTimeout(this._dt); clearTimeout(this._ct); clearInterval(this._ck); }
 
   sendChat() {
     const t = this.state.chatDraft.trim();
@@ -106,13 +309,13 @@ class Component extends DCLogic {
   }
   draftPick(p) {
     if (this.state.turn !== 'you' || this.state.myPicks.length >= 5) return;
-    this.setState((s) => ({ myPicks: [...s.myPicks, p], turn: 'rival' }));
+    this.setState((s) => ({ myPicks: [...s.myPicks, p], turn: 'rival', clockLeft: 30 }));
     this._dt = setTimeout(() => {
       this.setState((s) => {
         const taken = new Set([...s.myPicks, ...s.rivalPicks].map((x) => x.name));
         const next = s.pool.find((x) => !taken.has(x.name));
         const rp = next && s.rivalPicks.length < 5 ? [...s.rivalPicks, next] : s.rivalPicks;
-        return { rivalPicks: rp, turn: s.myPicks.length >= 5 && rp.length >= 5 ? 'done' : 'you' };
+        return { rivalPicks: rp, turn: s.myPicks.length >= 5 && rp.length >= 5 ? 'done' : 'you', clockLeft: 30 };
       });
     }, 1100);
   }
@@ -134,7 +337,7 @@ class Component extends DCLogic {
   toggleRival(name) {
     this.setState((s) => {
       const has = s.rivalsPicked.includes(name);
-      if (!has && s.rivalsPicked.length >= 7) { this.pop('Max 7 rivals — 8 drafters per duel'); return null; }
+      if (!has && s.rivalsPicked.length >= 3) { this.pop('Max 3 rivals — 4 drafters per duel'); return null; }
       return { rivalsPicked: has ? s.rivalsPicked.filter((r) => r !== name) : [...s.rivalsPicked, name] };
     });
   }
@@ -151,6 +354,7 @@ class Component extends DCLogic {
   renderVals() {
     const S = this.state;
     const acc = this.props.accent ?? '#C8FF2E';
+    const emptyOn = this.props.emptyStates ?? false;
     const W = (l) => l === 'W';
     const resColors = (l) => W(l) ? { bg: 'rgba(200,255,46,.18)', ink: acc } : { bg: 'rgba(255,69,87,.18)', ink: '#FF4557' };
 
@@ -207,7 +411,9 @@ class Component extends DCLogic {
     const dq = (S.draftQuery || '').toLowerCase();
     const pool = (S.pool || []).filter((p) => (!dq || p.name.toLowerCase().includes(dq)) && ((S.draftPos || 'ALL') === 'ALL' || p.pos === S.draftPos)).map((p) => {
       const gone = taken.has(p.name);
-      return { name: p.name, meta: p.team + ' · ' + p.pos + ' · ' + p.teamName, img: p.headshot,
+      const inj = this.INJ[p.name];
+      return { name: p.name, meta: p.team + ' · ' + p.pos + ' · ' + this.avg(p.name) + ' FPG PROJ', img: p.headshot,
+        inj: inj ? inj[0] : '', injInk: inj ? inj[1] : '',
         avg: this.avg(p.name), tag: gone ? 'TAKEN' : (myTurn ? 'DRAFT' : '—'),
         tagInk: gone ? '#565D73' : (myTurn ? acc : '#565D73'),
         cursor: gone || !myTurn ? 'default' : 'pointer', op: gone ? '.35' : '1',
@@ -215,10 +421,11 @@ class Component extends DCLogic {
     });
     const pickRow = (p, i) => ({ name: p.name, img: p.headshot, meta: 'R' + (i + 1) });
     const draftDone = S.myPicks.length >= 5 && S.rivalPicks.length >= 5;
+    const POS5 = ['G', 'G', 'F', 'F', 'FLX'];
     const slots = (picks) => Array.from({ length: 5 }, (_, i) => {
       const p = picks[i];
-      return p ? { filled: true, empty: false, img: p.headshot, name: p.name.split(' ').slice(-1)[0], n: i + 1 }
-               : { filled: false, empty: true, n: i + 1 };
+      return p ? { filled: true, empty: false, img: p.headshot, name: p.name.split(' ').slice(-1)[0], slot: POS5[i] }
+               : { filled: false, empty: true, slot: POS5[i] };
     });
 
     const chat = S.chat.map((m) => ({
@@ -255,17 +462,16 @@ class Component extends DCLogic {
       'BY LEAGUE': [
         { label: '🏀 WNBA', rec: '8–4', ink: acc, note: 'Your bread and butter' },
         { label: '⚾️ MLB', rec: '4–4', ink: '#C7CBD9', note: 'Coin-flip territory' },
-        { label: 'PRIMETIME', rec: '5–1', ink: acc, note: 'Built for the big slate' }
+        { label: '🏈 NFL', rec: '0–0', ink: '#C7CBD9', note: 'First duel pending' }
       ],
       'BY ROSTER': [
-        { label: '3 SLOTS', rec: '3–1', ink: acc, note: 'Sniper' },
-        { label: '5 SLOTS', rec: '7–5', ink: '#C7CBD9', note: 'Your usual game' },
-        { label: '7 SLOTS', rec: '2–2', ink: '#C7CBD9', note: 'Deep drafts, even odds' }
+        { label: '5 SLOTS', rec: '9–5', ink: acc, note: 'Your usual game' },
+        { label: '7 SLOTS', rec: '3–3', ink: '#C7CBD9', note: 'Deep drafts, even odds' }
       ],
       'BY FIELD': [
-        { label: 'HEAD-TO-HEAD', rec: '9–5', ink: acc, note: 'Best one-on-one' },
-        { label: '3–4 DRAFTERS', rec: '2–2', ink: '#C7CBD9', note: 'Crowded but fine' },
-        { label: '5–8 DRAFTERS', rec: '1–1', ink: '#C7CBD9', note: 'Small sample' }
+        { label: '1V1', rec: '9–5', ink: acc, note: 'Best one-on-one' },
+        { label: '3-WAY', rec: '2–2', ink: '#C7CBD9', note: 'Crowded but fine' },
+        { label: '4-WAY', rec: '1–1', ink: '#C7CBD9', note: 'Small sample' }
       ]
     };
     const winTabs = ['BY LEAGUE', 'BY ROSTER', 'BY FIELD'].map((t) => {
@@ -291,10 +497,11 @@ class Component extends DCLogic {
 
     const navDefs = [
       { k: 'home', label: 'HOME', icon: 'icons/home.svg' },
-      { k: 'duels', label: 'DUELS', icon: 'icons/flame.svg', count: S.duels.length },
+      { k: 'duels', label: 'DUELS', icon: 'icons/flame.svg', count: emptyOn ? 0 : S.duels.length },
       { k: 'draft', label: 'DRAFT', icon: 'icons/timer.svg' },
       { k: 'live', label: 'LIVE', icon: 'icons/pulse.svg', live: true },
       { k: 'players', label: 'SCOREBOARD', icon: 'icons/basketball.svg' },
+      { k: 'friends', label: 'FRIENDS', icon: 'icons/people.svg', count: emptyOn ? 0 : S.frReqs.length },
       { k: 'profile', label: 'YOU', icon: 'icons/person-circle.svg' }
     ];
     const nav = navDefs.map((n) => {
@@ -303,7 +510,7 @@ class Component extends DCLogic {
         bg: on ? 'rgba(200,255,46,.08)' : 'transparent',
         border: on ? 'rgba(200,255,46,.35)' : 'transparent',
         ink: on ? acc : '#8B91A7',
-        live: n.live && !on, count: !on && n.count ? String(n.count) : false };
+        live: n.live && !on && !emptyOn, count: !on && n.count ? String(n.count) : false };
     });
 
     const badgeMap = {
@@ -331,15 +538,31 @@ class Component extends DCLogic {
       tint: p.res === 'W' ? acc : p.res === 'T' ? '#8B91A7' : '#FF4557',
       swing: p.stake ? (p.res === 'W' ? '+' + p.stake : '−' + p.stake) : false,
       swingInk: p.res === 'W' ? '#FFB021' : '#565D73',
-      open: null, rematch: () => this.duelRematch(p)
+      open: () => this.setState({ view: 'results', resultsFor: p.id }), rematch: () => this.duelRematch(p)
     }));
+    const rp = S.past.find((x) => x.id === S.resultsFor && x.res) || S.past[0];
+    const rWon = rp.res === 'W';
+    const [rMyT, rTheirT] = (rp.score || '0 – 0').split(' – ');
+    const BASE_MINE = [['Napheesa Collier', 31.4], ['Breanna Stewart', 26.0], ["A'ja Wilson", 24.8], ['Sabrina Ionescu', 22.3], ['Jackie Young', 17.2]];
+    const BASE_THEIRS = [['Caitlin Clark', 29.6], ['Arike Ogunbowale', 23.5], ['Kayla McBride', 20.1], ['Jewell Loyd', 19.4], ['Skylar Diggins', 16.6]];
+    const scaleRoster = (base, total, mine) => {
+      const baseSum = base.reduce((a, [, v]) => a + v, 0);
+      const f = parseFloat(total) / baseSum || 1;
+      const rows = base.map(([n, v]) => ({ name: n, img: hs(n), pts: (v * f).toFixed(1), val: v * f }));
+      const top = rows.reduce((a, b) => (b.val > a.val ? b : a), rows[0]);
+      return rows.map((r) => ({ ...r,
+        tag: r === top ? (mine ? 'PLAYER OF THE NIGHT' : 'THEIR BEST') : '',
+        tagInk: r === top ? (mine ? acc : '#8B91A7') : '#565D73',
+        bg: mine && r === top ? 'rgba(200,255,46,.05)' : 'transparent',
+        ptsInk: r === top ? (mine ? acc : '#C7CBD9') : '#C7CBD9' }));
+    };
     const deadRows = S.past.filter((p) => p.st).map((p) => ({
       who: p.who, meta: p.meta, badge: p.st.toUpperCase(),
       init: p.who[0].toUpperCase(), avBg: av(p.who)[0], avInk: av(p.who)[1]
     }));
     const duelsTabs = ['active', 'past'].map((t) => {
       const on = S.duelsTab === t;
-      const n = t === 'active' ? S.duels.length : S.past.length;
+      const n = emptyOn ? 0 : (t === 'active' ? S.duels.length : S.past.length);
       return { label: t.toUpperCase() + ' ' + n, set: () => this.setState({ duelsTab: t }),
         bg: on ? 'rgba(200,255,46,.1)' : 'transparent', border: on ? 'rgba(200,255,46,.45)' : '#252A3A', ink: on ? acc : '#8B91A7' };
     });
@@ -350,6 +573,29 @@ class Component extends DCLogic {
       isLanding: S.view === 'landing', isApp: S.view !== 'landing',
       isHome: S.view === 'home', isLive: S.view === 'live', isDraft: S.view === 'draft',
       isDuels: S.view === 'duels', goDuels: () => this.go('duels'), coins: S.coins,
+      isResults: S.view === 'results',
+      isGame: S.view === 'game',
+      ...(S.view === 'game' ? this.buildGameVals(acc) : {}),
+      isFriends: S.view === 'friends',
+      ...(S.view === 'friends' ? this.buildFriendsVals(acc, av, emptyOn) : {}),
+      resMeta: rp.meta + ' · SETTLED AUTOMATICALLY',
+      resLetter: rp.res, resBadge: rWon ? 'YOU WON' : rp.res === 'T' ? 'TIE' : 'YOU LOST',
+      resBadgeBg: rWon ? acc : rp.res === 'T' ? '#8B91A7' : '#FF4557',
+      resBorder: rWon ? 'rgba(200,255,46,.4)' : 'rgba(255,69,87,.35)',
+      resGlow: rWon ? 'rgba(200,255,46,.12)' : 'rgba(255,69,87,.1)',
+      resStroke: rWon ? 'rgba(200,255,46,.2)' : 'rgba(255,69,87,.18)',
+      resTitle: rWon ? 'YOU TOOK THE NIGHT.' : rp.who.toUpperCase() + ' TOOK THE NIGHT.',
+      resRival: rp.who.toUpperCase(),
+      resMyScore: rMyT, resTheirScore: rTheirT,
+      resMyInk: rWon ? acc : '#8B91A7', resTheirInk: rWon ? '#8B91A7' : '#FF4557',
+      resSwing: rp.stake ? (rWon ? '+' + rp.stake + ' TO THE WALLET' : '−' + rp.stake) : '',
+      resSwingInk: rWon ? '#FFB021' : '#565D73',
+      resLead: rp.hh || '', resLeadInk: (rp.hh || '').startsWith('YOU') ? acc : '#8B91A7',
+      resMyCardBorder: rWon ? 'color-mix(in srgb,var(--acc,#C8FF2E) 35%,transparent)' : '#252A3A',
+      resMine: scaleRoster(BASE_MINE, rMyT, true),
+      resTheirs: scaleRoster(BASE_THEIRS, rTheirT, false),
+      resRematch: () => { this.duelRematch(rp); this.go('duels'); },
+      resShare: () => this.pop('Receipt card copied — paste it anywhere'),
       duelsTabs, activeRows, settledRows, deadRows,
       duelsActiveTab: S.duelsTab === 'active', duelsPastTab: S.duelsTab === 'past',
       isNew: S.view === 'new', isPlayers: S.view === 'players', isProfile: S.view === 'profile',
@@ -364,7 +610,12 @@ class Component extends DCLogic {
         { who: 'MIKE', ink: '#FF4557', txt: 'Fourth quarter exists my guy' }
       ],
       last5: ['W', 'W', 'L', 'W', 'W'].map((l) => ({ l, ...resColors(l) })),
-      pendingLabel: S.sarah === 'pending' ? '3 PENDING' : '2 PENDING',
+      pendingLabel: emptyOn ? 'NOTHING PENDING' : (S.sarah === 'pending' ? '3 PENDING' : '2 PENDING'),
+      movesEmpty: emptyOn, hasMoves: !emptyOn,
+      duelsEmptyState: emptyOn, hasDuelRows: !emptyOn,
+      liveEmptyState: emptyOn, hasLiveDuel: !emptyOn,
+      draftEmptyState: emptyOn, hasDraftRoom: !emptyOn,
+      crewEmptyState: emptyOn, hasCrewRows: !emptyOn,
       sarahPending: S.sarah === 'pending', sarahAccepted: S.sarah === 'accepted',
       acceptSarah: () => { this.setState({ sarah: 'accepted' }); const d = S.duels.find((x) => x.who === 'sarah_j' && x.st === 'respond'); if (d) this.duelAccept(d); else this.pop('Challenge accepted'); },
       declineSarah: () => { this.setState({ sarah: 'declined' }); const d = S.duels.find((x) => x.who === 'sarah_j' && x.st === 'respond'); if (d) this.duelDecline(d); },
@@ -388,20 +639,31 @@ class Component extends DCLogic {
       myEmpty: Array.from({ length: 5 - S.myPicks.length }, (_, i) => ({ n: S.myPicks.length + i + 1 })),
       myCount: S.myPicks.length, rivalCount: S.rivalPicks.length,
       draftActive: !draftDone, draftDone,
-      turnLabel: myTurn ? 'YOUR PICK' : 'MIKE IS PICKING…',
+      turnLabel: myTurn ? 'YOUR PICK · ' + S.clockLeft + 's' : 'MIKE IS PICKING…',
+      reactOpts: ['🔥', '😂', '😭', '🥶', '💀', '👑'].map((e) => ({ e, send: () => this.pop(e + '  sent to the draft room') })),
       turnBg: myTurn ? 'rgba(200,255,46,.1)' : 'rgba(255,69,87,.1)',
       turnBorder: myTurn ? 'var(--acc,#C8FF2E)' : '#FF4557',
       turnInk: myTurn ? acc : '#FF4557',
-      leagueOpts: this.seg(['🏀 WNBA', '⚾️ MLB'], (S.league === 'WNBA' ? '🏀 WNBA' : '⚾️ MLB'), (v) => this.setState({ league: v.includes('WNBA') ? 'WNBA' : 'MLB' })),
-      rosterOpts: this.seg(['3 SLOTS', '5 SLOTS', '7 SLOTS'], S.roster + ' SLOTS', (v) => this.setState({ roster: parseInt(v) })),
-      stakeOpts: this.seg(['No stake', '◎ 25', '◎ 50', '◎ 100'], S.stake, (v) => this.setState({ stake: v })),
-      slateOpts: this.seg(['Tonight', 'Tomorrow', 'Saturday'], S.slate, (v) => this.setState({ slate: v })),
-      clockOpts: this.seg(['2 min blitz', '6 hours', '24 hours'], S.clock === '6 hours' ? '6 hours' : S.clock, (v) => this.setState({ clock: v })),
+      leagueOpts: [['🏀 WNBA', 'WNBA'], ['⚾️ MLB', 'MLB'], ['🏈 NFL', 'NFL'], ['🏀 NBA', 'NBA']].map(([label, k]) => {
+        const off = k === 'NBA';
+        const on = S.league === k;
+        return { label: off ? label + ' · OFF-SEASON' : label,
+          set: off ? () => this.pop('NBA is off-season — back in October') : () => this.setState({ league: k, slate: k === 'NFL' ? 'Preseason Wk 2' : (S.league === 'NFL' ? 'Tonight' : S.slate) }),
+          bg: on ? 'rgba(200,255,46,.12)' : 'transparent',
+          border: on ? 'var(--acc,#C8FF2E)' : off ? '#1A1E2B' : '#252A3A',
+          ink: on ? 'var(--acc,#C8FF2E)' : off ? '#3A4157' : '#8B91A7' };
+      }),
+      rosterOpts: this.seg(['5 SLOTS', '7 SLOTS'], S.roster + ' SLOTS', (v) => this.setState({ roster: parseInt(v) })),
+      stakeOpts: this.seg(['No stake', '◎ 25', '◎ 100'], S.stake, (v) => this.setState({ stake: v })),
+      slateOpts: S.league === 'NFL'
+        ? this.seg(['Preseason Wk 2', 'Preseason Wk 3', 'Week 1'], S.slate, (v) => this.setState({ slate: v }))
+        : this.seg(['Tonight', 'Tomorrow', 'Sat Aug 16'], S.slate, (v) => this.setState({ slate: v })),
+      clockOpts: this.seg(['15s', '30s', '60s'], S.clock, (v) => this.setState({ clock: v })),
       groupTabs: groupTab(S.group, 'group'), crewOpts,
-      rivalCapLabel: nRiv + '/7 CALLED OUT', rivalCapInk: nRiv >= 7 ? '#FF4557' : '#565D73',
+      rivalCapLabel: nRiv + '/3 CALLED OUT', rivalCapInk: nRiv >= 3 ? '#FF4557' : '#565D73',
       termsHeadline: S.league + ' · ' + S.roster + ' SLOTS · SNAKE',
-      sumStake: S.stake, sumPot: stakeN ? '◎ ' + stakeN * 2 : '—', sumSlate: S.slate,
-      sumClock: S.clock === '6 hours' ? '6 hours' : S.clock,
+      sumStake: S.stake, sumPot: stakeN ? '◎ ' + stakeN * (nRiv + 1) : '—', sumSlate: S.slate,
+      sumClock: S.clock + ' per pick',
       isCounter: !!S.counterFor, counterWho: S.counterFor || '',
       sumRivals: nRiv === 0 ? 'Nobody yet' : (nRiv === 1 ? S.rivalsPicked[0] : nRiv + ' rivals'),
       sendLabel: !canSend ? 'PICK A RIVAL FIRST' : S.counterFor ? 'SEND COUNTER →' : 'SEND CHALLENGE →',
@@ -418,7 +680,7 @@ class Component extends DCLogic {
         this.setState((s) => ({ view: 'duels', rivalsPicked: ['mike_hoops'], coins: s.coins - stakeN,
           duels: [...s.duels, { id: Date.now(), who: S.rivalsPicked[0], st: 'waiting',
             title: nRiv === 1 ? S.rivalsPicked[0] : 'Your ' + (nRiv + 1) + '-player match',
-            meta: (S.league === 'WNBA' ? '🏀 WNBA' : '⚾️ MLB') + ' · ' + (nRiv === 1 ? 'snake' : '0/' + (nRiv + 1) + ' in') + ' · ' + S.roster + ' slots' + (stakeN ? ' · ◎ ' + stakeN * 2 + ' pot' : ''), stake: stakeN }] }));
+            meta: ({ WNBA: '🏀 WNBA', MLB: '⚾️ MLB', NFL: '🏈 NFL' }[S.league]) + ' · ' + (nRiv === 1 ? 'snake' : '0/' + (nRiv + 1) + ' in') + ' · ' + S.roster + ' slots' + (stakeN ? ' · ◎ ' + stakeN * (nRiv + 1) + ' pot' : ''), stake: stakeN }] }));
         this.pop('Challenge sent to ' + (nRiv === 1 ? S.rivalsPicked[0] : nRiv + ' rivals') + (stakeN ? ' · ◎ ' + stakeN + ' staked' : ''));
       },
       browseLeagueOpts: this.seg(['WNBA', 'MLB'], S.browseLeague, (v) => this.setState({ browseLeague: v })),
@@ -430,10 +692,11 @@ class Component extends DCLogic {
         const day = this.SB[lg][S.sbDay] || { head: S.sbDay, live: [], sched: [], final: [] };
         const logo = (slug) => 'https://a.espncdn.com/i/teamlogos/' + lg + '/500/' + slug + '.png';
         const tint = (c) => c + '2E';
+        const openGame = (g) => g.id ? () => this.setState({ view: 'game', gameId: g.id }) : () => this.pop('Full box score coming for that one');
         const sbLive = day.live.map((g) => {
           const [aAb, aName, aSlug, aC, aS] = g.a, [hAb, hName, hSlug, hC, hS] = g.h;
           const tot = aS + hS;
-          return { aAb, aName, aLogo: logo(aSlug), aC, aS: String(aS), aTint: tint(aC), aInk: aS >= hS ? acc : '#F4F5F7',
+          return { open: openGame(g), aAb, aName, aLogo: logo(aSlug), aC, aS: String(aS), aTint: tint(aC), aInk: aS >= hS ? acc : '#F4F5F7',
             hAb, hName, hLogo: logo(hSlug), hC, hS: String(hS), hTint: tint(hC), hInk: hS >= aS ? acc : '#F4F5F7',
             clock: g.clock, note: g.note,
             pctA: (tot ? Math.round((aS / tot) * 100) : 50) + '%',
@@ -441,7 +704,7 @@ class Component extends DCLogic {
         });
         const row = (g, isFinal) => {
           const [aAb, aName, aSlug, aC, aS] = g.a, [hAb, hName, hSlug, hC, hS] = g.h;
-          return { aAb, aName, aLogo: logo(aSlug), aTint: tint(aC), aS: isFinal ? String(aS) : '', aInk: isFinal && aS > hS ? acc : '#8B91A7',
+          return { open: openGame(g), aAb, aName, aLogo: logo(aSlug), aTint: tint(aC), aS: isFinal ? String(aS) : '', aInk: isFinal && aS > hS ? acc : '#8B91A7',
             hAb, hName, hLogo: logo(hSlug), hTint: tint(hC), hS: isFinal ? String(hS) : '', hInk: isFinal && hS > aS ? acc : '#8B91A7',
             right: g.time || 'FINAL', rightSub: g.time ? 'ET' : '', rightInk: g.time ? acc : '#565D73' };
         };
@@ -460,7 +723,13 @@ class Component extends DCLogic {
       crewTabs: groupTab(S.crewTab, 'crewTab'), crewRows,
       selRival, selRivalHist,
       challengeSelected: () => { this.setState({ view: 'new', rivalsPicked: [sel.name] }); },
-      addFriend: () => this.pop('Invite link copied — send it to your crew'),
+      addFriend: () => this.go('friends'),
+      hasFriendReq: !!S.friendReq && !emptyOn,
+      acceptReq: () => { this.setState({ friendReq: false }); this.pop('dee_train is in your crew'); },
+      declineReq: () => { this.setState({ friendReq: false }); this.pop('Request declined'); },
+      changePwd: () => this.pop('Password reset link sent to sp1ke@richmond.edu'),
+      signOut: () => this.go('landing'),
+      deleteAcct: () => this.pop('Deletion is permanent — confirm from the email we just sent'),
       hasToast: !!S.toast, toast: S.toast
     };
   }

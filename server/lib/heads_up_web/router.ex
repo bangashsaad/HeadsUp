@@ -66,6 +66,7 @@ defmodule HeadsUpWeb.Router do
       live "/app/live/:id", LiveLive, :show
       live "/app/results/:id", ResultsLive, :show
       live "/app/you", YouLive, :index
+      live "/app/friends", FriendsLive, :index
       live "/app/games", GamesLive, :index
       live "/app/games/:id", GameDetailLive, :show
     end

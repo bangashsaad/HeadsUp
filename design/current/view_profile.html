@@ -1,4 +1,4 @@
-<!-- ========== PROFILE ========== -->
+
     <sc-if value="{{ isProfile }}" hint-placeholder-val="{{ false }}">
     <div data-screen-label="Web · Profile" style="flex:1;display:flex;flex-direction:column;gap:18px;padding:28px 34px 50px;max-width:960px;width:100%;margin:0 auto;box-sizing:border-box;animation:huw-rise .3s ease">
       <div style="display:flex;flex-direction:column;gap:18px">
@@ -44,7 +44,7 @@
                 <span sc-camel-on-click="{{ g.set }}" style="cursor:pointer;font-size:10.5px;font-weight:800;letter-spacing:.5px;color:{{ g.ink }};background:{{ g.bg }};border:1px solid {{ g.border }};border-radius:999px;padding:5px 13px">{{ g.label }}</span>
               </sc-for>
             </div>
-            <span sc-camel-on-click="{{ addFriend }}" style="cursor:pointer;margin-left:auto;display:inline-flex;align-items:center;gap:7px;border:1px solid var(--acc,#C8FF2E);color:var(--acc,#C8FF2E);border-radius:999px;padding:6px 14px" style-hover="background:rgba(200,255,46,.1)"><span style="width:13px;height:13px;background:var(--acc,#C8FF2E);-webkit-mask:url(&quot;c6eaaaa9-2847-45da-acfb-a6c7b17508d5&quot;) center/contain no-repeat;mask:url(&quot;c6eaaaa9-2847-45da-acfb-a6c7b17508d5&quot;) center/contain no-repeat"></span><span style="font-size:11px;font-weight:800;letter-spacing:.5px">ADD FRIEND</span></span>
+            <span sc-camel-on-click="{{ addFriend }}" style="cursor:pointer;margin-left:auto;display:inline-flex;align-items:center;gap:7px;border:1px solid var(--acc,#C8FF2E);color:var(--acc,#C8FF2E);border-radius:999px;padding:6px 14px" style-hover="background:rgba(200,255,46,.1)"><span style="width:13px;height:13px;background:var(--acc,#C8FF2E);-webkit-mask:url(&quot;7f932e91-8cff-461b-9b14-eb93f7d48e4b&quot;) center/contain no-repeat;mask:url(&quot;7f932e91-8cff-461b-9b14-eb93f7d48e4b&quot;) center/contain no-repeat"></span><span style="font-size:11px;font-weight:800;letter-spacing:.5px">ADD FRIEND</span></span>
           </div>
           <sc-if value="{{ hasFriendReq }}" hint-placeholder-val="{{ false }}">
             <div style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid #14171F;background:rgba(34,229,255,.05)">
@@ -79,7 +79,7 @@
               <div style="width:36px;height:36px;flex:none;border-radius:11px;background:{{ c.avBg }};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:{{ c.avInk }}">{{ c.init }}</div>
               <div style="display:flex;flex-direction:column;min-width:0"><span style="font-weight:800;font-size:13.5px">{{ c.name }}</span><span style="font-size:10.5px;color:#565D73;font-weight:700">{{ c.groups }}</span></div>
               <span style="margin-left:auto;font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:22px;color:{{ c.recInk }}">{{ c.rec }}</span>
-              <span style="width:13px;height:13px;flex:none;background:#565D73;-webkit-mask:url(&quot;f2581862-1c68-44c8-be9c-c80101a95aa7&quot;) center/contain no-repeat;mask:url(&quot;f2581862-1c68-44c8-be9c-c80101a95aa7&quot;) center/contain no-repeat"></span>
+              <span style="width:13px;height:13px;flex:none;background:#565D73;-webkit-mask:url(&quot;c8f2b88f-ed97-442a-8539-52a25b87137d&quot;) center/contain no-repeat;mask:url(&quot;c8f2b88f-ed97-442a-8539-52a25b87137d&quot;) center/contain no-repeat"></span>
             </div>
           </sc-for>
           </sc-if>
@@ -115,18 +115,18 @@
         <div style="border-radius:16px;border:1px solid #252A3A;background:#12141D;overflow:hidden;align-self:start">
           <div style="padding:13px 18px;border-bottom:1px solid #1A1E2B;display:flex;align-items:center;justify-content:space-between">
             <span style="font-size:10.5px;font-weight:900;letter-spacing:1.5px;color:#565D73">ACCOUNT</span>
-            <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:12px;height:12px;background:var(--acc,#C8FF2E);-webkit-mask:url(&quot;6cde3d56-8bbd-4171-bf4e-d74074ee354e&quot;) center/contain no-repeat;mask:url(&quot;6cde3d56-8bbd-4171-bf4e-d74074ee354e&quot;) center/contain no-repeat"></span><span style="font-size:10px;font-weight:800;color:var(--acc,#C8FF2E)">EMAIL VERIFIED</span></span>
+            <span style="display:inline-flex;align-items:center;gap:6px"><span style="width:12px;height:12px;background:var(--acc,#C8FF2E);-webkit-mask:url(&quot;a16e3533-7725-4f73-af10-db074514bb27&quot;) center/contain no-repeat;mask:url(&quot;a16e3533-7725-4f73-af10-db074514bb27&quot;) center/contain no-repeat"></span><span style="font-size:10px;font-weight:800;color:var(--acc,#C8FF2E)">EMAIL VERIFIED</span></span>
           </div>
           <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid #14171F">
             <span style="font-size:12.5px;font-weight:700;color:#8B91A7">sp1ke@richmond.edu</span>
           </div>
           <div sc-camel-on-click="{{ changePwd }}" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid #14171F" style-hover="background:#151827">
             <span style="font-size:12.5px;font-weight:800">Change password</span>
-            <span style="width:12px;height:12px;background:#565D73;-webkit-mask:url(&quot;f2581862-1c68-44c8-be9c-c80101a95aa7&quot;) center/contain no-repeat;mask:url(&quot;f2581862-1c68-44c8-be9c-c80101a95aa7&quot;) center/contain no-repeat"></span>
+            <span style="width:12px;height:12px;background:#565D73;-webkit-mask:url(&quot;c8f2b88f-ed97-442a-8539-52a25b87137d&quot;) center/contain no-repeat;mask:url(&quot;c8f2b88f-ed97-442a-8539-52a25b87137d&quot;) center/contain no-repeat"></span>
           </div>
           <div sc-camel-on-click="{{ signOut }}" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid #14171F" style-hover="background:#151827">
             <span style="font-size:12.5px;font-weight:800">Sign out</span>
-            <span style="width:12px;height:12px;background:#565D73;-webkit-mask:url(&quot;f2581862-1c68-44c8-be9c-c80101a95aa7&quot;) center/contain no-repeat;mask:url(&quot;f2581862-1c68-44c8-be9c-c80101a95aa7&quot;) center/contain no-repeat"></span>
+            <span style="width:12px;height:12px;background:#565D73;-webkit-mask:url(&quot;c8f2b88f-ed97-442a-8539-52a25b87137d&quot;) center/contain no-repeat;mask:url(&quot;c8f2b88f-ed97-442a-8539-52a25b87137d&quot;) center/contain no-repeat"></span>
           </div>
           <div sc-camel-on-click="{{ deleteAcct }}" style="cursor:pointer;display:flex;flex-direction:column;gap:2px;padding:12px 18px" style-hover="background:rgba(255,69,87,.06)">
             <span style="font-size:12.5px;font-weight:800;color:#FF4557">Delete account</span>
@@ -145,7 +145,7 @@
 <!-- toast -->
 <sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
   <div style="position:fixed;bottom:26px;left:50%;transform:translateX(-50%);z-index:50;background:#12141D;border:1px solid var(--acc,#C8FF2E);border-radius:999px;padding:12px 24px;display:flex;align-items:center;gap:10px;box-shadow:0 12px 40px rgba(0,0,0,.5);animation:huw-toast .25s ease">
-    <span style="width:15px;height:15px;background:var(--acc,#C8FF2E);-webkit-mask:url(&quot;6cde3d56-8bbd-4171-bf4e-d74074ee354e&quot;) center/contain no-repeat;mask:url(&quot;6cde3d56-8bbd-4171-bf4e-d74074ee354e&quot;) center/contain no-repeat"></span>
+    <span style="width:15px;height:15px;background:var(--acc,#C8FF2E);-webkit-mask:url(&quot;a16e3533-7725-4f73-af10-db074514bb27&quot;) center/contain no-repeat;mask:url(&quot;a16e3533-7725-4f73-af10-db074514bb27&quot;) center/contain no-repeat"></span>
     <span style="font-size:13px;font-weight:800">{{ toast }}</span>
   </div>
 </sc-if>
@@ -189,6 +189,8 @@ class Component extends DCLogic {
     group: 'ALL', rivalsPicked: ['mike_hoops'],
     browseLeague: 'WNBA', playerQuery: '', sbDay: 'UPCOMING', gameId: 'ind-ny',
     winTab: 'BY LEAGUE', crewTab: 'ALL', selRival: 'mike_hoops',
+    frTab: 'ALL', frQ: '', frEdit: null, frNewName: '', memberships: null, customGroups: [], extraFriends: [], sentReqs: [],
+    frReqs: [{ who: 'dee_train' }, { who: 'coach_carter' }],
     wn: null, ml: null
   };
   chatRef = React.createRef();
@@ -206,6 +208,15 @@ class Component extends DCLogic {
   AVATARS = { mike_hoops: ['rgba(255,69,87,.18)', '#FF4557'], sarah_j: ['rgba(124,92,255,.2)', '#A794FF'], tbone: ['rgba(34,229,255,.15)', '#22E5FF'], jchef: ['rgba(255,176,33,.16)', '#FFB021'], kdub: ['rgba(200,255,46,.14)', '#C8FF2E'], lex_22: ['rgba(255,69,87,.14)', '#FF8896'], marisol: ['rgba(34,229,255,.12)', '#7FE8F5'], rocket_ray: ['rgba(124,92,255,.16)', '#B9A8FF'] };
   GROUPS = ['ALL', 'HOOPS CREW', 'WORK', 'LEAGUE BOYS'];
   INJ = { 'Chelsea Gray': ['GTD', '#FFB021'], 'Natasha Howard': ['OUT', '#FF4557'], 'Jonquel Jones': ['GTD', '#FFB021'] };
+  STRANGERS = [{ name: 'hoops_hannah', meta: '14–9 · plays WNBA' }, { name: 'draft_dan', meta: '8–11 · plays both' }, { name: 'buckets_bob', meta: '3–2 · new this month' }];
+  getMemberships() {
+    if (!this.state.memberships) {
+      const m = {};
+      this.CREW.forEach((c) => { m[c.name] = [...c.groups]; });
+      return m;
+    }
+    return this.state.memberships;
+  }
   // Scoreboard mock slates. Team tuple: [abbrev, name, logoSlug, color, score]
   SB = {
     wnba: {
@@ -250,6 +261,75 @@ class Component extends DCLogic {
     const tpA = t1.length >= 5 ? t1 : [...t1, ...rest.filter((_, i) => i % 2 === 0)].slice(0, 8);
     const tpH = t2.length >= 5 ? t2 : [...t2, ...rest.filter((_, i) => i % 2 === 1)].slice(0, 8);
     return [tpA, tpH];
+  }
+  buildFriendsVals(acc, av, emptyOn) {
+    const S = this.state;
+    const mem = this.getMemberships();
+    const allGroups = [...this.GROUPS.slice(1), ...S.customGroups];
+    const q = S.frQ.trim().toLowerCase();
+    const allFriends = [...this.CREW.map((c) => ({ name: c.name, w: c.w, l: c.l })), ...S.extraFriends];
+    const friends = emptyOn ? [] : allFriends
+      .filter((f) => !q || f.name.toLowerCase().includes(q))
+      .filter((f) => S.frEdit || S.frTab === 'ALL' || (mem[f.name] || []).includes(S.frTab));
+    const frRows = friends.map((f) => {
+      const gs = mem[f.name] || [];
+      const inGroup = S.frEdit && gs.includes(S.frEdit);
+      return { name: f.name, init: f.name[0].toUpperCase(), avBg: av(f.name)[0], avInk: av(f.name)[1],
+        groups: gs.length ? gs.join(' · ') : 'No groups yet',
+        rec: f.w + '–' + f.l, recInk: f.w >= f.l ? acc : '#FF4557',
+        editMode: !!S.frEdit, normalMode: !S.frEdit,
+        ckBorder: inGroup ? 'var(--acc,#C8FF2E)' : '#3A4157', ckBg: inGroup ? 'var(--acc,#C8FF2E)' : 'transparent', ckOp: inGroup ? '1' : '0',
+        click: S.frEdit
+          ? () => this.setState({ memberships: { ...mem, [f.name]: inGroup ? gs.filter((g) => g !== S.frEdit) : [...gs, S.frEdit] } })
+          : () => this.setState({ view: 'profile', selRival: f.name }),
+        challenge: (e) => { e.stopPropagation(); this.setState({ view: 'new', rivalsPicked: [f.name] }); } };
+    });
+    const strangers = q ? this.STRANGERS.filter((s) => s.name.toLowerCase().includes(q)) : [];
+    const frStrangerRows = strangers.map((s) => {
+      const sent = S.sentReqs.includes(s.name);
+      return { name: s.name, init: s.name[0].toUpperCase(), meta: s.meta,
+        btnLabel: sent ? 'SENT ✓' : 'SEND REQUEST', btnBg: sent ? 'transparent' : 'var(--acc,#C8FF2E)',
+        btnBorder: sent ? '#252A3A' : 'var(--acc,#C8FF2E)', btnInk: sent ? '#565D73' : '#0A0B10',
+        send: sent ? null : () => { this.setState((st) => ({ sentReqs: [...st.sentReqs, s.name] })); this.pop('Request sent to ' + s.name); } };
+    });
+    const frReqRows = (emptyOn ? [] : S.frReqs).map((r) => ({
+      name: r.who, init: r.who[0].toUpperCase(), avBg: av(r.who)[0], avInk: av(r.who)[1],
+      accept: () => { this.setState((st) => ({ frReqs: st.frReqs.filter((x) => x.who !== r.who), extraFriends: [...st.extraFriends, { name: r.who, w: 0, l: 0 }] })); this.pop(r.who + ' is in your crew'); },
+      decline: () => { this.setState((st) => ({ frReqs: st.frReqs.filter((x) => x.who !== r.who) })); this.pop('Request declined'); }
+    }));
+    const frGroupRows = allGroups.map((g) => {
+      const n = emptyOn ? 0 : allFriends.filter((f) => (mem[f.name] || []).includes(g)).length;
+      const editing = S.frEdit === g;
+      return { name: g, count: n + (n === 1 ? ' member' : ' members'), bg: editing ? 'rgba(124,92,255,.08)' : 'transparent',
+        editLabel: editing ? 'EDITING…' : 'EDIT', editBorder: editing ? '#7C5CFF' : '#252A3A', editInk: editing ? '#A794FF' : '#8B91A7',
+        edit: () => this.setState({ frEdit: editing ? null : g, frTab: 'ALL' }) };
+    });
+    const mkName = S.frNewName.trim();
+    const createGroup = () => {
+      if (!mkName) return;
+      const nm = mkName.toUpperCase();
+      if (allGroups.includes(nm)) { this.pop('You already have a group named ' + nm); return; }
+      this.setState((st) => ({ customGroups: [...st.customGroups, nm], frNewName: '', frEdit: nm }));
+      this.pop(nm + ' created — click friends to add them');
+    };
+    return {
+      frQ: S.frQ, onFrQ: (e) => this.setState({ frQ: e.target.value }),
+      frCount: emptyOn ? 0 : allFriends.length,
+      frTabs: ['ALL', ...allGroups].map((g) => {
+        const on = !S.frEdit && g === S.frTab;
+        return { label: g, set: () => this.setState({ frTab: g, frEdit: null }),
+          bg: on ? 'rgba(124,92,255,.15)' : 'transparent', border: on ? '#7C5CFF' : '#252A3A', ink: on ? '#A794FF' : '#8B91A7' };
+      }),
+      frEditing: !!S.frEdit, frEditName: S.frEdit || '', frDoneEdit: () => this.setState({ frEdit: null }),
+      frRows,
+      frStrangers: frStrangerRows.length > 0, frStrangerRows,
+      frNoMatch: !!q && frRows.length === 0 && frStrangerRows.length === 0,
+      frReqRows, frReqCount: String(frReqRows.length), frReqCountShow: frReqRows.length > 0, frNoReqs: frReqRows.length === 0,
+      frGroupRows,
+      frNewName: S.frNewName, onFrNewName: (e) => this.setState({ frNewName: e.target.value }),
+      onFrNewKey: (e) => { if (e.key === 'Enter') createGroup(); },
+      frCreateGroup: createGroup
+    };
   }
   buildGameVals(acc) {
     const S = this.state;
@@ -581,6 +661,7 @@ class Component extends DCLogic {
       { k: 'draft', label: 'DRAFT', icon: 'icons/timer.svg' },
       { k: 'live', label: 'LIVE', icon: 'icons/pulse.svg', live: true },
       { k: 'players', label: 'SCOREBOARD', icon: 'icons/basketball.svg' },
+      { k: 'friends', label: 'FRIENDS', icon: 'icons/people.svg', count: emptyOn ? 0 : S.frReqs.length },
       { k: 'profile', label: 'YOU', icon: 'icons/person-circle.svg' }
     ];
     const nav = navDefs.map((n) => {
@@ -655,6 +736,8 @@ class Component extends DCLogic {
       isResults: S.view === 'results',
       isGame: S.view === 'game',
       ...(S.view === 'game' ? this.buildGameVals(acc) : {}),
+      isFriends: S.view === 'friends',
+      ...(S.view === 'friends' ? this.buildFriendsVals(acc, av, emptyOn) : {}),
       resMeta: rp.meta + ' · SETTLED AUTOMATICALLY',
       resLetter: rp.res, resBadge: rWon ? 'YOU WON' : rp.res === 'T' ? 'TIE' : 'YOU LOST',
       resBadgeBg: rWon ? acc : rp.res === 'T' ? '#8B91A7' : '#FF4557',
@@ -800,7 +883,7 @@ class Component extends DCLogic {
       crewTabs: groupTab(S.crewTab, 'crewTab'), crewRows,
       selRival, selRivalHist,
       challengeSelected: () => { this.setState({ view: 'new', rivalsPicked: [sel.name] }); },
-      addFriend: () => this.pop('Search a username to send a request'),
+      addFriend: () => this.go('friends'),
       hasFriendReq: !!S.friendReq && !emptyOn,
       acceptReq: () => { this.setState({ friendReq: false }); this.pop('dee_train is in your crew'); },
       declineReq: () => { this.setState({ friendReq: false }); this.pop('Request declined'); },

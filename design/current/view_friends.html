@@ -1,0 +1,115 @@
+
+    <sc-if value="{{ isFriends }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Web · Friends" style="flex:1;display:flex;flex-direction:column;gap:16px;padding:28px 34px 50px;max-width:1060px;width:100%;margin:0 auto;box-sizing:border-box;animation:huw-rise .3s ease">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">
+        <div style="display:flex;flex-direction:column">
+          <span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:24px;letter-spacing:.5px">FRIENDS</span>
+          <span style="font-size:11.5px;color:#8B91A7;font-weight:600">Your crew, your groups, your next victims.</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;background:#12141D;border:1px solid #252A3A;border-radius:999px;padding:9px 16px;width:min(280px,100%);box-sizing:border-box">
+          <span style="width:14px;height:14px;flex:none;background:#565D73;-webkit-mask:url(&quot;b4e2124c-6be3-4f65-ba09-ddd6a4e8d34d&quot;) center/contain no-repeat;mask:url(&quot;b4e2124c-6be3-4f65-ba09-ddd6a4e8d34d&quot;) center/contain no-repeat"></span>
+          <input value="{{ frQ }}" sc-camel-on-input="{{ onFrQ }}" placeholder="Search usernames…" style="flex:1;min-width:0;background:transparent;border:none;color:#F4F5F7;font-family:'Archivo',sans-serif;font-size:13px;outline:none">
+        </div>
+      </div>
+
+      <div style="display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start">
+        <!-- crew list -->
+        <div style="flex:1.5;min-width:min(400px,100%);border-radius:16px;border:1px solid #252A3A;background:#12141D;overflow:hidden">
+          <div style="padding:13px 18px;border-bottom:1px solid #1A1E2B;display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+            <span style="font-size:10.5px;font-weight:900;letter-spacing:1.5px;color:#565D73">YOUR CREW · {{ frCount }}</span>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-left:6px">
+              <sc-for list="{{ frTabs }}" as="g" hint-placeholder-count="4">
+                <span sc-camel-on-click="{{ g.set }}" style="cursor:pointer;font-size:10.5px;font-weight:800;letter-spacing:.5px;color:{{ g.ink }};background:{{ g.bg }};border:1px solid {{ g.border }};border-radius:999px;padding:5px 13px;white-space:nowrap">{{ g.label }}</span>
+              </sc-for>
+            </div>
+          </div>
+          <sc-if value="{{ frEditing }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:9px 18px;border-bottom:1px solid #1A1E2B;background:rgba(124,92,255,.08);display:flex;align-items:center;gap:10px">
+              <span style="font-size:10.5px;font-weight:900;letter-spacing:1px;color:#A794FF">EDITING {{ frEditName }}</span>
+              <span style="font-size:11px;color:#8B91A7;font-weight:600">click a friend to add or remove them</span>
+              <span sc-camel-on-click="{{ frDoneEdit }}" style="cursor:pointer;margin-left:auto;border:1px solid #7C5CFF;color:#A794FF;font-size:10px;font-weight:900;letter-spacing:1px;border-radius:999px;padding:5px 14px" style-hover="background:rgba(124,92,255,.12)">DONE</span>
+            </div>
+          </sc-if>
+          <sc-for list="{{ frRows }}" as="c" hint-placeholder-count="6">
+            <div sc-camel-on-click="{{ c.click }}" style="cursor:pointer;display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid #14171F" style-hover="background:#151827">
+              <div style="width:38px;height:38px;flex:none;border-radius:11px;background:{{ c.avBg }};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:{{ c.avInk }}">{{ c.init }}</div>
+              <div style="display:flex;flex-direction:column;min-width:0;flex:1">
+                <span style="font-weight:800;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.name }}</span>
+                <span style="font-size:10.5px;color:#565D73;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ c.groups }}</span>
+              </div>
+              <sc-if value="{{ c.editMode }}" hint-placeholder-val="{{ false }}">
+                <span style="width:18px;height:18px;flex:none;border-radius:10px;border:1px solid {{ c.ckBorder }};background:{{ c.ckBg }};display:flex;align-items:center;justify-content:center"><span style="width:11px;height:11px;background:#0A0B10;-webkit-mask:url(&quot;a16e3533-7725-4f73-af10-db074514bb27&quot;) center/contain no-repeat;mask:url(&quot;a16e3533-7725-4f73-af10-db074514bb27&quot;) center/contain no-repeat;opacity:{{ c.ckOp }}"></span></span>
+              </sc-if>
+              <sc-if value="{{ c.normalMode }}" hint-placeholder-val="{{ true }}">
+                <span style="font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:20px;color:{{ c.recInk }}">{{ c.rec }}</span>
+                <span sc-camel-on-click="{{ c.challenge }}" style="cursor:pointer;flex:none;border:1px solid var(--acc,#C8FF2E);color:var(--acc,#C8FF2E);font-family:'Barlow Condensed',sans-serif;font-weight:800;font-style:italic;font-size:13px;border-radius:999px;padding:6px 14px;white-space:nowrap" style-hover="background:rgba(200,255,46,.1)">CHALLENGE</span>
+              </sc-if>
+            </div>
+          </sc-for>
+          <sc-if value="{{ frStrangers }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:10px 18px 4px"><span style="font-size:9.5px;font-weight:900;letter-spacing:2px;color:#565D73">NOT IN YOUR CREW</span></div>
+            <sc-for list="{{ frStrangerRows }}" as="s" hint-placeholder-count="1">
+              <div style="display:flex;align-items:center;gap:12px;padding:11px 18px;border-bottom:1px solid #14171F">
+                <div style="width:38px;height:38px;flex:none;border-radius:11px;background:#1A1E2B;border:1px solid #252A3A;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:#8B91A7">{{ s.init }}</div>
+                <div style="display:flex;flex-direction:column;min-width:0;flex:1">
+                  <span style="font-weight:800;font-size:13.5px">{{ s.name }}</span>
+                  <span style="font-size:10.5px;color:#565D73;font-weight:700">{{ s.meta }}</span>
+                </div>
+                <span sc-camel-on-click="{{ s.send }}" style="cursor:pointer;flex:none;background:{{ s.btnBg }};border:1px solid {{ s.btnBorder }};color:{{ s.btnInk }};font-size:10.5px;font-weight:900;letter-spacing:.5px;border-radius:999px;padding:7px 15px" style-hover="filter:brightness(1.1)">{{ s.btnLabel }}</span>
+              </div>
+            </sc-for>
+          </sc-if>
+          <sc-if value="{{ frNoMatch }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:26px;text-align:center;font-size:12px;color:#565D73;font-weight:600">Nobody by that name — send them an invite link instead.</div>
+          </sc-if>
+        </div>
+
+        <!-- right column -->
+        <div style="flex:1;min-width:min(300px,100%);display:flex;flex-direction:column;gap:16px">
+          <div style="border-radius:16px;border:1px solid #252A3A;background:#12141D;overflow:hidden">
+            <div style="padding:13px 16px;border-bottom:1px solid #1A1E2B;display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:10.5px;font-weight:900;letter-spacing:1.5px;color:#565D73">REQUESTS</span>
+              <sc-if value="{{ frReqCountShow }}" hint-placeholder-val="{{ true }}"><span style="background:var(--acc,#C8FF2E);color:#0A0B10;font-size:10px;font-weight:900;border-radius:999px;padding:2px 8px">{{ frReqCount }}</span></sc-if>
+            </div>
+            <sc-for list="{{ frReqRows }}" as="r" hint-placeholder-count="2">
+              <div style="display:flex;align-items:center;gap:11px;padding:11px 16px;border-bottom:1px solid #14171F">
+                <div style="width:34px;height:34px;flex:none;border-radius:10px;background:{{ r.avBg }};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;color:{{ r.avInk }}">{{ r.init }}</div>
+                <div style="display:flex;flex-direction:column;min-width:0;flex:1">
+                  <span style="font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ r.name }}</span>
+                  <span style="font-size:10px;font-weight:800;color:#22E5FF">WANTS IN</span>
+                </div>
+                <div style="display:flex;gap:6px;flex:none">
+                  <span sc-camel-on-click="{{ r.accept }}" style="cursor:pointer;background:var(--acc,#C8FF2E);color:#0A0B10;font-size:10px;font-weight:900;letter-spacing:.5px;border-radius:999px;padding:6px 12px" style-hover="filter:brightness(1.08)">ACCEPT</span>
+                  <span sc-camel-on-click="{{ r.decline }}" style="cursor:pointer;border:1px solid #252A3A;color:#8B91A7;font-size:10px;font-weight:900;letter-spacing:.5px;border-radius:999px;padding:6px 12px" style-hover="border-color:#FF4557;color:#FF4557">DECLINE</span>
+                </div>
+              </div>
+            </sc-for>
+            <sc-if value="{{ frNoReqs }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:20px 16px;text-align:center;font-size:11.5px;color:#565D73;font-weight:600">No requests — quiet inbox, loud scoreboard.</div>
+            </sc-if>
+          </div>
+
+          <div style="border-radius:16px;border:1px solid #252A3A;background:#12141D;overflow:hidden">
+            <div style="padding:13px 16px;border-bottom:1px solid #1A1E2B"><span style="font-size:10.5px;font-weight:900;letter-spacing:1.5px;color:#565D73">GROUPS</span></div>
+            <sc-for list="{{ frGroupRows }}" as="g" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;gap:11px;padding:11px 16px;border-bottom:1px solid #14171F;background:{{ g.bg }}">
+                <span style="width:14px;height:14px;flex:none;background:#7C5CFF;-webkit-mask:url(&quot;8bc9b5f6-8255-40a4-bc84-018cc35ef2dc&quot;) center/contain no-repeat;mask:url(&quot;8bc9b5f6-8255-40a4-bc84-018cc35ef2dc&quot;) center/contain no-repeat"></span>
+                <div style="display:flex;flex-direction:column;min-width:0;flex:1">
+                  <span style="font-weight:800;font-size:13px">{{ g.name }}</span>
+                  <span style="font-size:10px;color:#565D73;font-weight:700">{{ g.count }}</span>
+                </div>
+                <span sc-camel-on-click="{{ g.edit }}" style="cursor:pointer;flex:none;border:1px solid {{ g.editBorder }};color:{{ g.editInk }};font-size:9.5px;font-weight:900;letter-spacing:.5px;border-radius:999px;padding:5px 12px" style-hover="border-color:#7C5CFF;color:#A794FF">{{ g.editLabel }}</span>
+              </div>
+            </sc-for>
+            <div style="display:flex;gap:8px;padding:12px 16px">
+              <input value="{{ frNewName }}" sc-camel-on-input="{{ onFrNewName }}" sc-camel-on-key-down="{{ onFrNewKey }}" placeholder="New group name…" style="flex:1;min-width:0;background:#0D0F16;border:1px solid #252A3A;border-radius:999px;padding:9px 14px;color:#F4F5F7;font-family:'Archivo',sans-serif;font-size:12px;outline:none">
+              <span sc-camel-on-click="{{ frCreateGroup }}" style="cursor:pointer;flex:none;border:1px solid #7C5CFF;color:#A794FF;font-size:10.5px;font-weight:900;letter-spacing:.5px;border-radius:999px;padding:9px 15px;align-self:center" style-hover="background:rgba(124,92,255,.12)">+ CREATE</span>
+            </div>
+            <div style="padding:0 16px 13px"><span style="font-size:10px;color:#565D73;font-weight:600">Groups are private — only you see the names.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    

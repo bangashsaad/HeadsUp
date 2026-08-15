@@ -12,7 +12,7 @@ defmodule HeadsUpWeb.ShellHook do
   """
   import Phoenix.Component, only: [assign: 3]
 
-  alias HeadsUp.{Coins, Contests, Stats}
+  alias HeadsUp.{Coins, Contests, Social, Stats}
   alias HeadsUp.Sports.Schedule
 
   @ticker_key {__MODULE__, :ticker}
@@ -35,7 +35,8 @@ defmodule HeadsUpWeb.ShellHook do
       draft_path: (draft_duel && "/app/draft/#{draft_duel.id}") || "/app/draft",
       live?: live_duel != nil,
       coins: Coins.balance(user.id),
-      record: Stats.record_for(user.id)
+      record: Stats.record_for(user.id),
+      req_count: length(Social.list_incoming_requests(user))
     }
 
     {:cont, assign(socket, :shell, shell)}
@@ -132,6 +133,7 @@ defmodule HeadsUpWeb.ShellHook do
   defp nav_key(HeadsUpWeb.LiveHubLive), do: :live
   defp nav_key(HeadsUpWeb.LiveLive), do: :live
   defp nav_key(HeadsUpWeb.GamesLive), do: :players
+  defp nav_key(HeadsUpWeb.FriendsLive), do: :friends
   defp nav_key(HeadsUpWeb.YouLive), do: :profile
   defp nav_key(_), do: nil
 end

@@ -12,10 +12,18 @@ defmodule HeadsUpWeb.YouLive do
   alias HeadsUp.{Accounts, Coins, Contests, Social, Stats}
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(params, _session, socket) do
+    # ?rival=<id> — the Friends screen's crew rows land here with that
+    # rivalry already open.
+    sel =
+      case Integer.parse(params["rival"] || "") do
+        {id, ""} -> id
+        _ -> nil
+      end
+
     {:ok,
      socket
-     |> assign(page_title: "Profile", win_tab: "BY LEAGUE", crew_tab: "ALL", sel: nil, danger: nil)
+     |> assign(page_title: "Profile", win_tab: "BY LEAGUE", crew_tab: "ALL", sel: sel, danger: nil)
      |> assign(adding: false, search: "", results: [], sent_ids: MapSet.new())
      |> load()}
   end
