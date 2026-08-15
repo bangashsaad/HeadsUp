@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html phx-r lang="en">
+<html data-theme="dark" phx-r lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,36 +14,11 @@
 </style>
     <script defer phx-track-static type="text/javascript" src="/assets/js/app-7aa61bdde3b31f53d64157d08454c642.js?vsn=d">
     </script>
-    <script>
-      (() => {
-        const systemTheme = () => matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
-
-        const setTheme = (theme) => {
-          if (theme === "system") {
-            localStorage.removeItem("phx:theme");
-            document.documentElement.setAttribute("data-theme", systemTheme());
-            document.documentElement.setAttribute("data-theme-source", "system");
-          } else {
-            localStorage.setItem("phx:theme", theme);
-            document.documentElement.setAttribute("data-theme", theme);
-            document.documentElement.setAttribute("data-theme-source", "user");
-          }
-        };
-        if (!document.documentElement.hasAttribute("data-theme")) {
-          setTheme(localStorage.getItem("phx:theme") || "system");
-        }
-        window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
-        
-        window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
-
-        matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
-          if (document.documentElement.getAttribute("data-theme-source") === "system") {
-            document.documentElement.setAttribute("data-theme", systemTheme());
-          }
-        });
-      })();
-    </script>
-  </head>
+    
+  <style>
+html, body { background: #07080C !important; color: #F4F5F7 !important; }
+</style>
+</head>
   <body class="hu-body">
     <main phx-r class="flex min-h-dvh flex-col items-center justify-center bg-[#0A0B10] px-5 py-12">
   <div class="w-full max-w-sm">
