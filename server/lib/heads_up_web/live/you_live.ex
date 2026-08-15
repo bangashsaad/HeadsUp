@@ -16,7 +16,7 @@ defmodule HeadsUpWeb.YouLive do
     {:ok,
      socket
      |> assign(page_title: "Profile", win_tab: "BY LEAGUE", crew_tab: "ALL", sel: nil, danger: nil)
-     |> assign(adding: false, search: "", results: [])
+     |> assign(adding: false, search: "", results: [], sent_ids: MapSet.new())
      |> load()}
   end
 
@@ -85,9 +85,13 @@ defmodule HeadsUpWeb.YouLive do
   end
 
   def handle_event("friend-request", %{"id" => id}, socket) do
-    case Social.send_friend_request(socket.assigns.current_user, String.to_integer(id)) do
+    id = String.to_integer(id)
+
+    case Social.send_friend_request(socket.assigns.current_user, id) do
       {:ok, _} ->
-        {:noreply, socket |> put_flash(:info, "Request sent.") |> assign(adding: false, results: [], search: "")}
+        # Keep the results on screen and mark the row — vanishing the list
+        # right after a tap reads as a glitch, not a success.
+        {:noreply, update(socket, :sent_ids, &MapSet.put(&1, id))}
 
       {:error, reason} when is_binary(reason) ->
         {:noreply, put_flash(socket, :error, reason)}
@@ -221,12 +225,46 @@ defmodule HeadsUpWeb.YouLive do
                   style="flex:1;min-width:0;background:transparent;border:none;color:#F4F5F7;font-family:'Archivo',sans-serif;font-size:12.5px;outline:none"
                 />
               </form>
-              <div :for={u <- @results} style="display:flex;align-items:center;gap:10px;padding:9px 4px">
-                <span style="font-weight:800;font-size:12.5px">{u.username}</span>
-                <button phx-click="friend-request" phx-value-id={u.id} class="hu-cond" style="cursor:pointer;margin-left:auto;background:var(--acc,#C8FF2E);color:#0A0B10;font-size:13px;border-radius:999px;padding:5px 14px;border:none">
+              <%!-- search_users returns {user, relationship, friendship_id} —
+                    the relationship drives which button this row gets. --%>
+              <div :for={r <- @results} style="display:flex;align-items:center;gap:10px;padding:9px 4px">
+                <span style="font-weight:800;font-size:12.5px">{r.user.username}</span>
+                <button
+                  :if={r.relationship == "none" and not MapSet.member?(@sent_ids, r.user.id)}
+                  phx-click="friend-request"
+                  phx-value-id={r.user.id}
+                  class="hu-cond"
+                  style="cursor:pointer;margin-left:auto;background:var(--acc,#C8FF2E);color:#0A0B10;font-size:13px;border-radius:999px;padding:5px 14px;border:none"
+                >
                   CALL THEM IN
                 </button>
+                <span
+                  :if={r.relationship == "request_sent" or MapSet.member?(@sent_ids, r.user.id)}
+                  class="hu-cond"
+                  style="margin-left:auto;border:1px solid rgba(200,255,46,.4);color:var(--acc,#C8FF2E);font-size:13px;border-radius:999px;padding:5px 14px"
+                >
+                  SENT ✓
+                </span>
+                <span
+                  :if={r.relationship == "friends"}
+                  class="hu-cond"
+                  style="margin-left:auto;color:#8B91A7;font-size:13px;border:1px solid #252A3A;border-radius:999px;padding:5px 14px"
+                >
+                  ALREADY CREW
+                </span>
+                <button
+                  :if={r.relationship == "request_received"}
+                  phx-click="request-accept"
+                  phx-value-id={r.friendship_id}
+                  class="hu-cond"
+                  style="cursor:pointer;margin-left:auto;background:#7C5CFF;color:#fff;font-size:13px;border-radius:999px;padding:5px 14px;border:none"
+                >
+                  THEY ASKED FIRST — ACCEPT
+                </button>
               </div>
+              <p :if={@results == [] and String.length(@search) >= 2} style="padding:10px 4px;font-size:11.5px;color:#565D73;font-weight:600">
+                Nobody by that name — usernames match anywhere, so try any part of it.
+              </p>
             </div>
 
             <div :if={@requests != []} style="border-bottom:1px solid #1A1E2B">

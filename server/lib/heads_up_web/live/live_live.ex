@@ -77,7 +77,7 @@ defmodule HeadsUpWeb.LiveLive do
       <div style="flex:1;display:flex;flex-wrap:wrap;gap:24px;max-width:1200px;width:100%;margin:0 auto;box-sizing:border-box;animation:huw-rise .3s ease">
         <div style="flex:1;min-width:min(460px,100%);display:flex;flex-direction:column;gap:18px">
           <%= if @sides do %>
-            <.hero sides={@sides} duel={@duel} live={@live} />
+            <.hero sides={@sides} duel={@duel} live={@live} me_name={@current_user.username} />
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
               <.five side={elem(@sides, 0)} mine={true} />
               <.five side={elem(@sides, 1)} mine={false} />
@@ -135,10 +135,14 @@ defmodule HeadsUpWeb.LiveLive do
   attr :sides, :any, required: true
   attr :duel, :map, required: true
   attr :live, :map, required: true
+  attr :me_name, :string, required: true
 
-  defp hero(assigns) do
+  @doc false
+  def hero(assigns) do
     {me, them} = assigns.sides
-    lead = Float.round((me.total || 0.0) - (them.total || 0.0), 1)
+    # Totals arrive as integers when nothing has scored — normalize before
+    # Float.round or the hero crashes on exactly the quiet games.
+    lead = Float.round((me.total || 0.0) * 1.0 - (them.total || 0.0) * 1.0, 1)
     assigns = assign(assigns, me: me, them: them, lead: lead)
 
     ~H"""
@@ -155,7 +159,7 @@ defmodule HeadsUpWeb.LiveLive do
       <div style="display:flex;align-items:center;justify-content:center;gap:clamp(20px,4vw,52px);margin-top:14px">
         <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
           <span style="font-size:12px;font-weight:900;letter-spacing:1.5px;color:var(--acc,#C8FF2E)">
-            {String.upcase(@current_user.username)}
+            {String.upcase(@me_name)}
           </span>
           <span class="hu-cond" style="font-size:clamp(46px,6.5vw,78px);line-height:.9">{pts(@me.total)}</span>
         </div>
@@ -188,7 +192,8 @@ defmodule HeadsUpWeb.LiveLive do
   attr :side, :map, required: true
   attr :mine, :boolean, required: true
 
-  defp five(assigns) do
+  @doc false
+  def five(assigns) do
     ~H"""
     <div style={"border-radius:16px;border:1px solid #{if @mine, do: "color-mix(in srgb,var(--acc,#C8FF2E) 35%,transparent)", else: "#252A3A"};background:#12141D;overflow:hidden"}>
       <div style="padding:11px 16px;border-bottom:1px solid #1A1E2B;display:flex;justify-content:space-between">

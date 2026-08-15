@@ -129,4 +129,31 @@ defmodule HeadsUpWeb.WebParityTest do
       refute html =~ ">COUNTER<"
     end
   end
+
+  describe "friend search on the web" do
+    test "matches a fragment anywhere in the username and shows the sent state", %{conn: conn} do
+      _target = user("nyelfragment")
+
+      {:ok, view, _html} = live(conn, ~p"/app/you")
+      render_click(view, "add-friend-toggle", %{})
+
+      # The bug: prefix-only matching made this exact search return nothing.
+      html = render_change(view, "friend-search", %{"q" => "fragment"})
+      assert html =~ "nyelfragment"
+
+      target = Repo.get_by!(Accounts.User, username: "nyelfragment")
+      html = render_click(view, "friend-request", %{"id" => to_string(target.id)})
+
+      assert html =~ "SENT ✓"
+      assert Enum.any?(Social.list_incoming_requests(target), & &1)
+    end
+
+    test "an empty result says so instead of showing nothing", %{conn: conn} do
+      {:ok, view, _html} = live(conn, ~p"/app/you")
+      render_click(view, "add-friend-toggle", %{})
+
+      html = render_change(view, "friend-search", %{"q" => "zzznobody"})
+      assert html =~ "Nobody by that name"
+    end
+  end
 end

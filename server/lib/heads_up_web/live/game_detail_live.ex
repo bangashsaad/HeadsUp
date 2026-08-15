@@ -189,9 +189,9 @@ defmodule HeadsUpWeb.GameDetailLive do
               <span style="font-size:10px;font-weight:900;letter-spacing:2px;color:#565D73">{@kicker}</span>
             </div>
 
-            <div style="position:relative;overflow:hidden;border-radius:20px;border:1px solid #252A3A;background:linear-gradient(120deg,{gdATint},#12141D 50%,{gdHTint});padding:18px 16px">
-              <img src="{@g.away && @g.away.logo}" style="position:absolute;left:-44px;top:-40px;width:190px;height:190px;opacity:.09;pointer-events:none" alt="">
-              <img src="{@g.home && @g.home.logo}" style="position:absolute;right:-44px;bottom:-48px;width:190px;height:190px;opacity:.09;pointer-events:none" alt="">
+            <div style={"position:relative;overflow:hidden;border-radius:20px;border:1px solid #252A3A;background:linear-gradient(120deg,rgba(124,92,255,.12),#12141D 50%,rgba(200,255,46,.07));padding:18px 16px"}>
+              <img src={@g.away && @g.away.logo} style="position:absolute;left:-44px;top:-40px;width:190px;height:190px;opacity:.09;pointer-events:none" alt="">
+              <img src={@g.home && @g.home.logo} style="position:absolute;right:-44px;bottom:-48px;width:190px;height:190px;opacity:.09;pointer-events:none" alt="">
               <div style="position:absolute;right:-4px;top:-18px;font-family:'Archivo Black',sans-serif;font-style:italic;font-size:74px;color:transparent;-webkit-text-stroke:1px rgba(244,245,247,.07);pointer-events:none">VS</div>
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;position:relative">
                 <span style="font-size:9px;font-weight:900;letter-spacing:2px;color:#565D73">{@kicker}</span>
@@ -207,7 +207,7 @@ defmodule HeadsUpWeb.GameDetailLive do
               </div>
               <div style="display:flex;align-items:center;position:relative">
                 <div style="width:100px;display:flex;flex-direction:column;align-items:center;gap:2px">
-                  <img src="{@g.away && @g.away.logo}" style="width:58px;height:58px;object-fit:contain;filter:drop-shadow(0 5px 10px {gdAGlow})" alt="">
+                  <img src={@g.away && @g.away.logo} style={"width:58px;height:58px;object-fit:contain;filter:drop-shadow(0 5px 10px rgba(124,92,255,.35))"} alt="">
                   <span style="font-family:'Archivo Black',sans-serif;font-style:italic;font-size:17px;margin-top:5px">{@g.away && @g.away.abbrev}</span>
                   <span style="font-size:8.5px;font-weight:800;letter-spacing:1px;color:#8B91A7">{@g.away && @g.away.name}</span>
                 </div>
@@ -219,13 +219,13 @@ defmodule HeadsUpWeb.GameDetailLive do
                     </div>
                   <% end %>
                   <%= if @g.state != "pre" do %>
-                    <span style="font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:clamp(38px,5.5vw,48px);line-height:1;color:{gdAInk}">{(@g.away && @g.away.score) || "0"}</span>
+                    <span style={"font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:clamp(38px,5.5vw,48px);line-height:1;color:#{lead_ink(@g, :away)}"}>{(@g.away && @g.away.score) || "0"}</span>
                     <%= if @g.state == "post" do %><span style="font-size:9px;font-weight:900;letter-spacing:1.5px;color:#565D73">FINAL</span><% end %>
-                    <span style="font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:clamp(38px,5.5vw,48px);line-height:1;color:{gdHInk}">{(@g.home && @g.home.score) || "0"}</span>
+                    <span style={"font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:clamp(38px,5.5vw,48px);line-height:1;color:#{lead_ink(@g, :home)}"}>{(@g.home && @g.home.score) || "0"}</span>
                   <% end %>
                 </div>
                 <div style="width:100px;display:flex;flex-direction:column;align-items:center;gap:2px">
-                  <img src="{@g.home && @g.home.logo}" style="width:58px;height:58px;object-fit:contain;filter:drop-shadow(0 5px 10px {gdHGlow})" alt="">
+                  <img src={@g.home && @g.home.logo} style={"width:58px;height:58px;object-fit:contain;filter:drop-shadow(0 5px 10px rgba(200,255,46,.3))"} alt="">
                   <span style="font-family:'Archivo Black',sans-serif;font-style:italic;font-size:17px;margin-top:5px">{@g.home && @g.home.abbrev}</span>
                   <span style="font-size:8.5px;font-weight:800;letter-spacing:1px;color:#8B91A7">{@g.home && @g.home.name}</span>
                 </div>
@@ -249,8 +249,8 @@ defmodule HeadsUpWeb.GameDetailLive do
                   <% end %>
                   <div style="display:flex;flex-direction:column;gap:5px;align-items:center;min-width:30px;margin-left:6px">
                     <span style="font-size:8px;font-weight:900;color:#565D73;height:11px">{if @sport == "mlb", do: "R", else: "T"}</span>
-                    <span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:13.5px;color:{gdAInk}">{(@g.away && @g.away.score) || "0"}</span>
-                    <span style="font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:13.5px;color:{gdHInk}">{(@g.home && @g.home.score) || "0"}</span>
+                    <span style={"font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:13.5px;color:#{lead_ink(@g, :away)}"}>{(@g.away && @g.away.score) || "0"}</span>
+                    <span style={"font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:13.5px;color:#{lead_ink(@g, :home)}"}>{(@g.home && @g.home.score) || "0"}</span>
                   </div>
                 </div>
               </div>
@@ -263,8 +263,8 @@ defmodule HeadsUpWeb.GameDetailLive do
               </div>
               <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
                 <%= for r <- @heaters do %>
-                  <div style="border-radius:14px;border:1px solid {r.border};background:#12141D;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center">
-                    <img src="{r[:img]}" style="width:38px;height:38px;border-radius:12px;object-fit:cover;object-position:top;background:#1A1E2B;border:1px solid {r.border}" alt="">
+                  <div style={"border-radius:14px;border:1px solid #252A3A;background:#12141D;padding:12px 8px;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center"}>
+                    <img src={r[:img]} style={"width:38px;height:38px;border-radius:12px;object-fit:cover;object-position:top;background:#1A1E2B;border:1px solid #252A3A"} alt="">
                     <span style="font-size:10.5px;font-weight:700;max-width:94%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{r.name}</span>
                     <span style="font-size:8px;font-weight:900;letter-spacing:1.5px;color:#565D73">{r.team}</span>
                     <span style="font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:21px;line-height:1;color:var(--acc,#C8FF2E)">{r.pts}</span>
@@ -321,7 +321,7 @@ defmodule HeadsUpWeb.GameDetailLive do
               <%= for t <- @box.teams do %>
                 <div style="display:flex;flex-direction:column;gap:8px">
                   <div style="display:flex;align-items:center;gap:8px;margin-top:6px">
-                    <img src="{t.logo}" style="width:19px;height:19px;object-fit:contain" alt="">
+                    <img src={t.logo} style="width:19px;height:19px;object-fit:contain" alt="">
                     <span style="font-family:'Archivo Black',sans-serif;font-style:italic;font-size:15px;letter-spacing:1px">{t.head}</span>
                     <div style="flex:1;height:1px;background:#1A1E2B"></div>
                   </div>
@@ -338,8 +338,8 @@ defmodule HeadsUpWeb.GameDetailLive do
                             <% end %>
                           </div>
                           <%= for r <- g.rows do %>
-                            <div style="display:flex;align-items:center;border-bottom:1px solid #14171F;background:{r.bg}">
-                              <span style="flex:1;min-width:130px;padding:10px 0 10px 14px;font-size:12px;font-weight:600;color:{r.nameInk};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{r.name}</span>
+                            <div style={"display:flex;align-items:center;border-bottom:1px solid #14171F;background:#{r.bg}"}>
+                              <span style={"flex:1;min-width:130px;padding:10px 0 10px 14px;font-size:12px;font-weight:600;color:#{r.nameInk};white-space:nowrap;overflow:hidden;text-overflow:ellipsis"}>{r.name}</span>
                               <span style="width:48px;text-align:center;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:15px;color:var(--acc,#C8FF2E)">{r.fan}</span>
                               <%= for s <- r.stats do %>
                                 <span style="width:44px;text-align:center;font-family:'Barlow Condensed',sans-serif;font-weight:500;font-size:13px;color:#8B91A7">{s}</span>
@@ -365,7 +365,7 @@ defmodule HeadsUpWeb.GameDetailLive do
                     <div style="padding:11px 16px;border-bottom:1px solid #1A1E2B"><span style="font-size:11px;font-weight:900;letter-spacing:1.5px;color:#8B91A7">{t.title}</span></div>
                     <%= for p <- t.rows do %>
                       <div style="display:flex;align-items:center;gap:11px;padding:9px 16px;border-bottom:1px solid #14171F">
-                        <img src="{p[:img]}" style="width:36px;height:36px;flex:none;border-radius:11px;object-fit:cover;object-position:top;background:#1A1E2B" alt="">
+                        <img src={p[:img]} style="width:36px;height:36px;flex:none;border-radius:11px;object-fit:cover;object-position:top;background:#1A1E2B" alt="">
                         <div style="display:flex;flex-direction:column;min-width:0"><span style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{p.name}</span><span style="font-size:10.5px;color:#565D73;font-weight:700">{p.pos}</span></div>
                         <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end"><span style="font-family:'Barlow Condensed',sans-serif;font-style:italic;font-weight:800;font-size:19px;line-height:1;color:var(--acc,#C8FF2E)">{p.proj}</span><span style="font-size:8px;font-weight:900;letter-spacing:1px;color:#565D73">PROJ</span></div>
                       </div>
@@ -378,5 +378,27 @@ defmodule HeadsUpWeb.GameDetailLive do
     
     </Layouts.shell>
     """
+  end
+
+  # The leading side's score renders white; the trailing side dims.
+  defp lead_ink(g, side) do
+    a = int_score(g.away)
+    h = int_score(g.home)
+
+    cond do
+      a == h -> "#F4F5F7"
+      side == :away and a > h -> "#F4F5F7"
+      side == :home and h > a -> "#F4F5F7"
+      true -> "#8B91A7"
+    end
+  end
+
+  defp int_score(nil), do: 0
+
+  defp int_score(%{score: s}) do
+    case Integer.parse(to_string(s || "0")) do
+      {n, _} -> n
+      :error -> 0
+    end
   end
 end

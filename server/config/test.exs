@@ -55,6 +55,9 @@ config :heads_up, HeadsUpWeb.Endpoint,
 # In test we don't send emails
 config :heads_up, HeadsUp.Mailer, adapter: Swoosh.Adapters.Test
 config :heads_up, :require_verified_email, false
+# Season probes never cache in tests — a warm entry from one file leaks
+# "playable" into another's assertions (an hour-long persistent_term TTL).
+config :heads_up, :season_cache, false
 
 # Disable swoosh api client as it is only required for production adapters
 config :swoosh, :api_client, false

@@ -67,7 +67,13 @@ defmodule HeadsUp.Sports.Season do
     now = Keyword.get(opts, :now, DateTime.utc_now())
     key = {__MODULE__, sport}
 
-    if Keyword.get(opts, :cache, true) do
+    # The test env never caches: LiveView mounts probe Season with the app-env
+    # stub, and an hour-long persistent_term entry written by one test file
+    # leaks "playable" into another's positively-gated assertions. This burned
+    # us twice before becoming a rule.
+    cache_default = Application.get_env(:heads_up, :season_cache, true)
+
+    if Keyword.get(opts, :cache, cache_default) do
       case cached(key) do
         {:hit, result} -> result
         :miss -> tap_cache(key, probe(sport, client, now))

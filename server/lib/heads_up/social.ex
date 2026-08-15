@@ -23,9 +23,12 @@ defmodule HeadsUp.Social do
     if String.length(trimmed) < 2 do
       []
     else
-      # Prefix match ("starts with") — more precise than match-anywhere, and
-      # it can use a database index, so it stays fast as the user base grows.
-      pattern = escape_like(trimmed) <> "%"
+      # Match ANYWHERE in the username. Prefix-only search made "bangash"
+      # find nobody named "nyelbangash" — which reads as broken, because
+      # silence looks broken. The index argument that justified prefix-only
+      # matters at a scale this user table is nowhere near; revisit if search
+      # ever shows up in slow-query logs.
+      pattern = "%" <> escape_like(trimmed) <> "%"
 
       hidden = blocked_ids(current_user.id)
 
