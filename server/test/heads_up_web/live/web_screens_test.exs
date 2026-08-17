@@ -105,6 +105,37 @@ defmodule HeadsUpWeb.WebScreensTest do
       assert duel.lineup_template == "wnba_7"
     end
 
+    test "baseball offers its real sizes and sends the diamond", %{conn: conn, a: a, b: b} do
+      # MLB is only "playable" with a real pool behind it (Season's gate).
+      for i <- 1..36 do
+        pos = Enum.at(~w(SP C 1B 2B 3B SS OF OF OF), rem(i, 9))
+
+        Repo.insert!(%HeadsUp.Sports.Player{
+          sport: "mlb",
+          external_id: "#{9_500_000 + i}",
+          name: "MLB Test #{i}",
+          team: "TST",
+          position: pos,
+          projection: 20.0
+        })
+      end
+
+      {:ok, view, _} = live(conn, ~p"/app/new")
+
+      html = render_click(view, "league", %{"key" => "mlb"})
+      assert html =~ "6 SLOTS"
+      assert html =~ "9 SLOTS"
+      refute html =~ "5 SLOTS"
+
+      render_click(view, "rival", %{"id" => to_string(b.id)})
+      render_click(view, "roster", %{"n" => "9"})
+      render_click(view, "send", %{})
+
+      duel = challenge_of(a)
+      assert duel.lineup_template == "mlb_9"
+      assert duel.roster_size == 9
+    end
+
     test "refuses to send with nobody picked", %{conn: conn} do
       {:ok, view, _} = live(conn, ~p"/app/new")
       html = render_click(view, "send", %{})

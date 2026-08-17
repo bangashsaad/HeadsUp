@@ -126,7 +126,9 @@ function isPlayable(sportsStatus, key) {
 }
 
 // Roster sizes and clocks match the canonical challenge screen (async cut).
-const ROSTERS = [5, 7];
+// Baseball runs 6/9; everyone else 5/7 — mirrors Drafts.Lineup.sizes_for/1.
+const ROSTERS_BY_LEAGUE = { mlb: [6, 9] };
+const rosterSizesFor = (lg) => ROSTERS_BY_LEAGUE[lg] || [5, 7];
 
 const CLOCKS = [
   { secs: 15, label: '15s' },
@@ -175,8 +177,9 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
   const { user, token } = useAuth();
   const [sport, setSport] = useState(initial.sport || 'wnba');
   const [roster, setRoster] = useState(() => {
+    const sizes = rosterSizesFor(initial.sport || 'wnba');
     const n = parseInt((initial.lineup_template || '').split('_')[1], 10);
-    return ROSTERS.includes(n) ? n : 5;
+    return sizes.includes(n) ? n : sizes[0];
   });
   // A countered async duel falls back to the shortest clock we still offer.
   const [clockSecs, setClockSecs] = useState(() =>
@@ -193,6 +196,13 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
   const [slateId, setSlateId] = useState(null);
 
   const balance = user?.coins ?? 0;
+
+  // Each sport has its own size menu — switching sports snaps to it.
+  useEffect(() => {
+    const sizes = rosterSizesFor(sport);
+    if (!sizes.includes(roster)) setRoster(sizes[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sport]);
 
   // If the selected sport turns out to be off-season, snap to the first
   // playable one once status arrives.
@@ -318,7 +328,7 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
 
       <Text style={styles.label}>Roster</Text>
       <View style={styles.row}>
-        {ROSTERS.map((n) => (
+        {rosterSizesFor(sport).map((n) => (
           <Chip key={n} label={`${n} slots`} active={roster === n} onPress={() => setRoster(n)} />
         ))}
       </View>

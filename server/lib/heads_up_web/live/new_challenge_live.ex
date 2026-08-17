@@ -9,6 +9,7 @@ defmodule HeadsUpWeb.NewChallengeLive do
   use HeadsUpWeb, :live_view
 
   alias HeadsUp.{Coins, Contests, Social, Stats}
+  alias HeadsUp.Drafts.Lineup
   alias HeadsUp.Sports.{Season, Slate}
 
   @leagues [
@@ -17,7 +18,6 @@ defmodule HeadsUpWeb.NewChallengeLive do
     %{key: "nfl", label: "🏈 NFL"},
     %{key: "nba", label: "🏀 NBA"}
   ]
-  @rosters [5, 7]
   @stakes [0, 25, 100]
   @clocks [15, 30, 60]
   @max_rivals 3
@@ -34,7 +34,6 @@ defmodule HeadsUpWeb.NewChallengeLive do
       |> assign(page_title: if(counter, do: "Counter offer", else: "New challenge"))
       |> assign(
         leagues: @leagues,
-        rosters: @rosters,
         stakes: @stakes,
         clocks: @clocks,
         max_rivals: @max_rivals,
@@ -67,13 +66,18 @@ defmodule HeadsUpWeb.NewChallengeLive do
 
   defp seed_terms(socket, nil, playable) do
     league = Enum.find_value(@leagues, "wnba", &if(MapSet.member?(playable, &1.key), do: &1.key))
-    assign(socket, league: league, roster: 5, stake: 0, clock: 30, rivals: [])
+    sizes = Lineup.sizes_for(league)
+    assign(socket, league: league, rosters: sizes, roster: hd(sizes), stake: 0, clock: 30, rivals: [])
   end
 
   defp seed_terms(socket, duel, _playable) do
+    sizes = Lineup.sizes_for(duel.sport)
+
     assign(socket,
       league: duel.sport,
-      roster: duel.roster_size,
+      rosters: sizes,
+      # Countering a legacy-size duel (mlb_5/mlb_7) re-terms onto today's menu.
+      roster: if(duel.roster_size in sizes, do: duel.roster_size, else: hd(sizes)),
       stake: duel.stake_coins,
       clock: if(duel.pick_clock_seconds in @clocks, do: duel.pick_clock_seconds, else: 30),
       rivals: [duel.challenger_id]
@@ -126,7 +130,10 @@ defmodule HeadsUpWeb.NewChallengeLive do
   @impl true
   def handle_event("league", %{"key" => key}, socket) do
     if MapSet.member?(socket.assigns.playable, key) do
-      {:noreply, socket |> assign(league: key) |> load_slates()}
+      sizes = Lineup.sizes_for(key)
+      roster = if socket.assigns.roster in sizes, do: socket.assigns.roster, else: hd(sizes)
+
+      {:noreply, socket |> assign(league: key, rosters: sizes, roster: roster) |> load_slates()}
     else
       {:noreply, socket}
     end

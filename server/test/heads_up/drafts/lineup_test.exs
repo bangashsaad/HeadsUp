@@ -4,10 +4,12 @@ defmodule HeadsUp.Drafts.LineupTest do
   alias HeadsUp.Drafts.Lineup
 
   describe "templates/0 and templates_for/1" do
-    test "exposes the canonical 5/7 shapes plus the legacy presets" do
+    test "exposes the canonical shapes plus the legacy presets" do
       assert Enum.sort(Lineup.templates()) == [
                "mlb_5",
+               "mlb_6",
                "mlb_7",
+               "mlb_9",
                "mlb_quick",
                "mlb_standard",
                "nba_5",
@@ -31,8 +33,8 @@ defmodule HeadsUp.Drafts.LineupTest do
       assert Lineup.templates_for("xxx") == []
     end
 
-    test "canonical shapes: sizes 5 and 7, each ending in one FLEX" do
-      for sport <- ~w(wnba nba mlb nfl), size <- [5, 7] do
+    test "ball-sport shapes: sizes 5 and 7, each ending in one FLEX" do
+      for sport <- ~w(wnba nba nfl), size <- [5, 7] do
         slots = Lineup.slots("#{sport}_#{size}")
         assert length(slots) == size
         assert List.last(slots).label == "FLEX"
@@ -40,19 +42,37 @@ defmodule HeadsUp.Drafts.LineupTest do
       end
 
       assert Enum.map(Lineup.slots("wnba_5"), & &1.label) == ~w(GUARD GUARD FORWARD FORWARD FLEX)
-      assert Enum.map(Lineup.slots("mlb_7"), & &1.label) ==
-               ~w(PITCHER PITCHER INFIELD INFIELD OUTFIELD OUTFIELD FLEX)
-
       assert Enum.map(Lineup.slots("nfl_5"), & &1.label) == ~w(QB RB WR WR FLEX)
       assert Enum.map(Lineup.slots("nfl_7"), & &1.label) == ~w(QB RB RB WR WR TE FLEX)
     end
 
-    test "default_template/1 prefers the 5-slot shape for every live sport" do
+    test "baseball's real sizes: 6 is one ace + five bats, 9 is the diamond" do
+      assert Enum.map(Lineup.slots("mlb_6"), & &1.label) ==
+               ~w(PITCHER INFIELD INFIELD OUTFIELD OUTFIELD UTIL)
+
+      assert Enum.map(Lineup.slots("mlb_9"), & &1.label) == ["PITCHER", "C", "1B", "2B", "3B", "SS", "OF", "OF", "OF"]
+
+      # Exactly one required pitcher in each — a two-game slate stays draftable.
+      for t <- ~w(mlb_6 mlb_9) do
+        assert Enum.count(Lineup.slots(t), &("SP" in &1.eligible)) == 1
+      end
+
+      # DH-only bats (hi, Shohei) fit the 6's UTIL; the 9 has no seat for them.
+      util = List.last(Lineup.slots("mlb_6"))
+      assert "DH" in util.eligible
+      refute Enum.any?(Lineup.slots("mlb_9"), &("DH" in &1.eligible))
+
+      # The coarse legacy shapes stay registered so old duels keep drafting.
+      assert Lineup.valid?("mlb_5") and Lineup.valid?("mlb_7")
+    end
+
+    test "default_template/1 prefers each sport's smallest offered shape" do
       assert Lineup.default_template("wnba") == "wnba_5"
-      assert Lineup.default_template("mlb") == "mlb_5"
+      assert Lineup.default_template("mlb") == "mlb_6"
       assert Lineup.default_template("nfl") == "nfl_5"
       assert Lineup.sizes_for("wnba") == [5, 7]
       assert Lineup.sizes_for("nfl") == [5, 7]
+      assert Lineup.sizes_for("mlb") == [6, 9]
       # A sport with no canonical shape still falls back to its legacy preset.
       assert Lineup.default_template("xxx") == "xxx_standard"
     end
@@ -179,10 +199,10 @@ defmodule HeadsUp.Drafts.LineupTest do
         "RP" => 4,
         "C" => 4,
         "1B" => 3,
-        "2B" => 2,
+        "2B" => 3,
         "3B" => 3,
         "SS" => 3,
-        "OF" => 5,
+        "OF" => 7,
         "DH" => 2
       }
     }

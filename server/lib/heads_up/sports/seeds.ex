@@ -443,6 +443,11 @@ defmodule HeadsUp.Sports.Seeds do
         {"Kyle Tucker", "CHC", "OF"},
         {"Shohei Ohtani", "LAD", "DH"},
         {"Yordan Alvarez", "HOU", "DH"},
+        # Extra OF + 2B so the diamond (mlb_9: 3 OF, one at each infield spot)
+        # fits two teams in the small dev pool with margin.
+        {"Julio Rodriguez", "SEA", "OF"},
+        {"Corbin Carroll", "AZ", "OF"},
+        {"Jose Altuve", "HOU", "2B"},
         # Extra RP + C so the small SHARED pool has margin for a 2-team draft
         # (mlb_standard/mlb_quick each demand 2 of these across both rosters).
         {"Edwin Diaz", "NYM", "RP"},

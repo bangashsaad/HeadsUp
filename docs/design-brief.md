@@ -35,7 +35,7 @@ headsupfantasy.com — one backend. **Every design ships to both.**
 | Thing | Truth |
 |---|---|
 | Leagues | 🏀 WNBA, ⚾️ MLB, 🏈 NFL, 🏀 NBA — off-season leagues show but are dimmed/disabled ("OFF-SEASON") |
-| Roster sizes | **5 or 7 slots** — nothing else |
+| Roster sizes | **Per sport**: 🏀 5 or 7 · 🏈 5 or 7 · ⚾️ **6 or 9** (6 = one pitcher + five bats w/ UTIL; 9 = "the diamond": P·C·1B·2B·3B·SS·3 OF, no UTIL) — nothing else |
 | Stakes | **No stake / ◎ 25 / ◎ 100** — there is no 50. Pot = stake × number of drafters |
 | Pick clock | **15 / 30 / 60 seconds** — no minute/hour clocks |
 | Drafters per duel | **1v1 up to 4 total** ("call out up to 3 rivals"). Never 8 |

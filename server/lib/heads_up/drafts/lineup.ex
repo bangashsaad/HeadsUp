@@ -134,6 +134,33 @@ defmodule HeadsUp.Drafts.Lineup do
     %{key: "FLEX1", label: "FLEX", eligible: @mlb_hitter}
   ]
 
+  # Baseball's real sizes (Saad's call, 2026-08-16): the coarse 5/7 shapes
+  # stay registered for duels that already exist, but new challenges offer
+  # these two. The 6 is one ace + five bats; the 9 is "draft the diamond" —
+  # a true position at every spot, and only ONE required pitcher so a
+  # two-game slate stays draftable. DH-only players (hi, Shohei) fit the 6's
+  # UTIL; the 9 has no seat for them on purpose.
+  @mlb_6 [
+    %{key: "P1", label: "PITCHER", eligible: @mlb_pitcher},
+    %{key: "IF1", label: "INFIELD", eligible: @mlb_infield},
+    %{key: "IF2", label: "INFIELD", eligible: @mlb_infield},
+    %{key: "OF1", label: "OUTFIELD", eligible: ["OF"]},
+    %{key: "OF2", label: "OUTFIELD", eligible: ["OF"]},
+    %{key: "UTIL1", label: "UTIL", eligible: @mlb_hitter}
+  ]
+
+  @mlb_9 [
+    %{key: "P1", label: "PITCHER", eligible: @mlb_pitcher},
+    %{key: "C1", label: "C", eligible: ["C"]},
+    %{key: "B1", label: "1B", eligible: ["1B"]},
+    %{key: "B2", label: "2B", eligible: ["2B"]},
+    %{key: "B3", label: "3B", eligible: ["3B"]},
+    %{key: "SS1", label: "SS", eligible: ["SS"]},
+    %{key: "OF1", label: "OF", eligible: ["OF"]},
+    %{key: "OF2", label: "OF", eligible: ["OF"]},
+    %{key: "OF3", label: "OF", eligible: ["OF"]}
+  ]
+
   @templates %{
     "nfl_5" => @nfl_5,
     "nfl_7" => @nfl_7,
@@ -142,7 +169,9 @@ defmodule HeadsUp.Drafts.Lineup do
     "nba_5" => @bball_5,
     "nba_7" => @bball_7,
     "mlb_5" => @mlb_5,
+    "mlb_6" => @mlb_6,
     "mlb_7" => @mlb_7,
+    "mlb_9" => @mlb_9,
     "nfl_quick" => [
       %{key: "QB1", label: "QB", eligible: ["QB"]},
       %{key: "RB1", label: "RB", eligible: ["RB"]},
@@ -192,12 +221,22 @@ defmodule HeadsUp.Drafts.Lineup do
   """
   @spec default_template(String.t()) :: String.t()
   def default_template(sport) do
-    sized = "#{sport}_5"
-    if Map.has_key?(@templates, sized), do: sized, else: "#{sport}_standard"
+    case sizes_for(sport) do
+      [n | _] -> "#{sport}_#{n}"
+      [] -> "#{sport}_standard"
+    end
   end
 
-  @doc "Canonical roster sizes offered for a sport, smallest first (e.g. [5, 7])."
+  @doc """
+  Canonical roster sizes OFFERED for a sport, smallest first. Baseball runs
+  6/9 (one ace + five bats, or the whole diamond); everyone else 5/7. This is
+  deliberately not derived from the registry — mlb_5/mlb_7 stay registered so
+  duels that already carry them keep drafting, but new challenges don't offer
+  them.
+  """
   @spec sizes_for(String.t()) :: [pos_integer()]
+  def sizes_for("mlb"), do: [6, 9]
+
   def sizes_for(sport) do
     for n <- [5, 7], Map.has_key?(@templates, "#{sport}_#{n}"), do: n
   end

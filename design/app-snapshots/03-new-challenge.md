@@ -7,7 +7,7 @@
 > into React Native. Names and layout in the code are the truth of what exists
 > today.
 
-The challenge builder (pushed from DUELS or the + CTA). Pick rivals (up to 3 — group duels), league (off-season ones dimmed OFF-SEASON), slate (day for WNBA/MLB/NBA, week for NFL), roster 5/7, stake none/◎25/◎100, clock 15/30/60s, then THE TERMS receipt rail and SEND IT. Scoring chart viewable per league.
+The challenge builder (pushed from DUELS or the + CTA). Pick rivals (up to 3 — group duels), league (off-season ones dimmed OFF-SEASON), slate (day for WNBA/MLB/NBA, week for NFL), roster (🏀🏈 5/7 · ⚾️ 6/9), stake none/◎25/◎100, clock 15/30/60s, then THE TERMS receipt rail and SEND IT. Scoring chart viewable per league.
 
 ## The app's design language (real tokens, from `src/theme.js`)
 
@@ -71,7 +71,10 @@ const LEAGUES = [
   { key: 'nfl', label: 'NFL' },
 ];
 
-const ROSTERS = [5, 7];
+// Per-sport roster menus. Baseball runs 6 (one ace + five bats) and 9 (the
+// whole diamond); everyone else 5/7. Mirrors Drafts.Lineup.sizes_for/1.
+const ROSTERS_BY_LEAGUE = { mlb: [6, 9] };
+const rosterSizesFor = (lg) => ROSTERS_BY_LEAGUE[lg] || [5, 7];
 const CLOCKS = [15, 30, 60];
 const STAKES = [
   { coins: 0, label: 'FRIENDLY' },
@@ -85,10 +88,13 @@ const SHAPES = {
   wnba: { 5: ['2 GUARD', '2 FORWARD', '1 FLEX'], 7: ['3 GUARD', '3 FORWARD', '1 FLEX'] },
   nba: { 5: ['2 GUARD', '2 FORWARD', '1 FLEX'], 7: ['3 GUARD', '3 FORWARD', '1 FLEX'] },
   mlb: {
-    5: ['1 PITCHER', '2 INFIELD', '1 OUTFIELD', '1 FLEX'],
-    7: ['2 PITCHER', '2 INFIELD', '2 OUTFIELD', '1 FLEX'],
+    6: ['1 PITCHER', '2 INFIELD', '2 OUTFIELD', '1 UTIL'],
+    9: ['1 PITCHER', 'C · 1B · 2B · 3B · SS', '3 OUTFIELD'],
   },
-  nfl: { 5: ['LEGACY SHAPE'], 7: ['LEGACY SHAPE'] },
+  nfl: {
+    5: ['1 QB', '1 RB', '2 WR', '1 FLEX'],
+    7: ['1 QB', '2 RB', '2 WR', '1 TE', '1 FLEX'],
+  },
 };
 
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
@@ -222,14 +228,21 @@ export default function CreateChallengeScreen({ navigation, route }) {
   );
 
   const drafters = selected.length + 1;
+  const rosterSizes = rosterSizesFor(league);
   const rosterOk = (size) => fits(size, Math.max(drafters, 2));
   const canAddAnother = fits(roster, Math.max(drafters + 1, 2));
+
+  // Each sport has its own size menu — switching leagues snaps to it.
+  useEffect(() => {
+    if (!rosterSizes.includes(roster)) setRoster(rosterSizes[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [league]);
 
   // If the picked roster stops fitting (slate changed, or a rival joined),
   // fall back to the largest size that still works.
   useEffect(() => {
     if (!rosterOk(roster)) {
-      const ok = [...ROSTERS].reverse().find((s) => rosterOk(s));
+      const ok = [...rosterSizes].reverse().find((s) => rosterOk(s));
       if (ok) setRoster(ok);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -283,7 +296,7 @@ export default function CreateChallengeScreen({ navigation, route }) {
   // BUG GUARD: a thin slate can leave NO roster size viable for the current
   // table (pick 4 rivals on a big slate, then switch to a one-game night).
   // Without this the CTA stayed live and the server rejected the send.
-  const anyRosterFits = ROSTERS.some((size) => rosterOk(size));
+  const anyRosterFits = rosterSizes.some((size) => rosterOk(size));
 
   async function send() {
     if (selected.length === 0) return;
@@ -379,7 +392,7 @@ export default function CreateChallengeScreen({ navigation, route }) {
               setShapesOpen(true);
             }}
           >
-            {ROSTERS.map((size) => {
+            {rosterSizes.map((size) => {
               const ok = rosterOk(size);
               return (
                 <Opt
@@ -603,9 +616,9 @@ function RosterShapesModal({ visible, onClose, league, roster, onPick, rosterOk,
         <Pressable style={styles.sheet} onPress={() => {}}>
           <Text style={styles.sheetTitle}>ROSTER SHAPES</Text>
           <Text style={styles.sheetSub}>
-            Every roster ends in one FLEX — positions lock as you draft. Shapes shown for {league.toUpperCase()}.
+            Positions lock as you draft. Shapes shown for {league.toUpperCase()}.
           </Text>
-          {ROSTERS.map((size) => {
+          {rosterSizesFor(league).map((size) => {
             const active = size === roster;
             const ok = rosterOk(size);
             return (
