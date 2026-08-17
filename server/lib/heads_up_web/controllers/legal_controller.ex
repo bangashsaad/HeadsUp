@@ -12,7 +12,7 @@ defmodule HeadsUpWeb.LegalController do
   @updated "July 28, 2026"
 
   defp support_email,
-    do: Application.get_env(:heads_up, :support_email, "nyel.bangash@richmond.edu")
+    do: Application.get_env(:heads_up, :support_email, "headsupfantasy.help@gmail.com")
 
   def privacy(conn, _params) do
     html(conn, page("Privacy Policy", """
