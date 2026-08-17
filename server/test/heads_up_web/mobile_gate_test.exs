@@ -37,9 +37,30 @@ defmodule HeadsUpWeb.MobileGateTest do
       end
     end
 
-    test "the landing and legal pages stay reachable on a phone", %{conn: conn} do
-      assert conn |> with_ua(@iphone) |> get(~p"/") |> html_response(200)
-      assert Phoenix.ConnTest.build_conn() |> with_ua(@iphone) |> get(~p"/privacy") |> html_response(200)
+    test "a phone's first touch of the landing is the gate", %{conn: conn} do
+      conn = conn |> with_ua(@iphone) |> get(~p"/")
+      assert redirected_to(conn) == "/get-the-app"
+    end
+
+    test "crawlers with phone user-agents still see the real landing", %{conn: conn} do
+      googlebot =
+        "Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
+
+      assert conn |> with_ua(googlebot) |> get(~p"/") |> html_response(200)
+    end
+
+    test "legal pages stay reachable on a phone", %{conn: conn} do
+      assert conn |> with_ua(@iphone) |> get(~p"/privacy") |> html_response(200)
+    end
+
+    test "the escaped-hatch cookie opens the landing back up", %{conn: conn} do
+      conn =
+        conn
+        |> with_ua(@iphone)
+        |> Plug.Test.put_req_cookie(HeadsUpWeb.MobileGate.bypass_cookie(), "1")
+        |> get(~p"/")
+
+      assert html_response(conn, 200)
     end
   end
 

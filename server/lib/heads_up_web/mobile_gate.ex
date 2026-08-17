@@ -16,6 +16,10 @@ defmodule HeadsUpWeb.MobileGate do
   @bypass_cookie "mobile_web_ok"
   @phone_ua ~r/iPhone|iPod|Windows Phone/
   @android_phone ~r/Android(?=.*Mobile)/
+  # Crawlers and link-preview fetchers use phone user-agents (Google indexes
+  # mobile-first; iMessage previews masquerade as facebookexternalhit). They
+  # get the real site, or the landing page is what stops being indexed.
+  @bot_ua ~r/bot|crawl|spider|slurp|facebookexternalhit|whatsapp|telegram|discord|slack|preview/i
 
   def bypass_cookie, do: @bypass_cookie
 
@@ -36,6 +40,8 @@ defmodule HeadsUpWeb.MobileGate do
 
   defp phone?(conn) do
     ua = conn |> get_req_header("user-agent") |> List.first() || ""
-    Regex.match?(@phone_ua, ua) or Regex.match?(@android_phone, ua)
+
+    not Regex.match?(@bot_ua, ua) and
+      (Regex.match?(@phone_ua, ua) or Regex.match?(@android_phone, ua))
   end
 end

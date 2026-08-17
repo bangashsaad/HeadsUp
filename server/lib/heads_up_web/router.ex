@@ -38,9 +38,17 @@ defmodule HeadsUpWeb.Router do
     # than being pitched the product they already use.
     pipe_through [:browser, :web]
 
-    get "/", PageController, :home
     get "/get-the-app", GateController, :show
     get "/get-the-app/continue", GateController, :continue
+  end
+
+  # The landing gates too: a phone's first touch is the gate page, which IS
+  # the mobile pitch. Crawlers pass (the plug lets bots through), so search
+  # keeps indexing the real landing.
+  scope "/", HeadsUpWeb do
+    pipe_through [:browser, :web, :phone_gate]
+
+    get "/", PageController, :home
   end
 
   scope "/", HeadsUpWeb do
