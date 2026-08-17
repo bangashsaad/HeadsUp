@@ -90,6 +90,42 @@ defmodule HeadsUpWeb.DraftLiveTest do
     assert render(view) =~ "YOUR PICK" or render(view) =~ "PICKING"
   end
 
+  test "players who can't fill any of YOUR open slots drop off the board", %{conn: conn, duel: duel, draft: draft, a: a, b: b} do
+    {:ok, view, _html} = live(conn, ~p"/app/draft/#{duel.id}")
+    Server.ready(draft.id, a.id)
+    Server.ready(draft.id, b.id)
+
+    # Fill a's guard-eligible slots (G1, G2, FLEX) with guards; b takes
+    # forwards. Coin flip decides order, so follow current_picker_id.
+    fill = fn fill ->
+      state = Server.get_state(draft.id)
+
+      if map_size(Map.get(state.rosters, a.id, %{})) < 3 do
+        picker = state.current_picker_id
+        pos = if picker == a.id, do: "G", else: "F"
+        pick = Enum.find(state.available, &(&1.position == pos))
+        refute match?({:error, _}, Server.make_pick(draft.id, picker, pick.id))
+        # Let the server's async pick-persistence finish before the next hit —
+        # the shared sandbox connection can't take two riders at once.
+        Process.sleep(30)
+        fill.(fill)
+      end
+    end
+
+    fill.(fill)
+
+    state = Server.get_state(draft.id)
+    leftover_guard = Enum.find(state.available, &(&1.position == "G"))
+    # The guard is still in the draft pool — just not draftable by a.
+    assert leftover_guard
+
+    html = render(view)
+    refute html =~ leftover_guard.name
+    assert html =~ Enum.find(state.available, &(&1.position == "F")).name
+    # And the position chips stop offering G.
+    refute html =~ ~s(phx-value-p="G")
+  end
+
   test "the coin moment plays when the lobby tips into drafting, then clears", %{conn: conn, duel: duel, draft: draft, a: a, b: b} do
     {:ok, view, html} = live(conn, ~p"/app/draft/#{duel.id}")
     refute html =~ "FLIPPING…"

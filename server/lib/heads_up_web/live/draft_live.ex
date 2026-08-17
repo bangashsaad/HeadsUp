@@ -221,7 +221,7 @@ defmodule HeadsUpWeb.DraftLive do
               />
             </form>
             <div style="display:flex;gap:6px;flex-wrap:wrap">
-              <button :for={p <- [nil | positions(@state)]} phx-click="pos" phx-value-p={p || ""} style={pos_pill(@pos == p)}>
+              <button :for={p <- [nil | positions(@state, @current_user.id)]} phx-click="pos" phx-value-p={p || ""} style={pos_pill(@pos == p)}>
                 {p || "ALL"}
               </button>
             </div>
@@ -232,7 +232,7 @@ defmodule HeadsUpWeb.DraftLive do
 
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));max-height:460px;overflow:auto">
             <div
-              :for={p <- pool(@state, @search, @pos)}
+              :for={p <- pool(@state, @search, @pos, @current_user.id)}
               phx-click={if my_turn?(@state, @current_user.id), do: "pick"}
               phx-value-player-id={p.id}
               style={"cursor:#{if my_turn?(@state, @current_user.id), do: "pointer", else: "default"};display:flex;align-items:center;gap:11px;padding:9px 16px;border-bottom:1px solid #14171F"}
@@ -260,7 +260,7 @@ defmodule HeadsUpWeb.DraftLive do
               </div>
             </div>
           </div>
-          <div :if={pool(@state, @search, @pos) == []} style="padding:26px;text-align:center;font-size:12px;color:#565D73;font-weight:600">
+          <div :if={pool(@state, @search, @pos, @current_user.id) == []} style="padding:26px;text-align:center;font-size:12px;color:#565D73;font-weight:600">
             No players match — clear the search or position filter.
           </div>
         </div>
@@ -371,16 +371,42 @@ defmodule HeadsUpWeb.DraftLive do
 
   defp filled_count(state, user_id), do: map_size(Map.get(state.rosters, user_id, %{}))
 
-  defp positions(state) do
-    state.slots |> Enum.flat_map(& &1.eligible) |> Enum.uniq() |> Enum.sort()
+  # Positions that still fit one of this viewer's OPEN slots — the phone's
+  # rule. Players who can't fill any open slot are un-draftable for you, so
+  # they don't belong on your board.
+  defp eligible_positions(state, user_id) do
+    filled = state.rosters |> Map.get(user_id, %{}) |> Map.keys() |> MapSet.new()
+
+    state.slots
+    |> Enum.reject(&MapSet.member?(filled, &1.key))
+    |> Enum.flat_map(& &1.eligible)
+    |> MapSet.new()
   end
 
-  defp pool(state, search, pos) do
+  defp positions(state, user_id) do
+    eligible = eligible_positions(state, user_id)
+    full = MapSet.size(eligible) == 0
+
+    state.available
+    |> Enum.filter(&(full or &1.position in eligible))
+    |> Enum.map(& &1.position)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  defp pool(state, search, pos, user_id) do
+    eligible = eligible_positions(state, user_id)
+    # A finished lineup un-gates the list — nothing is draftable anyway, so
+    # you might as well watch the rest of the pool (same as the phone).
+    full = MapSet.size(eligible) == 0
+    # A chip can go stale when its last draftable player fills your slots.
+    pos = if pos in positions(state, user_id), do: pos, else: nil
     needle = String.downcase(search)
 
     state.available
     |> Enum.filter(fn p ->
-      (search == "" or String.contains?(String.downcase(p.name), needle)) and
+      (full or p.position in eligible) and
+        (search == "" or String.contains?(String.downcase(p.name), needle)) and
         (pos == nil or p.position == pos)
     end)
     |> Enum.take(60)
