@@ -27,16 +27,24 @@ defmodule HeadsUpWeb.Router do
     plug :fetch_web_user
   end
 
+  # Phones get the app-gate page instead of the desktop site (escape-hatch
+  # cookie turns it off). Landing, legal, and logout stay ungated.
+  pipeline :phone_gate do
+    plug HeadsUpWeb.MobileGate
+  end
+
   scope "/", HeadsUpWeb do
     # :web so a signed-in visitor is recognised and sent to their duels rather
     # than being pitched the product they already use.
     pipe_through [:browser, :web]
 
     get "/", PageController, :home
+    get "/get-the-app", GateController, :show
+    get "/get-the-app/continue", GateController, :continue
   end
 
   scope "/", HeadsUpWeb do
-    pipe_through [:browser, :web, :redirect_if_web_user]
+    pipe_through [:browser, :web, :phone_gate, :redirect_if_web_user]
 
     get "/login", SessionController, :new
     post "/login", SessionController, :create
@@ -51,7 +59,7 @@ defmodule HeadsUpWeb.Router do
   end
 
   scope "/", HeadsUpWeb do
-    pipe_through [:browser, :web, :require_web_user]
+    pipe_through [:browser, :web, :phone_gate, :require_web_user]
 
     live_session :authenticated,
       on_mount: [{HeadsUpWeb.UserAuth, :ensure_authenticated}, {HeadsUpWeb.ShellHook, :default}],

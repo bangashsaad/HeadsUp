@@ -37,47 +37,12 @@ defmodule HeadsUpWeb.DeepLinkController do
 
   # Self-hosted install page: taps straight into Apple's OTA install flow.
   def install(conn, _params) do
-    # Built from the REQUEST host so the page works on fly.dev and on
-    # headsupfantasy.com without a second copy.
-    manifest = "#{HeadsUpWeb.Endpoint.url()}/install/manifest.plist"
-    itms = "itms-services://?action=download-manifest&url=" <> URI.encode_www_form(manifest)
-
-    html(conn, """
-    <!doctype html>
-    <html>
-    <head>
-      <meta charset="utf-8"/>
-      <meta name="viewport" content="width=device-width, initial-scale=1"/>
-      <title>Install HeadsUp Fantasy</title>
-      <style>
-        body { margin:0; font-family: -apple-system, Helvetica, Arial, sans-serif; background:#0f172a; color:#fff;
-               display:flex; align-items:center; justify-content:center; min-height:100vh; text-align:center; }
-        .card { padding: 40px 24px; max-width: 420px; }
-        .mark { font-size: 72px; font-weight: 900; letter-spacing: -2px;
-                background: linear-gradient(#5eead4, #4ade80); -webkit-background-clip: text; background-clip: text; color: transparent; }
-        h1 { font-size: 22px; margin: 8px 0 12px; }
-        p { color: #94a3b8; line-height: 1.5; margin: 0 0 8px; font-size: 15px; }
-        .pill { display:inline-block; margin-top: 18px; padding: 16px 40px; border-radius: 999px;
-                background:#4ade80; color:#0f172a; font-weight: 800; font-size: 17px; text-decoration: none; }
-        ol { text-align:left; color:#94a3b8; font-size:14px; line-height:1.6; }
-      </style>
-    </head>
-    <body>
-      <div class="card">
-        <div class="mark">HU</div>
-        <h1>Install HeadsUp Fantasy</h1>
-        <p>Beta build — works on invited iPhones only.</p>
-        <a class="pill" href="#{itms}">Install App</a>
-        <ol>
-          <li>Tap Install App, then confirm the iOS popup.</li>
-          <li>Wait for the HU icon to finish on your home screen.</li>
-          <li>Settings &rarr; Privacy &amp; Security &rarr; <b>Developer Mode</b> (bottom) &rarr; on &rarr; restart.</li>
-          <li>Open the app, sign up, add your friends.</li>
-        </ol>
-      </div>
-    </body>
-    </html>
-    """)
+    # The stale ad-hoc IPA flow is retired: /install now lands on TestFlight
+    # once the public link exists, and the app-gate page until then.
+    case Application.get_env(:heads_up, :testflight_url) do
+      nil -> redirect(conn, to: "/get-the-app")
+      url -> redirect(conn, external: url)
+    end
   end
 
   # Apple OTA manifest pointing at the current build's ipa.

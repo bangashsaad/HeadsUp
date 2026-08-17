@@ -160,3 +160,8 @@ if config_env() == :prod do
   #
   # See https://swoosh.hexdocs.pm/Swoosh.html#module-installation for details.
 end
+
+# TestFlight public invite link — the app-gate page's fallback destination and
+# the /install redirect. Set as a Fly secret (TESTFLIGHT_URL); nil renders the
+# gate's invite-only state.
+config :heads_up, :testflight_url, System.get_env("TESTFLIGHT_URL")

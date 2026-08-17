@@ -44,7 +44,11 @@ defmodule HeadsUpWeb.ShellHook do
 
   # --- the game half (shared, cached) ----------------------------------------
 
-  defp game_ticker do
+  @doc """
+  The shared live-scores half of the marquee (cached one minute). Public
+  because the phone gate page runs the same ticker without a session.
+  """
+  def game_ticker do
     now = System.monotonic_time(:millisecond)
 
     case :persistent_term.get(@ticker_key, nil) do
