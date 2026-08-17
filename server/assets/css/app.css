@@ -126,3 +126,5 @@
 .huw-blink { animation: huw-blink 1.1s infinite }
 .huw-pulse { animation: huw-pulse 2.6s infinite }
 .huw-rise { animation: huw-rise .3s ease }
+
+html { scroll-behavior: smooth }
