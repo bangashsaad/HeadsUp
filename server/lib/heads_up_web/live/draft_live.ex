@@ -28,7 +28,7 @@ defmodule HeadsUpWeb.DraftLive do
       {:ok,
        socket
        |> assign(duel_id: duel_id, draft_id: draft.id, page_title: "Draft room")
-       |> assign(state: Server.get_state(draft.id), search: "", pos: nil, bursts: [])}
+       |> assign(state: Server.get_state(draft.id), search: "", pos: nil, bursts: [], flip?: false)}
     else
       _ ->
         {:ok, socket |> put_flash(:error, "That draft isn't yours to join.") |> redirect(to: "/app")}
@@ -36,7 +36,21 @@ defmodule HeadsUpWeb.DraftLive do
   end
 
   @impl true
-  def handle_info({:draft_update, %{state: state}}, socket), do: {:noreply, assign(socket, state: state)}
+  def handle_info({:draft_update, %{state: state}}, socket) do
+    # The coin moment: shown once, when the lobby tips into drafting — the
+    # same beat the phone plays its FlipOverlay on.
+    socket =
+      if phase(socket.assigns.state) == :lobby and phase(state) == :active do
+        Process.send_after(self(), :end_flip, 1100)
+        assign(socket, flip?: true)
+      else
+        socket
+      end
+
+    {:noreply, assign(socket, state: state)}
+  end
+
+  def handle_info(:end_flip, socket), do: {:noreply, assign(socket, flip?: false)}
 
   # A reaction — from a phone (channel broadcast!) or another browser. Both
   # arrive on the same topic as a %Phoenix.Socket.Broadcast{}.
@@ -94,6 +108,18 @@ defmodule HeadsUpWeb.DraftLive do
   def render(assigns) do
     ~H"""
     <Layouts.shell current_user={@current_user} flash={@flash} shell={assigns[:shell] || %{}}>
+      <%!-- the coin moment (design's hu2-coin, verbatim): lobby → drafting --%>
+      <div
+        :if={@flip?}
+        style="position:fixed;inset:0;z-index:60;background:#0A0B10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px"
+      >
+        <div style="width:92px;height:92px;border-radius:50%;background:conic-gradient(from 20deg,var(--acc,#C8FF2E),#7C5CFF,var(--acc,#C8FF2E));display:flex;align-items:center;justify-content:center;animation:huw-coin 1s ease-in-out;will-change:transform">
+          <div style="width:78px;height:78px;border-radius:50%;background:#0A0B10;display:flex;align-items:center;justify-content:center">
+            <span class="hu-black" style="font-size:26px;color:var(--acc,#C8FF2E)">H</span>
+          </div>
+        </div>
+        <span class="hu-cond" style="font-size:22px;letter-spacing:2px;color:#8B91A7">FLIPPING…</span>
+      </div>
       <div style="flex:1;display:flex;flex-direction:column;gap:16px;max-width:1060px;width:100%;margin:0 auto;box-sizing:border-box;animation:huw-rise .3s ease">
         <%!-- header: title + turn pill / go-live / ready --%>
         <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap">

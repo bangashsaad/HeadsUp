@@ -90,6 +90,19 @@ defmodule HeadsUpWeb.DraftLiveTest do
     assert render(view) =~ "YOUR PICK" or render(view) =~ "PICKING"
   end
 
+  test "the coin moment plays when the lobby tips into drafting, then clears", %{conn: conn, duel: duel, draft: draft, a: a, b: b} do
+    {:ok, view, html} = live(conn, ~p"/app/draft/#{duel.id}")
+    refute html =~ "FLIPPING…"
+
+    Server.ready(draft.id, a.id)
+    Server.ready(draft.id, b.id)
+    assert render(view) =~ "FLIPPING…"
+
+    # The 1.1s timer ends the moment; poke it directly rather than sleeping.
+    send(view.pid, :end_flip)
+    refute render(view) =~ "FLIPPING…"
+  end
+
   test "a pick made on a phone appears in the browser without a refresh", %{conn: conn, duel: duel, draft: draft, a: a, b: b} do
     {:ok, view, _html} = live(conn, ~p"/app/draft/#{duel.id}")
 
