@@ -67,3 +67,7 @@ export function unblockUser(token, userId) {
 export function listBlocked(token) {
   return apiRequest('/api/blocks', { token });
 }
+
+export function getRivalry(token, userId) {
+  return apiRequest(`/api/rivals/${userId}`, { token });
+}

@@ -116,6 +116,7 @@ defmodule HeadsUpWeb.Router do
 
     # Competitive stats + home dashboard
     get "/me/stats", StatsController, :me
+    get "/rivals/:id", RivalController, :show
     get "/me/achievements", StatsController, :achievements
     get "/leaderboard", StatsController, :leaderboard
     get "/home", HomeController, :index

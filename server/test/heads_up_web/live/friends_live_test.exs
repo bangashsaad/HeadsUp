@@ -121,6 +121,17 @@ defmodule HeadsUpWeb.FriendsLiveTest do
     refute render(view) =~ "EDITING HOOPS CREW"
   end
 
+  test "tapping EDITING… again exits edit mode", %{conn: conn, a: a} do
+    {:ok, group} = Social.create_friend_group(a, "CREW")
+    {:ok, view, _} = live(conn, ~p"/app/friends")
+
+    html = render_click(view, "edit-group", %{"id" => to_string(group.id)})
+    assert html =~ "EDITING CREW"
+
+    html = render_click(view, "edit-group", %{"id" => to_string(group.id)})
+    refute html =~ "EDITING CREW"
+  end
+
   test "duplicate group names are refused with a flash", %{conn: conn} do
     {:ok, view, _} = live(conn, ~p"/app/friends")
     render_submit(view, "create-group", %{"name" => "WORK"})

@@ -18,7 +18,7 @@ implementation — use these to have Claude Design edit the app against reality.
 `00-design-tokens.md` is the full design system (complete theme.js + every UI
 primitive's source) for sessions that redesign the primitives themselves.
 
-## The screens (tab bar: HOME · DUELS · DRAFT · LIVE · YOU)
+## The screens (tab bar: HOME · DUELS · DRAFT · LIVE · FRIENDS · YOU)
 
 | File | Screen | Size |
 |---|---|---|
@@ -37,7 +37,7 @@ primitive's source) for sessions that redesign the primitives themselves.
 | `13-live-matchup.md` | Live matchup | 24 KB |
 | `14-results.md` | Results / receipt | 24 KB |
 | `15-you.md` | Profile (YOU tab) | 21 KB |
-| `16-friends.md` | Friends list | 8 KB |
+| `16-friends.md` | Friends (its own tab) | 8 KB |
 | `17-friend-groups.md` | Friend groups | 13 KB |
 | `18-add-friends.md` | Add friends (search) | 8 KB |
 | `19-requests.md` | Friend requests | 7 KB |
@@ -50,6 +50,8 @@ primitive's source) for sessions that redesign the primitives themselves.
 | `26-login.md` | Log in | 7 KB |
 | `27-signup.md` | Sign up | 8 KB |
 | `28-forgot-password.md` | Forgot password | 7 KB |
+
+| `29-rivalry.md` | Rivalry page | 14 KB |
 
 Not included: `PlayersScreen`, `PlayerSearchScreen`, `SportsHomeScreen` —
 legacy files no navigator reaches anymore.

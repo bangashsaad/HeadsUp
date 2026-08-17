@@ -53,7 +53,8 @@ defmodule HeadsUpWeb.YouLive do
         end
 
       sel = s.assigns.sel || default
-      assign(s, sel: sel, sel_hist: (sel && Stats.history_vs(user.id, sel)) || [])
+      riv = sel && Stats.rivalry(user.id, sel)
+      assign(s, sel: sel, sel_riv: riv, sel_hist: (riv && riv.history) || [])
     end)
   end
 
@@ -67,7 +68,8 @@ defmodule HeadsUpWeb.YouLive do
 
   def handle_event("select", %{"id" => id}, socket) do
     id = String.to_integer(id)
-    {:noreply, assign(socket, sel: id, sel_hist: Stats.history_vs(socket.assigns.current_user.id, id))}
+    riv = Stats.rivalry(socket.assigns.current_user.id, id)
+    {:noreply, assign(socket, sel: id, sel_riv: riv, sel_hist: riv.history)}
   end
 
   def handle_event("add-friend-toggle", _params, socket),
@@ -387,6 +389,21 @@ defmodule HeadsUpWeb.YouLive do
                 </span>
               </div>
             </div>
+            <%!-- bragging-rights tiles (the phone design's CURRENT RUN / AVG MARGIN / BEST WIN) --%>
+            <div :if={@sel_riv} style="padding:0 16px 10px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+              <div style="background:#0D0F16;border:1px solid #252A3A;border-radius:12px;padding:11px 0;display:flex;flex-direction:column;align-items:center">
+                <span class="hu-cond" style={"font-size:19px;color:#{run_ink(@sel_riv.run)}"}>{@sel_riv.run || "—"}</span>
+                <span style="font-size:8.5px;font-weight:900;letter-spacing:1px;color:#565D73;margin-top:2px">CURRENT RUN</span>
+              </div>
+              <div style="background:#0D0F16;border:1px solid #252A3A;border-radius:12px;padding:11px 0;display:flex;flex-direction:column;align-items:center">
+                <span class="hu-cond" style="font-size:19px">{signed(@sel_riv.avg_margin)}</span>
+                <span style="font-size:8.5px;font-weight:900;letter-spacing:1px;color:#565D73;margin-top:2px">AVG MARGIN</span>
+              </div>
+              <div style="background:#0D0F16;border:1px solid #252A3A;border-radius:12px;padding:11px 0;display:flex;flex-direction:column;align-items:center">
+                <span class="hu-cond" style="font-size:19px">{signed(@sel_riv.best_win)}</span>
+                <span style="font-size:8.5px;font-weight:900;letter-spacing:1px;color:#565D73;margin-top:2px">BEST WIN</span>
+              </div>
+            </div>
             <div style="padding:0 16px 8px;display:flex;flex-direction:column;gap:7px">
               <span style="font-size:10px;font-weight:900;letter-spacing:1.5px;color:#565D73">LAST {length(@sel_hist)} DUELS</span>
               <p :if={@sel_hist == []} style="font-size:11px;color:#565D73;font-weight:600">Nothing settled between you yet.</p>
@@ -394,7 +411,10 @@ defmodule HeadsUpWeb.YouLive do
                 <span style={"width:18px;height:18px;flex:none;border-radius:6px;background:#{hist_bg(hst)};border:1px solid #{hist_ink(hst)};color:#{hist_ink(hst)};font-size:9.5px;font-weight:900;display:flex;align-items:center;justify-content:center"}>
                   {hist_letter(hst)}
                 </span>
-                <span style="font-size:11.5px;font-weight:700;color:#C7CBD9">{fmt_pts(hst.pf)} – {fmt_pts(hst.pa)}</span>
+                <div style="display:flex;flex-direction:column;min-width:0;flex:1">
+                  <span style="font-size:11.5px;font-weight:700;color:#C7CBD9">{fmt_pts(hst.my_points)} – {fmt_pts(hst.their_points)}</span>
+                  <span :if={hst.story} style="font-size:10px;color:#8B91A7;font-weight:600">{hst.story}</span>
+                </div>
                 <span style="margin-left:auto;font-size:10px;font-weight:800;color:#565D73">
                   {Calendar.strftime(hst.settled_at, "%b %-d") |> String.upcase()}
                 </span>
@@ -580,6 +600,14 @@ defmodule HeadsUpWeb.YouLive do
 
   defp sel_w(%{sel: sel, h2h_by_id: h2h}), do: (Map.get(h2h, sel) || %{wins: 0}).wins
   defp sel_l(%{sel: sel, h2h_by_id: h2h}), do: (Map.get(h2h, sel) || %{losses: 0}).losses
+
+  defp run_ink("W" <> _), do: "var(--acc,#C8FF2E)"
+  defp run_ink("L" <> _), do: "#FF4557"
+  defp run_ink(_), do: "#8B91A7"
+
+  defp signed(nil), do: "—"
+  defp signed(n) when n >= 0, do: "+#{fmt_pts(n)}"
+  defp signed(n), do: "−#{fmt_pts(abs(n))}"
 
   defp hist_letter(%{outcome: :win}), do: "W"
   defp hist_letter(%{outcome: :loss}), do: "L"

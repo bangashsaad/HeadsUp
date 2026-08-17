@@ -6,9 +6,10 @@ import HomeStack from './HomeStack';
 import DuelsStack from './DuelsStack';
 import DraftStack from './DraftStack';
 import LiveStack from './LiveStack';
+import FriendsStack from './FriendsStack';
 import YouStack from './YouStack';
 import { useTheme, fonts } from '../theme';
-import { useDraftLive } from '../state/attention';
+import { useDraftLive, useFriendReqs } from '../state/attention';
 import { BlinkDot } from '../components/ui';
 import { selection } from '../haptics';
 
@@ -20,6 +21,7 @@ const ICONS = {
   DuelsTab: { on: 'flame', off: 'flame-outline' },
   DraftTab: { on: 'timer', off: 'timer-outline' },
   LiveTab: { on: 'pulse', off: 'pulse-outline' },
+  FriendsTab: { on: 'people', off: 'people-outline' },
   YouTab: { on: 'person-circle', off: 'person-circle-outline' },
 };
 
@@ -29,6 +31,7 @@ function ReimaginedTabBar({ state, descriptors, navigation }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const draftLive = useDraftLive();
+  const friendReqs = useFriendReqs();
 
   return (
     <View
@@ -49,6 +52,7 @@ function ReimaginedTabBar({ state, descriptors, navigation }) {
         const color = focused ? colors.accent : colors.placeholder;
         const ic = ICONS[route.name] || ICONS.HomeTab;
         const showDot = route.name === 'DraftTab' && draftLive && !focused;
+        const reqCount = route.name === 'FriendsTab' && !focused ? friendReqs : 0;
 
         function onPress() {
           const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
@@ -72,6 +76,24 @@ function ReimaginedTabBar({ state, descriptors, navigation }) {
             <View>
               <Ionicons name={focused ? ic.on : ic.off} size={21} color={color} />
               {showDot && <BlinkDot color={colors.danger} size={7} style={{ position: 'absolute', top: -2, right: -7 }} />}
+              {reqCount > 0 && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -9,
+                    minWidth: 14,
+                    height: 14,
+                    borderRadius: 7,
+                    paddingHorizontal: 3,
+                    backgroundColor: colors.cyan,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ color: '#0A0B10', fontSize: 9, fontFamily: fonts.bodyExtra }}>{reqCount}</Text>
+                </View>
+              )}
             </View>
             <Text
               style={{
@@ -98,6 +120,7 @@ export default function MainTabs() {
       <Tab.Screen name="DuelsTab" component={DuelsStack} options={{ title: 'Duels' }} />
       <Tab.Screen name="DraftTab" component={DraftStack} options={{ title: 'Draft' }} />
       <Tab.Screen name="LiveTab" component={LiveStack} options={{ title: 'Live' }} />
+      <Tab.Screen name="FriendsTab" component={FriendsStack} options={{ title: 'Friends' }} />
       <Tab.Screen name="YouTab" component={YouStack} options={{ title: 'You' }} />
     </Tab.Navigator>
   );

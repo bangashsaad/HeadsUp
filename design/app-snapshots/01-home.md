@@ -57,7 +57,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
 import { getHome } from '../api/me';
 import { listUpcomingGames } from '../api/sports';
-import { setDraftLive } from '../state/attention';
+import { listRequests } from '../api/social';
+import { setDraftLive, setFriendReqs } from '../state/attention';
 import { useTheme, useThemedStyles, spacing, fonts, withAlpha } from '../theme';
 import { Screen, Avatar, Button, Badge, SkeletonList, SectionHeader, Marquee, GhostText, Pulse, Kicker, CondTitle, BlinkDot } from '../components/ui';
 import WordMark from '../components/WordMark';
@@ -115,6 +116,11 @@ export default function HomeScreen({ navigation }) {
       const all = results.flatMap((r) => todays(r.games));
       setGames(all.sort((a, b) => new Date(a.date) - new Date(b.date)));
     });
+
+    // Feeds the FRIENDS tab's request bubble without waiting for that tab.
+    listRequests(token)
+      .then((r) => setFriendReqs(r.requests.length))
+      .catch(() => {});
   }, [token]);
 
   useFocusEffect(
@@ -273,7 +279,7 @@ export default function HomeScreen({ navigation }) {
           styles={styles}
           colors={colors}
           onOpen={(f) => navigation.navigate('UserProfile', { id: f.id, username: f.username })}
-          onAdd={() => navigation.navigate('YouTab', { screen: 'Search', initial: false })}
+          onAdd={() => navigation.navigate('FriendsTab')}
         />
 
         <View style={{ paddingHorizontal: spacing.lg }}>

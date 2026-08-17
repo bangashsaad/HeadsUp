@@ -4,7 +4,10 @@ defmodule HeadsUpWeb.PublicUserJSON do
   private. Use this any time we show one user to another (search, friends).
   """
 
-  @doc "Search results: users plus this viewer's relationship to each."
+  @doc """
+  Search results: users plus this viewer's relationship to each, and a one-line
+  blurb (record + most-played league) for the strangers list.
+  """
   def search(%{results: results}) do
     %{
       users:
@@ -12,6 +15,7 @@ defmodule HeadsUpWeb.PublicUserJSON do
           public(user)
           |> Map.put(:relationship, rel)
           |> Map.put(:friendship_id, fid)
+          |> Map.put(:meta, HeadsUp.Stats.blurb(user.id))
         end)
     }
   end

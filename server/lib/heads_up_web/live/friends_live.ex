@@ -34,10 +34,12 @@ defmodule HeadsUpWeb.FriendsLive do
   defp load(socket) do
     user = socket.assigns.current_user
 
+    # Series records vs YOU (the phone design's call — a rivals list reads
+    # better as "our score" than as their overall tally).
     records =
-      user
-      |> Stats.leaderboard()
-      |> Map.new(&{&1.user.id, &1})
+      user.id
+      |> Stats.head_to_head()
+      |> Map.new(&{&1.opponent.id, &1})
 
     assign(socket,
       friends: Social.list_friends(user),
@@ -110,7 +112,7 @@ defmodule HeadsUpWeb.FriendsLive do
 
   def handle_event("edit-group", %{"id" => id}, socket) do
     id = String.to_integer(id)
-    {:noreply, assign(socket, edit: (socket.assigns.edit == id && nil) || id, tab: :all)}
+    {:noreply, assign(socket, edit: if(socket.assigns.edit == id, do: nil, else: id), tab: :all)}
   end
 
   def handle_event("edit-done", _params, socket), do: {:noreply, assign(socket, edit: nil)}
@@ -183,7 +185,7 @@ defmodule HeadsUpWeb.FriendsLive do
         user: f,
         groups_line: groups_line(groups, f.id),
         rec: "#{rec.wins}–#{rec.losses}",
-        rec_ink: if(rec.wins >= rec.losses, do: "var(--acc,#C8FF2E)", else: "#FF4557"),
+        rec_ink: rec_ink(rec),
         in_group: in_group
       }
     end)
@@ -221,32 +223,13 @@ defmodule HeadsUpWeb.FriendsLive do
     end)
   end
 
-  defp stranger_meta(user) do
-    rec = Stats.record_for(user.id)
+  defp stranger_meta(user), do: Stats.blurb(user.id)
 
-    if rec.played > 0 do
-      "#{rec.wins}–#{rec.losses} · plays #{favorite_league(user.id)}"
-    else
-      "new here"
-    end
-  end
-
-  defp favorite_league(user_id) do
-    import Ecto.Query
-
-    from(d in HeadsUp.Contests.Duel,
-      where: d.challenger_id == ^user_id or d.opponent_id == ^user_id,
-      group_by: d.sport,
-      order_by: [desc: count(d.id)],
-      select: d.sport,
-      limit: 1
-    )
-    |> HeadsUp.Repo.one()
-    |> case do
-      nil -> "nobody yet"
-      sport -> String.upcase(sport)
-    end
-  end
+  # 0–0 stays quiet; a lead is lime, a deficit red, dead-even dim.
+  defp rec_ink(%{wins: 0, losses: 0}), do: "#565D73"
+  defp rec_ink(%{wins: w, losses: l}) when w > l, do: "var(--acc,#C8FF2E)"
+  defp rec_ink(%{wins: w, losses: l}) when w < l, do: "#FF4557"
+  defp rec_ink(_), do: "#8B91A7"
 
   defp tint(username) do
     Enum.at(@tints, :erlang.phash2(username, length(@tints)))

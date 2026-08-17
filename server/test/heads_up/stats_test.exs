@@ -192,6 +192,104 @@ defmodule HeadsUp.StatsTest do
     duel
   end
 
+  describe "rivalry/2" do
+    test "tally, form, run, and the bragging-rights tiles", %{a: a, b: b, c: c} do
+      settled(a, b, a, 100.0, 80.0, ts(1))
+      settled(b, a, a, 90.0, 96.2, ts(2))
+      settled(a, b, b, 60.0, 90.0, ts(3))
+      # noise: a different rivalry must not leak in
+      settled(a, c, a, 70.0, 40.0, ts(4))
+
+      r = Stats.rivalry(a.id, b.id)
+      assert %{wins: 2, losses: 1, ties: 0, played: 3} = r
+      assert r.form == ["L", "W", "W"]
+      assert r.run == "L1"
+      # margins: +20, +6.2, −30 → avg −1.3; best win +20
+      assert r.avg_margin == -1.3
+      assert r.best_win == 20.0
+      assert length(r.history) == 3
+      assert hd(r.history).outcome == :loss
+    end
+
+    test "never-played rivals get the honest empty shape", %{a: a, b: b} do
+      r = Stats.rivalry(a.id, b.id)
+      assert %{wins: 0, losses: 0, played: 0, run: nil, avg_margin: nil, best_win: nil, history: []} = r
+    end
+
+    test "stories: tie, blowout, squeaker, and the margin fallback", %{a: a, b: b} do
+      settled(a, b, nil, 88.0, 88.0, ts(1))
+      settled(a, b, a, 100.0, 75.0, ts(2))
+      settled(a, b, b, 90.0, 91.2, ts(3))
+      settled(a, b, b, 80.0, 95.0, ts(4))
+      settled(a, b, b, 80.0, 90.0, ts(5))
+
+      stories = Stats.rivalry(a.id, b.id) |> Map.get(:history) |> Enum.map(& &1.story)
+
+      # newest first: plain loss, their series-best, squeaker loss, blowout win, tie
+      assert [
+               "Dropped it by 10.0",
+               "Their biggest win of the series",
+               "Slipped away by 1.2",
+               "Never in doubt — up 25.0",
+               "Dead heat — split the pot."
+             ] = stories
+    end
+
+    test "the series-best win gets named once there is more than one", %{a: a, b: b} do
+      settled(a, b, a, 100.0, 90.0, ts(1))
+      settled(a, b, a, 95.0, 80.0, ts(2))
+
+      [newest, _oldest] = Stats.rivalry(a.id, b.id).history
+      assert newest.story == "Your biggest win of the series"
+    end
+
+    test "the top performer carries the story when the breakdown has one", %{a: a, b: b} do
+      duel = settled(a, b, a, 96.2, 89.7, ts(1))
+      # a second, bigger win so the first isn't "biggest of the series"
+      settled(a, b, a, 110.0, 90.0, ts(2))
+
+      Repo.get_by!(Result, duel_id: duel.id)
+      |> Ecto.Changeset.change(
+        breakdown: %{
+          "challenger" => %{
+            "user_id" => a.id,
+            "total" => 96.2,
+            "players" => [
+              %{"name" => "Napheesa Collier", "points" => 31.2},
+              %{"name" => "Sabrina Ionescu", "points" => 20.0}
+            ]
+          },
+          "opponent" => %{"user_id" => b.id, "total" => 89.7, "players" => []}
+        }
+      )
+      |> Repo.update!()
+
+      [_newest, older] = Stats.rivalry(a.id, b.id).history
+      assert older.story == "Collier 31.2 carried it"
+    end
+
+    test "their star gets the nuclear line on a loss", %{a: a, b: b} do
+      duel = settled(b, a, b, 108.9, 101.4, ts(1))
+      settled(b, a, b, 120.0, 90.0, ts(2))
+
+      Repo.get_by!(Result, duel_id: duel.id)
+      |> Ecto.Changeset.change(
+        breakdown: %{
+          "challenger" => %{
+            "user_id" => b.id,
+            "total" => 108.9,
+            "players" => [%{"name" => "Caitlin Clark", "points" => 38.6}]
+          },
+          "opponent" => %{"user_id" => a.id, "total" => 101.4, "players" => []}
+        }
+      )
+      |> Repo.update!()
+
+      [_newest, older] = Stats.rivalry(a.id, b.id).history
+      assert older.story == "Clark went nuclear (38.6)"
+    end
+  end
+
   defp friend(a, b), do: Repo.insert!(%Friendship{requester_id: a.id, addressee_id: b.id, status: "accepted"})
 
   defp user(name) do
