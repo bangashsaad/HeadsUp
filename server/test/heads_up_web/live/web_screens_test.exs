@@ -127,6 +127,11 @@ defmodule HeadsUpWeb.WebScreensTest do
       assert html =~ "9 SLOTS"
       refute html =~ "5 SLOTS"
 
+      # The ⓘ SHAPES panel spells out positions, read off the real templates.
+      html = render_click(view, "shapes-toggle", %{})
+      assert html =~ "PITCHER · 2 INFIELD · 2 OUTFIELD · UTIL"
+      assert html =~ "PITCHER · C · 1B · 2B · 3B · SS · 3 OF"
+
       render_click(view, "rival", %{"id" => to_string(b.id)})
       render_click(view, "roster", %{"n" => "9"})
       render_click(view, "send", %{})

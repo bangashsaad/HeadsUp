@@ -41,6 +41,7 @@ defmodule HeadsUpWeb.NewChallengeLive do
         friends: Social.list_friends(user),
         groups: Social.list_friend_groups(user),
         group_tab: "ALL",
+        shapes_open: false,
         rec_by_id: Map.new(h2h, &{&1.opponent.id, "#{&1.wins}–#{&1.losses} vs you"}),
         coins: Coins.balance(user.id),
         counter: counter,
@@ -140,6 +141,7 @@ defmodule HeadsUpWeb.NewChallengeLive do
   end
 
   def handle_event("roster", %{"n" => n}, socket), do: {:noreply, assign(socket, roster: String.to_integer(n))}
+  def handle_event("shapes-toggle", _params, socket), do: {:noreply, update(socket, :shapes_open, &(!&1))}
   def handle_event("stake", %{"n" => n}, socket), do: {:noreply, assign(socket, stake: String.to_integer(n))}
   def handle_event("clock", %{"n" => n}, socket), do: {:noreply, assign(socket, clock: String.to_integer(n))}
   def handle_event("slate", %{"id" => id}, socket), do: {:noreply, assign(socket, slate: id)}
@@ -269,11 +271,29 @@ defmodule HeadsUpWeb.NewChallengeLive do
             </div>
 
             <div style="display:flex;flex-direction:column;gap:8px">
-              <span style="font-size:10.5px;font-weight:900;letter-spacing:1.5px;color:#565D73">ROSTER SIZE</span>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:10.5px;font-weight:900;letter-spacing:1.5px;color:#565D73">ROSTER SIZE</span>
+                <button
+                  phx-click="shapes-toggle"
+                  class="hover:text-[#C8FF2E]"
+                  style={"cursor:pointer;background:transparent;border:1px solid #{if @shapes_open, do: "rgba(200,255,46,.45)", else: "#252A3A"};color:#{if @shapes_open, do: "var(--acc,#C8FF2E)", else: "#8B91A7"};font-size:9.5px;font-weight:900;letter-spacing:.5px;border-radius:999px;padding:3px 10px"}
+                >
+                  ⓘ SHAPES
+                </button>
+              </div>
               <div style="display:flex;gap:8px">
                 <button :for={n <- @rosters} phx-click="roster" phx-value-n={n} class="hu-cond" style={pill(@roster == n, 16)}>
                   {n} SLOTS
                 </button>
+              </div>
+              <div :if={@shapes_open} style="display:flex;flex-direction:column;gap:6px;border:1px solid #252A3A;background:#0D0F16;border-radius:12px;padding:11px 14px">
+                <div :for={n <- @rosters} style="display:flex;align-items:baseline;gap:10px">
+                  <span class="hu-cond" style={"font-size:15px;flex:none;width:64px;color:#{if @roster == n, do: "var(--acc,#C8FF2E)", else: "#B9BECF"}"}>
+                    {n} SLOTS
+                  </span>
+                  <span style="font-size:11px;font-weight:700;color:#8B91A7">{shape_line(@league, n)}</span>
+                </div>
+                <span style="font-size:10px;color:#565D73;font-weight:600">Positions lock as you draft — the board only offers players who still fit your open slots.</span>
               </div>
             </div>
 
@@ -406,6 +426,19 @@ defmodule HeadsUpWeb.NewChallengeLive do
   end
 
   # --- design tokens ----------------------------------------------------------
+
+  # "2 GUARD · 2 FORWARD · FLEX" — read straight off the real template so the
+  # info panel can never drift from what the draft actually deals.
+  defp shape_line(league, n) do
+    "#{league}_#{n}"
+    |> Lineup.slots()
+    |> Enum.map(& &1.label)
+    |> Enum.chunk_by(& &1)
+    |> Enum.map_join(" · ", fn
+      [label] -> label
+      [label | _] = run -> "#{length(run)} #{label}"
+    end)
+  end
 
   defp pill(true, font),
     do:
