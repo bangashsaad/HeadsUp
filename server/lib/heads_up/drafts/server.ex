@@ -219,8 +219,9 @@ defmodule HeadsUp.Drafts.Server do
     slate? = match?([_ | _], scan_opts[:dates])
 
     case PoolFilter.scan(sport, scan_opts) do
-      %{ok: true, next_game_at: next, preseason: preseason} ->
-        filtered = Map.filter(pool, fn {_id, p} -> Map.has_key?(next, p.team) end)
+      %{ok: true, next_game_at: next, preseason: preseason} = scan ->
+        probables = Map.get(scan, :probable_ids, MapSet.new())
+        filtered = Map.filter(pool, fn {_id, p} -> PoolFilter.draftable?(p, sport, next, probables) end)
 
         board =
           cond do

@@ -20,6 +20,27 @@ defmodule HeadsUp.SettlementTest.StubStats do
       {p.id, %{"point" => pts}}
     end)
   end
+
+  # The all-zero settlement guard consults this: games happened, so a fully
+  # zero board means "stats not ready", not "tie".
+  def live_games(%Window{}), do: %{final: 2, live: 0, upcoming: 0}
+end
+
+defmodule HeadsUp.SettlementTest.NoGamesStub do
+  @moduledoc false
+  @behaviour HeadsUp.Settlement.StatsProvider
+  alias HeadsUp.Settlement.Window
+
+  @impl true
+  def stats_final?(%Window{}), do: true
+
+  @impl true
+  def fetch_stats(players, %Window{}), do: Map.new(players, fn p -> {p.id, %{"point" => 0}} end)
+
+  @impl true
+  def fetch_live_stats(players, %Window{} = w), do: fetch_stats(players, w)
+
+  def live_games(%Window{}), do: %{final: 0, live: 0, upcoming: 0}
 end
 
 defmodule HeadsUp.SettlementTest do
@@ -61,13 +82,49 @@ defmodule HeadsUp.SettlementTest do
       c = user("c2")
       o = user("o2")
       duel = drafted_duel(c, o, %{"point" => 1}, past_window())
-      with_rosters(duel, player("Bench A"), player("Bench B"))
+      with_rosters(duel, player("Star A"), player("Star B"))
 
       assert {:ok, result, settled} = Settlement.settle_duel(duel.id)
       assert result.is_tie
       assert settled.winner_id == nil
-      assert result.challenger_points == 0.0
-      assert result.opponent_points == 0.0
+      assert result.challenger_points == 50.0
+      assert result.opponent_points == 50.0
+    end
+
+    test "an all-zero board with real finished games defers instead of settling 0-0" do
+      # The MLB bug this pins: the scoreboard flips FINAL before ESPN publishes
+      # the player logs settlement reads. Two real duels settled 0-0 in that gap.
+      c = user("cz")
+      o = user("oz")
+      duel = drafted_duel(c, o, %{"point" => 1}, past_window())
+      with_rosters(duel, player("Bench A"), player("Bench B"))
+
+      assert {:error, :stats_not_ready} = Settlement.settle_duel(duel.id)
+      assert Repo.get!(Duel, duel.id).status == "drafted"
+    end
+
+    test "the 24h valve settles an all-zero board rather than wedging forever" do
+      c = user("cg")
+      o = user("og")
+      day_and_change_ago = DateTime.utc_now() |> DateTime.add(-25 * 3600) |> DateTime.truncate(:second)
+      duel = drafted_duel(c, o, %{"point" => 1}, day_and_change_ago)
+      with_rosters(duel, player("Bench C"), player("Bench D"))
+
+      assert {:ok, result, _settled} = Settlement.settle_duel(duel.id)
+      assert result.is_tie and result.challenger_points == 0.0
+    end
+
+    test "a zero-game window still settles 0-0 immediately (nothing played, nothing owed)" do
+      Application.put_env(:heads_up, :stats_provider, HeadsUp.SettlementTest.NoGamesStub)
+      on_exit(fn -> Application.put_env(:heads_up, :stats_provider, HeadsUp.SettlementTest.StubStats) end)
+
+      c = user("cn")
+      o = user("on")
+      duel = drafted_duel(c, o, %{"point" => 1}, past_window())
+      with_rosters(duel, player("Bench E"), player("Bench F"))
+
+      assert {:ok, result, _settled} = Settlement.settle_duel(duel.id)
+      assert result.is_tie and result.challenger_points == 0.0
     end
 
     test "settling twice is an idempotent no-op (exactly one result row)" do

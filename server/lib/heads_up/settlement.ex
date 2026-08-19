@@ -65,8 +65,9 @@ defmodule HeadsUp.Settlement do
          %Draft{} = draft <- Repo.get_by(Draft, duel_id: duel.id) || {:error, :no_draft},
          [_ | _] = picks <- Drafts.replay(draft.id),
          true <- all_rostered?(picks, player_ids) || {:error, :incomplete_draft},
-         players when players != [] <- load_players(picks) do
-      stats = provider.fetch_stats(players, window)
+         players when players != [] <- load_players(picks),
+         stats = provider.fetch_stats(players, window),
+         :ok <- stats_ready(provider, window, stats) do
       outcome = Engine.settle_ranked(duel.scoring_rules, player_ids, picks, stats)
       persist(duel, outcome, players)
     else
@@ -331,6 +332,49 @@ defmodule HeadsUp.Settlement do
       "duel:#{duel.id}",
       {:duel_settled, %{duel_id: duel.id, status: "settled", winner_id: duel.winner_id, is_tie: is_tie}}
     )
+  end
+
+  # ESPN's gamelog lags its scoreboard: a game flips FINAL minutes after the
+  # last out, but the player logs it feeds settlement can publish hours later.
+  # Settling inside that gap scored two real MLB nights 0-0. If in-window games
+  # actually happened and every drafted player is still on zero, the stats
+  # aren't ready — defer and let the next sweep try again. A 24-hour valve past
+  # window close settles regardless, so a genuinely statless night (or a dead
+  # feed) can't wedge a duel forever. A zero-game window still settles 0-0
+  # immediately, same as always.
+  defp stats_ready(provider, window, stats) do
+    require Logger
+
+    any_points? =
+      Enum.any?(stats, fn {_id, line} -> line |> Map.values() |> Enum.any?(&(&1 != 0)) end)
+
+    # live_games is an optional provider callback; without it, assume games
+    # happened — the conservative direction (defer), and the valve still opens.
+    games_happened? =
+      if function_exported?(provider, :live_games, 1) do
+        match?(%{final: n} when n > 0, provider.live_games(window))
+      else
+        true
+      end
+
+    grace_over? =
+      DateTime.compare(DateTime.utc_now(), DateTime.add(window.closes_at, 24 * 3600, :second)) == :gt
+
+    cond do
+      any_points? ->
+        :ok
+
+      not games_happened? ->
+        :ok
+
+      grace_over? ->
+        Logger.warning("duel #{window.duel_id}: settling all-zero after 24h grace — stats never arrived")
+        :ok
+
+      true ->
+        Logger.info("duel #{window.duel_id}: games final but every stat is zero — deferring (feed lag)")
+        {:error, :stats_not_ready}
+    end
   end
 
   # Per-sport stats provider: a `:stats_providers` sport=>module map wins, else

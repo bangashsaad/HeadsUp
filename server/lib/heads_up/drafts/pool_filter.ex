@@ -42,14 +42,52 @@ defmodule HeadsUp.Drafts.PoolFilter do
       end)
       |> case do
         {:ok, events} ->
-          %{ok: true, next_game_at: next_games(events), preseason: preseason?(events)}
+          %{
+            ok: true,
+            next_game_at: next_games(events),
+            preseason: preseason?(events),
+            probable_ids: probable_ids(events)
+          }
 
         :error ->
-          %{ok: false, next_game_at: %{}, preseason: false}
+          %{ok: false, next_game_at: %{}, preseason: false, probable_ids: MapSet.new()}
       end
     else
-      %{ok: false, next_game_at: %{}, preseason: false}
+      %{ok: false, next_game_at: %{}, preseason: false, probable_ids: MapSet.new()}
     end
+  end
+
+  @doc """
+  Whether a pool player belongs on the board. Hitters (and every non-baseball
+  player) draft off the team schedule; baseball pitchers only when they're a
+  LISTED probable starter whose game hasn't begun — a team playing tonight
+  says nothing about whether its ace throws (a real duel drafted Chris Sale on
+  his off day and he scored an honest zero). Relievers never appear in
+  probables, so they leave the board with the off-day starters — the
+  DFS-standard rule. If ESPN publishes no probables at all for the slate
+  (early scan, feed gap), every pitcher passes rather than gutting the P slot.
+  """
+  def draftable?(player, "mlb", next_game_at, probables) do
+    if player.position in ["SP", "RP"] and MapSet.size(probables) > 0 do
+      MapSet.member?(probables, player.external_id) and Map.has_key?(next_game_at, player.team)
+    else
+      Map.has_key?(next_game_at, player.team)
+    end
+  end
+
+  def draftable?(player, _sport, next_game_at, _probables), do: Map.has_key?(next_game_at, player.team)
+
+  # The listed probable starters across the scanned slate, as ESPN athlete ids.
+  # Baseball's board uses this to offer only pitchers who actually take the
+  # mound: a team playing tonight says nothing about whether its ace throws.
+  defp probable_ids(events) do
+    events
+    |> Enum.filter(fn e -> get_in(e, ["status", "type", "state"]) == "pre" end)
+    |> Enum.flat_map(fn e -> e |> get_in(["competitions", Access.at(0), "competitors"]) |> List.wrap() end)
+    |> Enum.flat_map(fn c -> List.wrap(c["probables"]) end)
+    |> Enum.map(fn p -> get_in(p, ["athlete", "id"]) end)
+    |> Enum.reject(&is_nil/1)
+    |> MapSet.new(&to_string/1)
   end
 
   # ESPN season types: 1 = preseason, 2 = regular, 3 = post. Football exhibition

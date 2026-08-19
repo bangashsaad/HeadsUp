@@ -46,8 +46,10 @@ defmodule HeadsUp.Settlement.Worker do
         case Settlement.settle_duel(duel.id) do
           {:ok, _result, _duel} -> :ok
           {:ok, _duel} -> :ok
-          # Expected-transient (a real 5b feed not yet final): info, will retry.
+          # Expected-transient (feed not final yet, or final but the player
+          # logs haven't published — the ESPN gamelog lag): info, will retry.
           {:error, :stats_not_final} -> Logger.info("settlement deferred for duel=#{duel.id}: stats not final")
+          {:error, :stats_not_ready} -> Logger.info("settlement deferred for duel=#{duel.id}: stats not ready (feed lag)")
           # Stuck (bad data): surface it so an operator can act, instead of retrying silently forever.
           {:error, reason} -> Logger.warning("settlement failed for duel=#{duel.id}: #{inspect(reason)}")
         end

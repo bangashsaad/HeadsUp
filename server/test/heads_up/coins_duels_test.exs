@@ -255,7 +255,9 @@ defmodule HeadsUp.CoinsDuelsTest do
       duel = challenge(a, b, %{"stake_coins" => 250})
       {:ok, _} = Contests.accept_challenge(b, duel.id)
       to_drafted(duel)
-      with_rosters(duel, player("Bench A"), player("Bench B"))
+      # A REAL tie (both score 50) — an all-zero board no longer settles as a
+      # tie; the stats-not-ready guard defers it instead.
+      with_rosters(duel, player("Star A"), player("Star B"))
 
       assert {:ok, result, _settled} = Settlement.settle_duel(duel.id)
       assert result.is_tie
