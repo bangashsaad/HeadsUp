@@ -49,280 +49,215 @@ UI kit primitives the screens compose (from `src/components/ui/`):
 ## The screen source (`src/screens/DraftHubScreen.js`)
 
 ```jsx
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { Appearance, StyleSheet } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
+import { useCallback, useState } from 'react';
+import { ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../auth/AuthContext';
+import { listDuels } from '../api/duels';
+import { setDraftLive } from '../state/attention';
+import { useTheme, useThemedStyles, spacing, fonts, withAlpha } from '../theme';
+import { Screen, Avatar, Badge, Button, Pulse, GhostText, Kicker, CondTitle, SkeletonList } from '../components/ui';
 
-// ---------------------------------------------------------------------------
-// Tokens that don't change with light/dark.
-// ---------------------------------------------------------------------------
-export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
-export const radius = { sm: 8, md: 12, lg: 16, xl: 20, pill: 999 };
-export const font = {
-  caption: 12,
-  small: 13,
-  body: 15,
-  bodyLg: 16,
-  subtitle: 17,
-  title: 22,
-  titleLg: 28,
-  hero: 34,
-};
-export const shadow = {
-  sm: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.16, shadowRadius: 6, elevation: 2 },
-  md: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 12, elevation: 5 },
-  lg: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.26, shadowRadius: 20, elevation: 10 },
-};
+const SPORT_EMOJI = { nfl: '🏈', nba: '🏀', wnba: '🏀', mlb: '⚾️' };
 
-// ---------------------------------------------------------------------------
-// Typeface tokens ("Reimagined" design language). Each entry is a loaded
-// expo-google-fonts face; when you set one as fontFamily, do NOT also set
-// fontWeight (the weight is baked into the face name).
-//   display   – Archivo Black energy, italic: wordmark, YOU WIN., ghost VS
-//   hero      – Barlow Condensed 800 italic: scores, section titles, buttons
-//   body*     – Archivo: running text and labels
-// ---------------------------------------------------------------------------
-export const fonts = {
-  display: 'Archivo_900Black_Italic',
-  displayUpright: 'Archivo_900Black',
-  hero: 'BarlowCondensed_800ExtraBold_Italic',
-  heroUpright: 'BarlowCondensed_800ExtraBold',
-  condBold: 'BarlowCondensed_700Bold',
-  condBoldItalic: 'BarlowCondensed_700Bold_Italic',
-  condSemi: 'BarlowCondensed_600SemiBold',
-  condMedium: 'BarlowCondensed_500Medium',
-  body: 'Archivo_400Regular',
-  bodyMedium: 'Archivo_500Medium',
-  bodySemi: 'Archivo_600SemiBold',
-  bodyBold: 'Archivo_700Bold',
-  bodyExtra: 'Archivo_800ExtraBold',
-  bodyBlack: 'Archivo_900Black',
-};
-
-// hex (#RRGGBB) -> rgba() string. The JS stand-in for CSS color-mix().
-export function withAlpha(hex, alpha) {
-  const h = hex.replace('#', '');
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
+function fmtClock(secs) {
+  if (!secs) return null;
+  if (secs < 120) return `${secs}S CLOCK`;
+  if (secs < 7200) return `${Math.round(secs / 60)}M CLOCK`;
+  return `${Math.round(secs / 3600)}H CLOCK`;
 }
 
-// ---------------------------------------------------------------------------
-// Palettes. `onAccent` is the text/icon color that sits ON the accent (so the
-// primary button stays legible: near-black text on lime).
-// ---------------------------------------------------------------------------
-const DARK = {
-  bg: '#0A0B10',
-  bgElevated: '#0D0F16',
-  card: '#12141D',
-  cardElevated: '#191C28',
-  border: '#252A3A',
-  borderSubtle: '#1A1E2B',
-  text: '#F4F5F7',
-  textDim: '#B9BECF',
-  textFaint: '#3A4157',
-  muted: '#8B91A7',
-  placeholder: '#565D73',
-  accent: '#C8FF2E',
-  onAccent: '#0A0B10',
-  accentSoft: 'rgba(200,255,46,0.10)',
-  accentBorder: 'rgba(200,255,46,0.45)',
-  danger: '#FF4557',
-  dangerSoft: 'rgba(255,69,87,0.15)',
-  dangerBorder: 'rgba(255,69,87,0.50)',
-  warning: '#FFB021',
-  warningSoft: 'rgba(255,176,33,0.14)',
-  warningBorder: 'rgba(255,176,33,0.40)',
-  info: '#9F8BFF',
-  infoSoft: 'rgba(124,92,255,0.15)',
-  infoBorder: 'rgba(124,92,255,0.45)',
-  // Extended "Reimagined" family
-  purple: '#7C5CFF',
-  purpleText: '#9F8BFF',
-  purpleSoft: 'rgba(124,92,255,0.15)',
-  purpleBorder: 'rgba(124,92,255,0.45)',
-  cyan: '#22E5FF',
-  pink: '#FF4D8D',
-  green: '#39D98A',
-  orange: '#FF7A1A',
-  gold: '#FFB021',
-  silver: '#B9BECF',
-  bronze: '#C97C3D',
-};
-
-const LIGHT = {
-  bg: '#F4F5F8',
-  bgElevated: '#ECEEF4',
-  card: '#FFFFFF',
-  cardElevated: '#EEF1F6', // bands/chips need to recess on white cards
-  border: '#DCE0EA',
-  borderSubtle: '#E8EBF2',
-  text: '#12141D',
-  textDim: '#3A4157',
-  textFaint: '#C3C9D6',
-  muted: '#565D73',
-  placeholder: '#8B91A7',
-  accent: '#65A30D',
-  onAccent: '#FFFFFF',
-  accentSoft: 'rgba(101,163,13,0.10)',
-  accentBorder: 'rgba(101,163,13,0.32)',
-  danger: '#E11D48',
-  dangerSoft: 'rgba(225,29,72,0.08)',
-  dangerBorder: 'rgba(225,29,72,0.28)',
-  warning: '#C77700',
-  warningSoft: 'rgba(199,119,0,0.10)',
-  warningBorder: 'rgba(199,119,0,0.30)',
-  info: '#6D4AFF',
-  infoSoft: 'rgba(109,74,255,0.08)',
-  infoBorder: 'rgba(109,74,255,0.28)',
-  purple: '#6D4AFF',
-  purpleText: '#6D4AFF',
-  purpleSoft: 'rgba(109,74,255,0.08)',
-  purpleBorder: 'rgba(109,74,255,0.28)',
-  cyan: '#0891B2',
-  pink: '#DB2777',
-  green: '#0E9F6E',
-  orange: '#EA580C',
-  gold: '#B45309',
-  silver: '#64748B',
-  bronze: '#A16207',
-};
-
-export const PALETTES = { dark: DARK, light: LIGHT };
-
-// Semantic tone -> {bg, text, border} for badges/pills/banners.
-export function makeTones(c) {
-  return {
-    neutral: { bg: c.card, text: c.muted, border: c.border },
-    accent: { bg: c.accentSoft, text: c.accent, border: c.accentBorder },
-    danger: { bg: c.dangerSoft, text: c.danger, border: c.dangerBorder },
-    warning: { bg: c.warningSoft, text: c.warning, border: c.warningBorder },
-    info: { bg: c.infoSoft, text: c.info, border: c.infoBorder },
-  };
+function fmtStart(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const now = new Date();
+  const sameDay = d.toDateString() === now.toDateString();
+  const hm = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return sameDay ? `TODAY ${hm}` : `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })} ${hm}`;
 }
 
-// Map a duel status string to a tone name.
-export function statusTone(status) {
-  switch (status) {
-    case 'accepted':
-    case 'drafted':
-    case 'settled':
-      return 'accent';
-    case 'drafting':
-      return 'danger'; // live = red, per the Reimagined language
-    case 'pending':
-    case 'countered':
-      return 'info';
-    case 'declined':
-    case 'cancelled':
-      return 'danger';
-    default:
-      return 'neutral';
-  }
+// One draftable duel — the ready-room card: faces, VS ghost, terms, big CTA.
+function DraftCard({ duel, live, onEnter, myName, colors, styles }) {
+  const names = duel.group
+    ? (duel.participants || []).filter((p) => p.status !== 'declined').map((p) => p.user?.username || '?')
+    : [myName || 'You', duel.opponent?.username || '?'];
+  const chips = [
+    `${SPORT_EMOJI[duel.sport] || '🎯'} ${(duel.sport || '').toUpperCase()}`,
+    `${duel.roster_size} SLOTS`,
+    fmtClock(duel.pick_clock_seconds),
+    duel.group ? `${duel.party_size}-WAY` : 'SNAKE',
+    !live ? fmtStart(duel.draft_starts_at) : null,
+  ].filter(Boolean);
+
+  return (
+    <Pressable onPress={onEnter} style={({ pressed }) => [styles.card, live && styles.cardLive, pressed && { transform: [{ scale: 0.98 }] }]}>
+      <View style={styles.ghostWrap} pointerEvents="none">
+        <GhostText size={64} color={withAlpha(colors.text, 0.08)} strokeWidth={1}>
+          VS
+        </GhostText>
+      </View>
+
+      <View style={styles.cardTop}>
+        {live ? (
+          <Badge label="Draft live" tone="danger" blink />
+        ) : (
+          <Badge label="Ready to draft" tone="accent" />
+        )}
+        <Text style={styles.cardMeta}>{duel.group ? `${names.length} PLAYERS` : 'HEAD-TO-HEAD'}</Text>
+      </View>
+
+      <View style={styles.faceRow}>
+        {names.slice(0, 4).map((n, i) => (
+          <View key={`${n}-${i}`} style={{ marginLeft: i === 0 ? 0 : -10, zIndex: 9 - i }}>
+            <Avatar name={n} size={40} />
+          </View>
+        ))}
+        <CondTitle size={26} style={{ marginLeft: spacing.md, flex: 1 }} numberOfLines={2}>
+          {live ? 'BACK ON THE CLOCK.' : `DRAFT VS ${(duel.group ? `${names.length - 1} RIVALS` : duel.opponent?.username || 'THEM').toUpperCase()}`}
+        </CondTitle>
+      </View>
+
+      <View style={styles.chipRow}>
+        {chips.map((c) => (
+          <View key={c} style={styles.termChip}>
+            <Text style={styles.termChipText}>{c}</Text>
+          </View>
+        ))}
+      </View>
+
+      <Pulse color={withAlpha(colors.accent, 0.3)} disabled={!live} style={{ marginTop: spacing.md, alignSelf: 'stretch' }}>
+        <Button title={live ? 'Enter room →' : 'To the ready room →'} onPress={onEnter} />
+      </Pulse>
+    </Pressable>
+  );
 }
 
-// Deterministic avatar tint from a name (mode-independent).
-const AVATAR_TINTS = ['#FF4D8D', '#22E5FF', '#39D98A', '#FFB021', '#7C5CFF', '#5CA8FF', '#FF7A1A'];
-export function avatarColor(seed = '') {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  return AVATAR_TINTS[h % AVATAR_TINTS.length];
-}
+export default function DraftHubScreen({ navigation }) {
+  const { token, user } = useAuth();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const [duels, setDuels] = useState(null);
+  const [error, setError] = useState(null);
 
-// ---------------------------------------------------------------------------
-// Theme context: a persisted preference ('system' | 'light' | 'dark') resolved
-// to an active scheme, plus the matching palette + tones.
-// ---------------------------------------------------------------------------
-const MODE_KEY = 'theme_mode';
-const ThemeContext = createContext(null);
+  const load = useCallback(async () => {
+    try {
+      const res = await listDuels(token);
+      setDuels(res.duels || []);
+      setError(null);
+      setDraftLive((res.duels || []).some((d) => d.status === 'drafting'));
+    } catch (e) {
+      setError(e.message);
+      if (duels == null) setDuels([]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
-export function ThemeProvider({ children }) {
-  const [mode, setModeState] = useState('dark'); // persisted preference
-  const [systemScheme, setSystemScheme] = useState(Appearance.getColorScheme() || 'dark');
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const saved = await SecureStore.getItemAsync(MODE_KEY);
-        if (saved === 'light' || saved === 'dark' || saved === 'system') setModeState(saved);
-      } catch (_) {}
-    })();
-    const sub = Appearance.addChangeListener(({ colorScheme }) => setSystemScheme(colorScheme || 'dark'));
-    return () => sub.remove();
-  }, []);
-
-  function setMode(next) {
-    setModeState(next);
-    SecureStore.setItemAsync(MODE_KEY, next).catch(() => {});
-  }
-
-  const scheme = mode === 'system' ? systemScheme : mode;
-  const colors = PALETTES[scheme] || DARK;
-  const value = useMemo(
-    () => ({ mode, setMode, scheme, colors, tones: makeTones(colors) }),
-    [mode, scheme, colors]
+  useFocusEffect(
+    useCallback(() => {
+      load();
+      const iv = setInterval(load, 30000);
+      return () => clearInterval(iv);
+    }, [load])
   );
 
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+  const drafting = (duels || []).filter((d) => d.status === 'drafting');
+  const ready = (duels || []).filter((d) => d.status === 'accepted');
+
+  function enter(d) {
+    navigation.navigate('DuelsTab', {
+      screen: 'DraftRoom',
+      params: { id: d.id, opponentName: d.opponent?.username },
+      initial: false,
+    });
+  }
+
+  return (
+    <Screen padded={false} edges={['top']}>
+      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+        <Kicker tracking={3} style={{ textAlign: 'center', marginTop: spacing.sm }}>
+          Draft room
+        </Kicker>
+
+        {error ? <Text style={styles.error}>{error}</Text> : null}
+
+        {duels == null ? (
+          <View style={{ marginTop: spacing.xl }}>
+            <SkeletonList count={3} />
+          </View>
+        ) : drafting.length === 0 && ready.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <View style={styles.lockCoin}>
+              <Ionicons name="timer-outline" size={30} color={colors.placeholder} />
+            </View>
+            <CondTitle size={20} color={colors.muted} style={{ textAlign: 'center', letterSpacing: 1 }}>
+              NOTHING ON THE CLOCK
+            </CondTitle>
+            <Text style={styles.emptySub}>
+              Accepted challenges land here as draft rooms. Call somebody out and the clock starts.
+            </Text>
+            <Button
+              title="Start a challenge"
+              style={{ marginTop: spacing.lg, alignSelf: 'center' }}
+              full={false}
+              onPress={() => navigation.navigate('DuelsTab', { screen: 'CreateChallenge', initial: false })}
+            />
+          </View>
+        ) : (
+          <View style={{ gap: spacing.md, marginTop: spacing.lg }}>
+            {drafting.map((d) => (
+              <DraftCard key={d.id} duel={d} live myName={user?.username} onEnter={() => enter(d)} colors={colors} styles={styles} />
+            ))}
+            {ready.map((d) => (
+              <DraftCard key={d.id} duel={d} live={false} myName={user?.username} onEnter={() => enter(d)} colors={colors} styles={styles} />
+            ))}
+          </View>
+        )}
+      </ScrollView>
+    </Screen>
+  );
 }
 
-export function useTheme() {
-  return useContext(ThemeContext) || { mode: 'dark', setMode: () => {}, scheme: 'dark', colors: DARK, tones: makeTones(DARK) };
-}
-
-// Build a StyleSheet from the active theme; memoized per palette.
-// Usage: const styles = useThemedStyles((c, t) => StyleSheet.create({...}))
-export function useThemedStyles(factory) {
-  const { colors, tones } = useTheme();
-  return useMemo(() => factory(colors, tones), [colors, tones, factory]);
-}
-
-// Themed react-navigation header options (re-themes when the palette changes).
-export function useNavHeader() {
-  const { colors } = useTheme();
-  return {
-    headerStyle: { backgroundColor: colors.bg },
-    headerTintColor: colors.text,
-    headerShadowVisible: false,
-    headerTitleStyle: { fontFamily: fonts.heroUpright, fontSize: 18, letterSpacing: 0.5 },
-    headerBackTitleVisible: false,
-    contentStyle: { backgroundColor: colors.bg },
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Backward-compatible static exports (dark). Anything not yet converted to
-// useTheme() keeps rendering against the dark palette and never crashes.
-// ---------------------------------------------------------------------------
-export const colors = DARK;
-export const tones = makeTones(DARK);
-
-export const navHeader = {
-  headerStyle: { backgroundColor: DARK.bg },
-  headerTintColor: DARK.text,
-  headerShadowVisible: false,
-  headerTitleStyle: { fontFamily: fonts.heroUpright, fontSize: 18, letterSpacing: 0.5 },
-};
-
-export const authStyles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: DARK.bg, justifyContent: 'center', padding: 24 },
-  title: { color: DARK.text, fontSize: 30, fontWeight: '800', textAlign: 'center' },
-  subtitle: { color: DARK.muted, fontSize: 15, textAlign: 'center', marginTop: 6, marginBottom: 28 },
-  input: {
-    backgroundColor: DARK.card,
-    color: DARK.text,
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: DARK.border,
-  },
-  button: { backgroundColor: DARK.accent, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
-  buttonText: { color: DARK.onAccent, fontSize: 16, fontWeight: '700' },
-  link: { color: DARK.accent, textAlign: 'center', marginTop: 18, fontSize: 15 },
-  error: { color: DARK.danger, textAlign: 'center', marginBottom: 14, fontSize: 14 },
-});
+const makeStyles = (colors) =>
+  StyleSheet.create({
+    body: { padding: spacing.lg, paddingBottom: spacing.xxl },
+    card: {
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.card,
+      padding: spacing.lg,
+      overflow: 'hidden',
+    },
+    cardLive: { borderColor: colors.dangerBorder, backgroundColor: colors.cardElevated },
+    ghostWrap: { position: 'absolute', right: -4, top: -14 },
+    cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    cardMeta: { color: colors.muted, fontSize: 10, fontFamily: fonts.bodyExtra, letterSpacing: 1 },
+    faceRow: { flexDirection: 'row', alignItems: 'center', marginTop: spacing.md },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, marginTop: spacing.md },
+    termChip: {
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.bgElevated,
+      borderRadius: 999,
+      paddingVertical: 5,
+      paddingHorizontal: 12,
+    },
+    termChipText: { fontSize: 11, fontFamily: fonts.bodyExtra, color: colors.muted, letterSpacing: 0.5 },
+    emptyWrap: { alignItems: 'center', paddingTop: 120, paddingHorizontal: spacing.xl },
+    lockCoin: {
+      width: 64,
+      height: 64,
+      borderRadius: 20,
+      backgroundColor: colors.card,
+      borderWidth: 1,
+      borderColor: colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: spacing.lg,
+    },
+    emptySub: { color: colors.muted, fontSize: 13, textAlign: 'center', marginTop: spacing.sm, lineHeight: 19, fontFamily: fonts.body },
+    error: { color: colors.danger, textAlign: 'center', marginTop: spacing.sm },
+  });
 ```

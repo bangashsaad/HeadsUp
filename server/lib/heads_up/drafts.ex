@@ -48,6 +48,17 @@ defmodule HeadsUp.Drafts do
   end
 
   @doc """
+  A duel just got cancelled by something other than its room (block, janitor,
+  API cancel). If a room is running for it, tell it to stand down.
+  """
+  def notify_duel_cancelled(duel_id) do
+    case Repo.get_by(Draft, duel_id: duel_id) do
+      nil -> :ok
+      %Draft{id: draft_id} -> HeadsUp.Drafts.Server.duel_cancelled(draft_id)
+    end
+  end
+
+  @doc """
   Move a lobby draft to active: record the randomized round-1 order (its head
   is the classic `first_picker_id`) and flip the duel accepted -> drafting,
   atomically.

@@ -19,19 +19,29 @@ defmodule Mix.Tasks.HeadsUp.SeedSport do
 
   @impl true
   def run([sport]), do: seed(sport)
-  def run(_), do: Mix.raise("usage: mix heads_up.seed_sport <#{Enum.join(Client.leagues(), "|")}>")
+  def run([sport, "--prune"]), do: seed(sport, prune: true)
+  def run(_), do: Mix.raise("usage: mix heads_up.seed_sport <#{Enum.join(Client.leagues(), "|")}> [--prune]")
 
-  @doc "Run both seed phases for `sport`, printing a summary."
-  def seed(sport) do
+  @doc """
+  Run both seed phases for `sport`, printing a summary. `prune: true` also
+  retires players the feed no longer lists (run it after roster cut-downs).
+  """
+  def seed(sport, opts \\ []) do
     unless Client.supported?(sport) do
       Mix.raise("no ESPN feed for sport #{inspect(sport)} (have: #{Enum.join(Client.leagues(), ", ")})")
     end
 
     before = Sports.count_players()
 
-    case Sports.Seeds.run_from_espn(sport) do
-      {:ok, %{inserted: ins, updated: upd, total: total}} ->
+    case Sports.Seeds.run_from_espn(sport, prune: Keyword.get(opts, :prune, false)) do
+      {:ok, %{inserted: ins, updated: upd, total: total} = summary} ->
         Mix.shell().info("#{sport} roster upsert: #{upd} matched, #{ins} new, #{total} touched.")
+
+        case summary do
+          %{deleted: d, retired: r} -> Mix.shell().info("Pruned: #{d} deleted, #{r} retired to FA (kept for history).")
+          %{prune_skipped: why} -> Mix.shell().error("Prune SKIPPED — feed looked wrong: #{inspect(why)}")
+          _ -> :ok
+        end
 
       {:error, reason} ->
         Mix.raise("#{sport} re-seed failed (no rows written): #{inspect(reason)}")

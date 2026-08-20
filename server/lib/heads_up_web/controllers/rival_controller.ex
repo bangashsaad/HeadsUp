@@ -10,7 +10,8 @@ defmodule HeadsUpWeb.RivalController do
     me = conn.assigns.current_user
 
     with {int_id, ""} <- Integer.parse(to_string(id)),
-         %User{deleted_at: nil} = rival <- Repo.get(User, int_id) do
+         %User{deleted_at: nil} = rival <- Repo.get(User, int_id),
+         false <- HeadsUp.Social.blocked?(me, rival.id) do
       render(conn, :show, rival: rival, rivalry: Stats.rivalry(me.id, rival.id))
     else
       _ ->

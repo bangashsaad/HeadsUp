@@ -49,8 +49,61 @@ defmodule HeadsUp.Sports.Seeds do
     client = Keyword.get(opts, :client, Client)
 
     with {:ok, teams} <- fetch_teams(client, sport),
-         {:ok, candidates} <- fetch_all_rosters(client, sport, teams) do
-      upsert(sport, Enum.uniq_by(candidates, & &1.external_id))
+         {:ok, candidates} <- fetch_all_rosters(client, sport, teams),
+         candidates = Enum.uniq_by(candidates, & &1.external_id),
+         {:ok, summary} <- upsert(sport, candidates) do
+      if Keyword.get(opts, :prune, false) do
+        case prune_missing(sport, Enum.map(candidates, & &1.external_id)) do
+          {:ok, pruned} -> {:ok, Map.merge(summary, pruned)}
+          {:error, reason} -> {:ok, Map.put(summary, :prune_skipped, reason)}
+        end
+      else
+        {:ok, summary}
+      end
+    end
+  end
+
+  # Refuse to prune when the fresh feed is under half the current pool —
+  # that's a feed hiccup, not a roster cut.
+  @prune_floor 0.5
+
+  @doc """
+  Retire every player of `sport` the fresh feed no longer lists (cuts,
+  retirements, trades out of the league). Rows no draft pick points at are
+  deleted; rows with history are kept but moved to team `"FA"`, which the
+  board never deals (it only offers players whose team has a game).
+
+  Returns `{:ok, %{deleted: n, retired: m}}`, or `{:error, reason}` when the
+  feed looks too thin to trust (nothing is touched).
+  """
+  def prune_missing(sport, fresh_external_ids) when is_list(fresh_external_ids) do
+    current = Repo.aggregate(from(p in Player, where: p.sport == ^sport and p.team != "FA"), :count)
+
+    cond do
+      fresh_external_ids == [] ->
+        {:error, :empty_feed}
+
+      current > 0 and length(fresh_external_ids) < current * @prune_floor ->
+        {:error, {:feed_too_thin, length(fresh_external_ids), current}}
+
+      true ->
+        now = DateTime.utc_now() |> DateTime.truncate(:second)
+        referenced = from(pk in Pick, select: pk.player_id)
+
+        missing =
+          from(p in Player,
+            where: p.sport == ^sport and p.team != "FA" and p.external_id not in ^fresh_external_ids
+          )
+
+        {retired, _} =
+          from(p in missing, where: p.id in subquery(referenced))
+          |> Repo.update_all(set: [team: "FA", updated_at: now])
+
+        {deleted, _} =
+          from(p in missing, where: p.id not in subquery(referenced))
+          |> Repo.delete_all()
+
+        {:ok, %{deleted: deleted, retired: retired}}
     end
   end
 

@@ -9,6 +9,8 @@ defmodule HeadsUp.Coins.Integrity do
 
   import Ecto.Query, warn: false
 
+  require Logger
+
   alias HeadsUp.Coins
   alias HeadsUp.Contests
   alias HeadsUp.Repo
@@ -18,6 +20,34 @@ defmodule HeadsUp.Coins.Integrity do
           | {:unbalanced_txn, txn_id :: integer()}
           | {:negative_wallet, account_id :: integer()}
           | {:escrow_mismatch, %{escrow: integer(), expected: integer()}}
+
+  @last_key {__MODULE__, :last}
+
+  @doc """
+  `check/0` for the background clock: never raises, remembers the verdict
+  (with a timestamp) for `/api/health`, and logs loudly on any issue. A
+  failing ledger is a 503 on health, which is the alert.
+  """
+  @spec run() :: :ok | {:error, [issue()]}
+  def run do
+    result =
+      try do
+        check()
+      rescue
+        e -> {:error, [{:check_crashed, Exception.message(e)}]}
+      end
+
+    case result do
+      :ok -> :ok
+      {:error, issues} -> Logger.error("LEDGER INTEGRITY: #{inspect(issues)}")
+    end
+
+    :persistent_term.put(@last_key, {result, System.system_time(:second)})
+    result
+  end
+
+  @doc "The last `run/0` verdict as `{result, unix_seconds}`, or nil if it never ran on this node."
+  def last, do: :persistent_term.get(@last_key, nil)
 
   @spec check() :: :ok | {:error, [issue()]}
   def check do

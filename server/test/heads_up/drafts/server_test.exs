@@ -371,4 +371,50 @@ defmodule HeadsUp.Drafts.ServerTest do
     Repo.all(from p in Player, where: p.position == ^position and p.sport == "wnba", order_by: [desc: p.projection])
     |> Enum.at(idx)
   end
+
+  describe "lifecycle (wave 4)" do
+    test "a cancelled room retires instead of living until the next deploy", ctx do
+      pid = start(ctx.draft, ctx.duel, retire_after_ms: 50)
+      ref = Process.monitor(pid)
+
+      assert %{phase: :cancelled} = Server.cancel(ctx.draft.id, ctx.challenger.id)
+      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 1_000
+      assert Server.get_state(ctx.draft.id) == {:error, :not_found}
+    end
+
+    test "a duel cancelled OUTSIDE the room (block/janitor/API) stops its clock and retires", ctx do
+      pid = start(ctx.draft, ctx.duel, retire_after_ms: 50)
+      ref = Process.monitor(pid)
+      Server.ready(ctx.draft.id, ctx.challenger.id)
+      assert %{phase: :active, clock_deadline: deadline} = Server.ready(ctx.draft.id, ctx.opponent.id)
+      assert deadline != nil
+
+      # The path every external cancel funnels through.
+      {:ok, _} = HeadsUp.Contests.cancel_drafting(ctx.duel.id)
+
+      assert_receive {:DOWN, ^ref, :process, ^pid, :normal}, 1_000
+      assert Repo.get(Duel, ctx.duel.id).status == "cancelled"
+    end
+
+    test "a draft the DB already calls cancelled replays as cancelled, not as a live lobby", ctx do
+      {:ok, _} = Drafts.cancel_draft(ctx.draft.id)
+
+      start(ctx.draft, ctx.duel, retire_after_ms: 60_000)
+      state = Server.get_state(ctx.draft.id)
+
+      assert state.phase == :cancelled
+      assert state.clock_deadline == nil
+    end
+
+    test "set_queue keeps only real, on-board players, de-duplicated", ctx do
+      start(ctx.draft, ctx.duel)
+      Server.ready(ctx.draft.id, ctx.challenger.id)
+      state = Server.ready(ctx.draft.id, ctx.opponent.id)
+      [a, b | _] = Enum.map(state.available, & &1.id)
+
+      :ok = Server.set_queue(ctx.draft.id, ctx.challenger.id, [b, 999_999_999, a, b, "junk", a])
+
+      assert Server.get_queue(ctx.draft.id, ctx.challenger.id) == [b, a]
+    end
+  end
 end

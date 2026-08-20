@@ -128,4 +128,39 @@ defmodule HeadsUp.BlockingTest do
     assert {:error, changeset} = Social.block_user(a, a.id)
     assert "you can't block yourself" in errors_on(changeset).blocked_id
   end
+
+  test "a block makes the profile unreachable by id, both ways", %{a: a, b: b} do
+    befriend(a, b)
+    assert {:ok, _} = Social.public_profile(b, a.id)
+
+    {:ok, _} = Social.block_user(a, b.id)
+
+    assert {:error, :not_found} = Social.public_profile(b, a.id)
+    assert {:error, :not_found} = Social.public_profile(a, b.id)
+  end
+
+  test "a group rematch drops a seat that has since been blocked", %{a: a, b: b} do
+    c = user("cat")
+    befriend(a, b)
+    befriend(a, c)
+    befriend(b, c)
+
+    {:ok, duel} =
+      Contests.create_challenge(a, %{
+        "opponent_ids" => [b.id, c.id],
+        "sport" => "wnba",
+        "roster_size" => 5,
+        "draft_starts_at" => future()
+      })
+
+    {:ok, _} = Contests.accept_challenge(b, duel.id)
+    {:ok, _} = Contests.accept_challenge(c, duel.id)
+
+    # Everyone played; then c blocks the host. A rematch must not re-invite c.
+    {:ok, _} = Social.block_user(c, a.id)
+
+    assert {:ok, rematch} = Contests.rematch(a, duel.id)
+    assert rematch.opponent_id == b.id
+    refute Enum.any?(Repo.all(HeadsUp.Contests.Participant), &(&1.duel_id == rematch.id and &1.user_id == c.id))
+  end
 end

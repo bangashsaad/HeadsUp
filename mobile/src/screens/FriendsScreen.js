@@ -21,7 +21,7 @@ import { Screen, SkeletonList, EmptyState, Button } from '../components/ui';
 // The FRIENDS tab, from Saad's Reimagined drop: requests inline at the top,
 // search that surfaces strangers, group pills as filters, and every friend row
 // carrying the series record vs you plus a one-tap ⚔ DUEL.
-export default function FriendsScreen({ navigation }) {
+export default function FriendsScreen({ navigation, route }) {
   const { token, user } = useAuth();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -35,6 +35,12 @@ export default function FriendsScreen({ navigation }) {
   const [loadError, setLoadError] = useState(null);
 
   const [q, setQ] = useState('');
+
+  // A /u/:username link lands here with the name — run the search on arrival.
+  useEffect(() => {
+    const seed = route?.params?.q;
+    if (seed) setQ(String(seed));
+  }, [route?.params?.q]);
   const [results, setResults] = useState([]);
   const [sentIds, setSentIds] = useState(new Set());
   const [grp, setGrp] = useState('all');

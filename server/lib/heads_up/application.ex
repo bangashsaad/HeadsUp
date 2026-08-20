@@ -27,6 +27,8 @@ defmodule HeadsUp.Application do
       HeadsUp.Settlement.Worker,
       # Hourly stale-duel sweep: expired challenges + dead lobbies, stakes home.
       HeadsUp.Contests.Janitor,
+      # Weekly roster refresh + prune for in-season sports (off in test).
+      {HeadsUp.Sports.PoolRefresher, Application.get_env(:heads_up, :pool_refresher, [])},
       # Fire-and-forget push notification sends.
       {Task.Supervisor, name: HeadsUp.Notifications.TaskSupervisor},
       # Start to serve requests, typically the last entry

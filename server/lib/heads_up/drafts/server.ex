@@ -48,6 +48,15 @@ defmodule HeadsUp.Drafts.Server do
   @doc "Read back a user's queue, so a rejoining client doesn't clobber it."
   def get_queue(draft_id, user_id), do: safe_call(draft_id, {:get_queue, user_id})
 
+  @doc """
+  The duel was cancelled OUTSIDE the room (a block, the janitor, an API
+  cancel). Stops the clock so no auto-pick or "you're on the clock" push fires
+  for a dead duel, tells the room, and retires the process. A cast — the DB
+  transaction that cancelled the duel must never block on the engine, and a
+  room that isn't running has nothing to stop.
+  """
+  def duel_cancelled(draft_id), do: GenServer.cast(via_tuple(draft_id), :duel_cancelled)
+
   @doc "Tell the draft a user's socket dropped; shrinks their clock to a 60s grace window."
   def disconnected(draft_id, user_id) do
     GenServer.cast(via_tuple(draft_id), {:disconnected, user_id})
@@ -69,6 +78,13 @@ defmodule HeadsUp.Drafts.Server do
 
   # --- init / crash recovery ---------------------------------------------
 
+  @queue_max 50
+  # A finished or cancelled room lingers this long so late clients can still
+  # read the final state, then stops (restart: :transient — a normal exit is
+  # not restarted). Before this, every draft ever played stayed resident with
+  # its full player pool until the next deploy.
+  @retire_after_ms 60_000
+
   @impl true
   def init(opts) do
     duel = Keyword.fetch!(opts, :duel)
@@ -76,6 +92,7 @@ defmodule HeadsUp.Drafts.Server do
     rng = Keyword.get(opts, :rng, &:rand.uniform/1)
     now_fun = Keyword.get(opts, :now_fun, &DateTime.utc_now/0)
     clock_override = Keyword.get(opts, :pick_clock_seconds)
+    retire_after_ms = Keyword.get(opts, :retire_after_ms, @retire_after_ms)
 
     slots = Lineup.slots(duel.lineup_template)
 
@@ -118,7 +135,8 @@ defmodule HeadsUp.Drafts.Server do
       deadline: nil,
       clock_owner_pick: nil,
       rng: rng,
-      now_fun: now_fun
+      now_fun: now_fun,
+      retire_after_ms: retire_after_ms
     }
 
     {:ok, state, {:continue, :replay}}
@@ -133,6 +151,12 @@ defmodule HeadsUp.Drafts.Server do
       cond do
         draft == nil ->
           state
+
+        draft.status == "cancelled" ->
+          %{state | phase: :cancelled, current_picker_id: nil} |> schedule_retire()
+
+        picks == [] and draft.status == "complete" ->
+          %{state | phase: :complete, current_picker_id: nil} |> schedule_retire()
 
         picks == [] and draft.status == "active" ->
           # readied + order drawn but no picks yet: resume the first pick.
@@ -185,13 +209,13 @@ defmodule HeadsUp.Drafts.Server do
   defp finish_or_resume(state, status) do
     cond do
       status == "complete" ->
-        %{state | phase: :complete, current_picker_id: nil}
+        %{state | phase: :complete, current_picker_id: nil} |> schedule_retire()
 
       state.pick_number > state.total_picks ->
         # Crashed after the final pick persisted but before completion committed:
         # heal the durable side so the duel doesn't stay stuck in "drafting".
         {:ok, _} = Drafts.complete_draft(state.draft_id)
-        %{state | phase: :complete, current_picker_id: nil}
+        %{state | phase: :complete, current_picker_id: nil} |> schedule_retire()
 
       true ->
         state |> set_active_pick(state.pick_number) |> arm_clock()
@@ -318,7 +342,14 @@ defmodule HeadsUp.Drafts.Server do
 
   def handle_call({:set_queue, uid, ids}, _from, state) do
     if Map.has_key?(state.queue, uid) do
-      {:reply, :ok, put_in(state.queue[uid], Enum.filter(List.wrap(ids), &is_integer/1))}
+      queue =
+        ids
+        |> List.wrap()
+        |> Enum.filter(&(is_integer(&1) and Map.has_key?(state.available, &1)))
+        |> Enum.uniq()
+        |> Enum.take(@queue_max)
+
+      {:reply, :ok, put_in(state.queue[uid], queue)}
     else
       {:reply, {:error, :not_a_participant}, state}
     end
@@ -326,7 +357,7 @@ defmodule HeadsUp.Drafts.Server do
 
   def handle_call({:cancel, uid}, _from, %{phase: phase} = state) when phase in [:lobby, :active] do
     {:ok, _} = Drafts.cancel_draft(state.draft_id)
-    state = %{state | phase: :cancelled, current_picker_id: nil} |> cancel_clock()
+    state = %{state | phase: :cancelled, current_picker_id: nil} |> cancel_clock() |> schedule_retire()
     {:reply, public_state(state), tap_broadcast(state, "cancelled", %{by: uid})}
   end
 
@@ -366,9 +397,24 @@ defmodule HeadsUp.Drafts.Server do
   # stale timer (a pick already happened): ignore
   def handle_info({:clock_expired, _stale}, state), do: {:noreply, state}
 
+  # Lingered long enough after finishing — free the pool. A room that somehow
+  # went live again in the meantime is left alone.
+  def handle_info(:retire, %{phase: phase} = state) when phase in [:complete, :cancelled],
+    do: {:stop, :normal, state}
+
+  def handle_info(:retire, state), do: {:noreply, state}
+
   # --- disconnect / reconnect (60s grace) ---------------------------------
 
   @impl true
+  def handle_cast(:duel_cancelled, %{phase: phase} = state) when phase in [:lobby, :active] do
+    state = %{state | phase: :cancelled, current_picker_id: nil} |> cancel_clock() |> schedule_retire()
+    {:noreply, tap_broadcast(state, "cancelled", %{by: nil, reason: "duel_cancelled"})}
+  end
+
+  # Already terminal (e.g. our own cancel round-tripped through Contests).
+  def handle_cast(:duel_cancelled, state), do: {:noreply, state}
+
   def handle_cast({:disconnected, uid}, state) do
     state = update_in(state.connected[uid], &max(&1 - 1, 0))
 
@@ -432,7 +478,13 @@ defmodule HeadsUp.Drafts.Server do
     {:ok, _} = Drafts.complete_draft(state.draft_id)
 
     %{state | phase: :complete, current_picker_id: nil}
+    |> schedule_retire()
     |> tap_broadcast("draft_complete", %{reason: "pool_exhausted"})
+  end
+
+  defp schedule_retire(state) do
+    Process.send_after(self(), :retire, state.retire_after_ms)
+    state
   end
 
   defp commit_pick(state, uid, player_id, slot_key, auto?) do
@@ -461,6 +513,7 @@ defmodule HeadsUp.Drafts.Server do
       {:ok, _} = Drafts.complete_draft(state.draft_id)
 
       %{state | phase: :complete, current_picker_id: nil, pick_number: next}
+      |> schedule_retire()
       |> tap_broadcast("pick_made", %{pick_number: state.pick_number, user_id: uid})
       |> tap_broadcast("draft_complete", %{})
     else

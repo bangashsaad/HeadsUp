@@ -120,6 +120,7 @@ defmodule HeadsUp.Contests.Duel do
       greater_than_or_equal_to: 0,
       less_than_or_equal_to: HeadsUp.Coins.stake_max()
     )
+    |> validate_draft_window()
     |> validate_lineup_for_sport()
     |> validate_roster_matches_template()
     |> validate_scoring_rules()
@@ -128,6 +129,22 @@ defmodule HeadsUp.Contests.Duel do
   end
 
   @doc "Changeset for moving a duel to a new status."
+  # A challenge for 2030 would sit "pending" forever (the janitor only sweeps
+  # past its draft time). Slates reach at most a few weeks out, so 30 days is
+  # generous and still finite.
+  @max_days_out 30
+  def max_days_out, do: @max_days_out
+
+  defp validate_draft_window(changeset) do
+    validate_change(changeset, :draft_starts_at, fn :draft_starts_at, at ->
+      horizon = DateTime.add(DateTime.utc_now(), @max_days_out * 86_400, :second)
+
+      if DateTime.compare(at, horizon) == :gt,
+        do: [draft_starts_at: "can't be more than #{@max_days_out} days out"],
+        else: []
+    end)
+  end
+
   def status_changeset(duel, status) do
     duel
     |> change(status: status)

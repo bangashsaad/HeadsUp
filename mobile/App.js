@@ -28,6 +28,18 @@ import MainTabs from './src/navigation/MainTabs';
 import PushTapRouter from './src/navigation/PushTapRouter';
 import { navigationRef } from './src/navigation/ref';
 
+// Share links (headsupfantasy.com/d/42, /u/name) and headsup:// deep links
+// land on the screen they name. Paths with no screen here are ignored.
+const linking = {
+  prefixes: ['headsup://', 'https://headsupfantasy.com', 'https://headsup-fantasy.fly.dev'],
+  config: {
+    screens: {
+      DuelsTab: { screens: { DuelDetail: { path: 'd/:id', parse: { id: Number } } } },
+      FriendsTab: { screens: { FriendsHome: 'u/:q' } },
+    },
+  },
+};
+
 function RootNavigator() {
   const { user, loading } = useAuth();
   const { colors, scheme } = useTheme();
@@ -54,7 +66,7 @@ function RootNavigator() {
   }
 
   return (
-    <NavigationContainer ref={navigationRef} theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme} linking={linking}>
       {user ? <MainTabs /> : <AuthStack />}
       {user ? <PushTapRouter /> : null}
       <StatusBar style={scheme === 'dark' ? 'light' : 'dark'} />

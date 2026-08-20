@@ -75,3 +75,7 @@ config :phoenix_live_view,
 # Sort query params output of verified routes for robust url comparisons
 config :phoenix,
   sort_verified_routes_query_params: true
+
+# The weekly roster refresher would hit the ESPN stub on a timer; tests drive
+# Seeds + PoolRefresher.due?/3 directly instead.
+config :heads_up, :pool_refresher, first_tick_ms: :timer.hours(24)

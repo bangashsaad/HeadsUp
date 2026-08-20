@@ -160,8 +160,14 @@ defmodule HeadsUp.Social do
         {:ok, %{user: other, relationship: "self", friendship_id: nil}}
 
       %User{} = other ->
-        {relationship, friendship_id} = viewer.id |> relationship_map([other.id]) |> Map.get(other.id, {"none", nil})
-        {:ok, %{user: other, relationship: relationship, friendship_id: friendship_id}}
+        # A block in either direction makes the profile unreachable by id —
+        # the same answer a stranger gets for a user who doesn't exist.
+        if blocked?(viewer, other.id) do
+          {:error, :not_found}
+        else
+          {relationship, friendship_id} = viewer.id |> relationship_map([other.id]) |> Map.get(other.id, {"none", nil})
+          {:ok, %{user: other, relationship: relationship, friendship_id: friendship_id}}
+        end
     end
   end
 

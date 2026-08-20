@@ -36,7 +36,8 @@ defmodule HeadsUp.Health do
       database: database(),
       espn: espn(),
       settlement: worker(:settlement, @settlement_max_age_s),
-      janitor: worker(:janitor, @janitor_max_age_s)
+      janitor: worker(:janitor, @janitor_max_age_s),
+      ledger: ledger()
     }
 
     status = if Enum.all?(checks, fn {_name, c} -> c.ok end), do: :ok, else: :degraded
@@ -79,6 +80,17 @@ defmodule HeadsUp.Health do
 
       {:error, reason} ->
         %{ok: false, detail: "unreachable: #{inspect(reason)}"}
+    end
+  end
+
+  # The coin ledger's last re-derivation (the janitor runs it hourly). Never
+  # checked yet is fine — the janitor check already flags a worker that isn't
+  # running; this one only turns red on a verdict.
+  defp ledger do
+    case HeadsUp.Coins.Integrity.last() do
+      nil -> %{ok: true, detail: "not yet checked"}
+      {:ok, ts} -> %{ok: true, last_run_seconds_ago: System.system_time(:second) - ts}
+      {{:error, issues}, _ts} -> %{ok: false, detail: "#{length(issues)} ledger issue(s) — see logs"}
     end
   end
 

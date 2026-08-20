@@ -56,6 +56,10 @@ defmodule HeadsUp.Contests.Janitor do
       n -> Logger.info("Janitor pruned #{n} expired login tokens")
     end
 
+    # The money invariant, re-derived hourly. Integrity.run/0 logs and
+    # remembers; /api/health turns a bad verdict into a 503.
+    HeadsUp.Coins.Integrity.run()
+
     Process.send_after(self(), :sweep, state.interval)
     {:noreply, state}
   end

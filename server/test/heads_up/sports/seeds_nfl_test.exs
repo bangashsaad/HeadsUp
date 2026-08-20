@@ -1,6 +1,7 @@
 defmodule HeadsUp.Sports.SeedsNflTest do
   use HeadsUp.DataCase, async: true
 
+  import Ecto.Query, only: [from: 2]
   alias HeadsUp.Repo
   alias HeadsUp.Sports.{Player, Seeds}
 
@@ -108,5 +109,33 @@ defmodule HeadsUp.Sports.SeedsNflTest do
     assert {:ok, _} = Seeds.run_from_espn("nfl", client: SeedStub)
 
     assert Enum.sort(seeded()) == [{"Full Back", "RB"}, {"Half Back", "RB"}, {"Slot Guy", "WR"}]
+  end
+
+  describe "prune_missing/2 (cut-down day)" do
+    test "players the feed dropped are deleted; the feed's players stay" do
+      Process.put(:teams_resp, @teams_ok)
+      Process.put({:roster_resp, "1"}, @roster_ok)
+      {:ok, _} = Seeds.run_from_espn("nfl", client: SeedStub)
+
+      # A guy who was on the roster last week and got cut.
+      Repo.insert!(%Player{sport: "nfl", external_id: "555001", name: "Cut Guy", team: "KC", position: "WR", projection: 1.0})
+      before = Repo.aggregate(from(p in Player, where: p.sport == "nfl"), :count)
+
+      assert {:ok, %{deleted: 1, retired: 0}} = Seeds.run_from_espn("nfl", client: SeedStub, prune: true)
+      assert Repo.aggregate(from(p in Player, where: p.sport == "nfl"), :count) == before - 1
+      refute Repo.get_by(Player, sport: "nfl", external_id: "555001")
+    end
+
+    test "a suspiciously thin feed is refused rather than wiping the pool" do
+      Process.put(:teams_resp, @teams_ok)
+      Process.put({:roster_resp, "1"}, @roster_ok)
+      {:ok, _} = Seeds.run_from_espn("nfl", client: SeedStub)
+      n = Repo.aggregate(from(p in Player, where: p.sport == "nfl"), :count)
+      assert n > 2
+
+      assert {:error, {:feed_too_thin, 1, ^n}} = Seeds.prune_missing("nfl", ["3139477"])
+      assert {:error, :empty_feed} = Seeds.prune_missing("nfl", [])
+      assert Repo.aggregate(from(p in Player, where: p.sport == "nfl"), :count) == n
+    end
   end
 end

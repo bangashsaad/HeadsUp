@@ -7,7 +7,6 @@ defmodule HeadsUpWeb.DuelDetailLive do
   """
   use HeadsUpWeb, :live_view
 
-  alias HeadsUpWeb.Params
   alias HeadsUp.Contests
   alias HeadsUp.Drafts.Lineup
 

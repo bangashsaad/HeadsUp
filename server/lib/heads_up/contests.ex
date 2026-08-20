@@ -240,7 +240,11 @@ defmodule HeadsUp.Contests do
           "parent_duel_id" => duel.id
         }
 
-        case rematch_invitees(duel, user) do
+        # A block since the last game drops that seat; create_challenge guards
+        # the 1v1 path itself, the group path needs it here.
+        invitees = duel |> rematch_invitees(user) |> Enum.reject(&Social.blocked?(user, &1))
+
+        case invitees do
           [] ->
             {:error, :not_found}
 
@@ -284,7 +288,11 @@ defmodule HeadsUp.Contests do
           |> Map.put("opponent_id", cid)
           |> Map.put("parent_duel_id", original.id)
 
-        with {:ok, built} <- resolve_slate(build_attrs(user, attrs), 2) do
+        # Same gates as a fresh challenge: blocks and the season. A counter
+        # could otherwise re-term a duel onto an off-season league.
+        with false <- Social.blocked?(user, cid),
+             {:ok, built} <- resolve_slate(build_attrs(user, attrs), 2),
+             true <- Season.in_season?(built["sport"]) || {:error, off_season_message(built["sport"])} do
           Ecto.Multi.new()
           |> Ecto.Multi.update(:original, Duel.status_changeset(original, "countered"))
           |> Ecto.Multi.run(:refund, fn repo, %{original: countered} ->
@@ -303,6 +311,9 @@ defmodule HeadsUp.Contests do
             {:ok, %{counter: counter}} -> {:ok, counter} |> seed_participants() |> with_users() |> notify_challenged()
             {:error, _step, changeset, _} -> {:error, changeset}
           end
+        else
+          true -> {:error, "That duel can't be countered."}
+          {:error, _} = error -> error
         end
 
       _ ->
@@ -387,8 +398,14 @@ defmodule HeadsUp.Contests do
         |> Ecto.Multi.run(:coins, fn repo, %{duel: fresh} -> refund_staked(repo, fresh) end)
         |> Repo.transaction()
         |> case do
-          {:ok, %{duel: fresh}} -> {:ok, fresh}
-          {:error, _step, reason, _} -> {:error, reason}
+          {:ok, %{duel: fresh}} ->
+            # Every path that kills a live duel lands here — so this is where
+            # the draft room (if one is ticking) learns it's over.
+            HeadsUp.Drafts.notify_duel_cancelled(fresh.id)
+            {:ok, fresh}
+
+          {:error, _step, reason, _} ->
+            {:error, reason}
         end
 
       %Duel{} = duel ->
