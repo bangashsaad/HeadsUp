@@ -44,12 +44,7 @@ const TIME_OPTIONS = [
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-// A UTC instant's ET calendar day as "YYYY-MM-DD" (UTC-4, the season-long
-// convention shared with the server's Slate/WindowScan).
-function etDayISO(ms) {
-  const d = new Date(ms - 4 * 3600 * 1000);
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
-}
+import { etDayISO } from '../time';
 
 // "Tonight" / "Tomorrow" / "Wed Jul 15" for a slate's ISO date.
 function slateLabel(iso) {

@@ -3,10 +3,6 @@ import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
-import FriendsScreen from '../screens/FriendsScreen';
-import RivalryScreen from '../screens/RivalryScreen';
-import SearchScreen from '../screens/SearchScreen';
-import RequestsScreen from '../screens/RequestsScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import CoinHistoryScreen from '../screens/CoinHistoryScreen';
 import VerifyEmailScreen from '../screens/VerifyEmailScreen';
@@ -22,10 +18,6 @@ export default function YouStack() {
     <Stack.Navigator screenOptions={header}>
       <Stack.Screen name="Profile" component={ProfileScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Leaderboard" component={LeaderboardScreen} options={{ title: 'Friend Standings' }} />
-      <Stack.Screen name="Friends" component={FriendsScreen} options={{ headerShown: false }} />
-      <Stack.Screen name="Rivalry" component={RivalryScreen} options={{ title: 'RIVALRY' }} />
-      <Stack.Screen name="Search" component={SearchScreen} options={{ title: 'Add Friends' }} />
-      <Stack.Screen name="Requests" component={RequestsScreen} options={{ title: 'Friend Requests' }} />
       <Stack.Screen
         name="UserProfile"
         component={UserProfileScreen}

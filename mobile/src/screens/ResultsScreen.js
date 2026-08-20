@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../auth/AuthContext';
@@ -69,6 +69,7 @@ export default function ResultsScreen({ route, navigation }) {
       navigation.navigate('DuelDetail', { id: res.duel.id });
     } catch (e) {
       setRematching(false);
+      Alert.alert("Couldn't rematch", e.message);
     }
   }
 
@@ -184,7 +185,7 @@ export default function ResultsScreen({ route, navigation }) {
 
   // Group duel: ranked leaderboard instead of the VS scoreboard.
   const standings = result.standings || [];
-  if (standings.length > 2) {
+  if (standings.length > 0) {
     const mine = standings.find((s) => s.is_me);
     const b = groupBanner(mine?.rank ?? standings.length, result.is_tie);
     const bannerColor = b.color === 'accent' ? colors.accent : b.color === 'danger' ? colors.danger : colors.text;

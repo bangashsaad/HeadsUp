@@ -5,11 +5,15 @@ import { API_URL } from './client';
 const WS_URL = API_URL.replace(/^http/, 'ws') + '/socket';
 
 // Open a draft channel for a duel. `token` is the same API token used for REST.
-// `handlers` = { onJoin(reply), onUpdate(payload), onReaction(payload), onError(reply) }.
+// `handlers` = { onJoin(reply), onUpdate(payload), onReaction(payload), onError(reply),
+//                onDisconnect() } — onDisconnect fires on transport drops; Phoenix
+//                auto-rejoins, and the fresh join reply lands in onJoin again.
 // Returns { ready, makePick, leave } — makePick returns the Phoenix push so the
 // caller can attach .receive('error', ...) for rejected picks.
 export function connectDraft(duelId, token, handlers) {
   const socket = new Socket(WS_URL, { params: { token } });
+  socket.onError(() => handlers.onDisconnect?.());
+  socket.onClose(() => handlers.onDisconnect?.());
   socket.connect();
 
   const channel = socket.channel(`draft:${duelId}`, {});

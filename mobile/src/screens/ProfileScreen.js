@@ -170,7 +170,7 @@ export default function ProfileScreen({ navigation }) {
           {standings.length === 0 ? (
             <Card>
               <Text style={styles.emptyStandings}>No friends yet. Add some and the standings show up here.</Text>
-              <Button title="Add friends" size="sm" full={false} style={{ marginTop: spacing.md, alignSelf: 'flex-start' }} onPress={() => navigation.navigate('Search')} />
+              <Button title="Add friends" size="sm" full={false} style={{ marginTop: spacing.md, alignSelf: 'flex-start' }} onPress={() => navigation.navigate('FriendsTab')} />
             </Card>
           ) : (
             <View style={{ gap: 7 }}>
@@ -181,7 +181,7 @@ export default function ProfileScreen({ navigation }) {
                   <Pressable
                     key={r.user?.id ?? r.rank}
                     disabled={isMe}
-                    onPress={() => navigation.navigate('UserProfile', { id: r.user.id, username: r.user.username })}
+                    onPress={() => navigation.navigate('FriendsTab', { screen: 'Rivalry', params: { id: r.user.id, username: r.user.username }, initial: false })}
                     style={({ pressed }) => [styles.standingRow, isMe && styles.standingRowMe, pressed && { opacity: 0.8 }]}
                   >
                     <CondTitle size={15} color={RANK_COLOR(colors, r.rank)} style={{ width: 20 }}>
@@ -214,9 +214,13 @@ export default function ProfileScreen({ navigation }) {
 
           {/* Menu */}
           <Card padded={false} style={{ marginTop: spacing.lg }}>
-            <Row icon="people-outline" label="Manage friends" sublabel="Friends, search, invites" onPress={() => navigation.navigate('Friends')} />
-            <View style={styles.menuDivider} />
-            <Row icon="mail-unread-outline" label="Friend requests" count={requestCount} onPress={() => navigation.navigate('Requests')} />
+            <Row
+              icon="people-outline"
+              label="Friends & groups"
+              sublabel="Crew, requests, rivalries — the FRIENDS tab"
+              count={requestCount}
+              onPress={() => navigation.navigate('FriendsTab')}
+            />
             <View style={styles.menuDivider} />
             <Row icon="person-add-outline" label="Invite a friend" sublabel="Share your username to duel" onPress={invite} />
             <View style={styles.menuDivider} />

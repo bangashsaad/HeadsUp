@@ -9,17 +9,16 @@ import { listUpcomingGames } from '../api/sports';
 import { listRequests } from '../api/social';
 import { setDraftLive, setFriendReqs } from '../state/attention';
 import { useTheme, useThemedStyles, spacing, fonts, withAlpha } from '../theme';
-import { Screen, Avatar, Button, Badge, SkeletonList, SectionHeader, Marquee, GhostText, Pulse, Kicker, CondTitle, BlinkDot } from '../components/ui';
+import { Screen, Avatar, Button, Badge, EmptyState, SkeletonList, SectionHeader, Marquee, GhostText, Pulse, Kicker, CondTitle, BlinkDot } from '../components/ui';
 import WordMark from '../components/WordMark';
+import { etDayISO } from '../time';
 
 const SPORT_EMOJI = { nfl: '🏈', nba: '🏀', wnba: '🏀', mlb: '⚾️' };
 
-// Games whose ET wall-clock day is today.
+// Games whose ET wall-clock day is today (real tz, not a fixed offset).
 function todays(games) {
-  const now = new Date(Date.now() - 4 * 3600 * 1000);
-  const key = (d) => `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
-  const todayKey = key(now);
-  return (games || []).filter((g) => key(new Date(new Date(g.date).getTime() - 4 * 3600 * 1000)) === todayKey);
+  const todayKey = etDayISO();
+  return (games || []).filter((g) => etDayISO(g.date) === todayKey);
 }
 
 function tipTime(iso) {
@@ -45,6 +44,7 @@ export default function HomeScreen({ navigation }) {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [homeError, setHomeError] = useState(null);
 
   const load = useCallback(async () => {
     // Dashboard (DB-only, fast) drives the screen; games load separately so the
@@ -52,7 +52,11 @@ export default function HomeScreen({ navigation }) {
     try {
       const h = await getHome(token);
       setHome(h);
+      setHomeError(null);
       setDraftLive((h?.draft_ready || []).some((d) => d.status === 'drafting'));
+    } catch (e) {
+      // A dead network must not render as ALL QUIET TOO QUIET.
+      setHomeError(e.message || 'Could not reach the server.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -101,6 +105,19 @@ export default function HomeScreen({ navigation }) {
     );
   }
 
+  if (homeError && !home) {
+    return (
+      <Screen edges={['top']}>
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="Couldn't reach the server"
+          subtitle={homeError}
+          action={<Button title="Try again" icon="refresh" onPress={() => { setLoading(true); load(); }} />}
+        />
+      </Screen>
+    );
+  }
+
   const rec = home?.record || {};
   const played = (rec.wins ?? 0) + (rec.losses ?? 0) + (rec.ties ?? 0);
   const winPct = rec.win_pct != null ? Math.round(rec.win_pct <= 1 ? rec.win_pct * 100 : rec.win_pct) : null;
@@ -131,7 +148,7 @@ export default function HomeScreen({ navigation }) {
       >
         {user && user.email_verified === false ? (
           <Pressable
-            onPress={() => navigation.navigate('YouTab', { screen: 'VerifyEmail' })}
+            onPress={() => navigation.navigate('YouTab', { screen: 'VerifyEmail', initial: false })}
             style={({ pressed }) => [styles.verifyBanner, pressed && { opacity: 0.85 }]}
           >
             <Ionicons name="mail-unread-outline" size={16} color={colors.gold} />
@@ -227,7 +244,7 @@ export default function HomeScreen({ navigation }) {
           friends={home?.friends || []}
           styles={styles}
           colors={colors}
-          onOpen={(f) => navigation.navigate('UserProfile', { id: f.id, username: f.username })}
+          onOpen={(f) => navigation.navigate('FriendsTab', { screen: 'Rivalry', params: { id: f.id, username: f.username }, initial: false })}
           onAdd={() => navigation.navigate('FriendsTab')}
         />
 

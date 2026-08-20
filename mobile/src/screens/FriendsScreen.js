@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { RefreshControl, ScrollView, Share, StyleSheet, Text, TextInput, View, Pressable } from 'react-native';
+import { Alert, RefreshControl, ScrollView, Share, StyleSheet, Text, TextInput, View, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
@@ -32,6 +32,7 @@ export default function FriendsScreen({ navigation }) {
   const [h2h, setH2h] = useState({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState(null);
 
   const [q, setQ] = useState('');
   const [results, setResults] = useState([]);
@@ -52,6 +53,10 @@ export default function FriendsScreen({ navigation }) {
       setGroups(g.groups || []);
       setH2h(Object.fromEntries((s.head_to_head || []).map((row) => [row.opponent.id, row])));
       setFriendReqs(r.requests.length);
+      setLoadError(null);
+    } catch (e) {
+      // A dead network must not render as "nobody in your corner".
+      setLoadError(e.message || 'Could not load your crew.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -83,14 +88,18 @@ export default function FriendsScreen({ navigation }) {
   async function accept(friendshipId) {
     try {
       await acceptRequest(token, friendshipId);
-    } catch (_) {}
+    } catch (e) {
+      Alert.alert("Couldn't accept that", e.message);
+    }
     load();
   }
 
   async function decline(friendshipId) {
     try {
       await deleteRequest(token, friendshipId);
-    } catch (_) {}
+    } catch (e) {
+      Alert.alert("Couldn't decline that", e.message);
+    }
     load();
   }
 
@@ -98,7 +107,9 @@ export default function FriendsScreen({ navigation }) {
     try {
       await sendFriendRequest(token, userId);
       setSentIds((prev) => new Set(prev).add(userId));
-    } catch (_) {}
+    } catch (e) {
+      Alert.alert("Request didn't send", e.message);
+    }
   }
 
   function openRivalry(f) {
@@ -142,6 +153,19 @@ export default function FriendsScreen({ navigation }) {
     return (
       <Screen edges={['top']}>
         <SkeletonList count={7} />
+      </Screen>
+    );
+  }
+
+  if (loadError && friends.length === 0 && requests.length === 0) {
+    return (
+      <Screen edges={['top']}>
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="Couldn't reach the server"
+          subtitle={loadError}
+          action={<Button title="Try again" icon="refresh" onPress={() => { setLoading(true); load(); }} />}
+        />
       </Screen>
     );
   }
@@ -216,9 +240,9 @@ export default function FriendsScreen({ navigation }) {
           </View>
         )}
 
-        {groups.length > 0 && (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.tabsRow}>
-            {[{ id: 'all', name: 'ALL' }, ...groups].map((g) => {
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={styles.tabsRow}>
+          {groups.length > 0 &&
+            [{ id: 'all', name: 'ALL' }, ...groups].map((g) => {
               const on = grp === g.id;
               const n = g.id === 'all' ? friends.length : g.member_ids.length;
               return (
@@ -233,8 +257,15 @@ export default function FriendsScreen({ navigation }) {
                 </Pressable>
               );
             })}
-          </ScrollView>
-        )}
+          <Pressable
+            onPress={() => navigation.navigate('FriendGroups')}
+            style={[styles.tabPill, { borderStyle: 'dashed', borderColor: withAlpha(colors.purple, 0.5) }]}
+          >
+            <Text style={[styles.tabText, { color: colors.purpleText }]}>
+              {groups.length > 0 ? '⚙ GROUPS' : '＋ NEW GROUP'}
+            </Text>
+          </Pressable>
+        </ScrollView>
 
         <View style={styles.section}>
           {crew.map((f) => {

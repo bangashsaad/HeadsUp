@@ -22,7 +22,11 @@ export default function VerifyEmailScreen({ navigation }) {
     try {
       await verifyEmail(code.trim());
       Alert.alert('Verified ✅', 'Your email is confirmed — challenges are unlocked.');
-      navigation.goBack();
+      if (navigation.canGoBack()) {
+        navigation.goBack();
+      } else {
+        navigation.navigate('Profile');
+      }
     } catch (e) {
       setError(e.message);
       setSubmitting(false);

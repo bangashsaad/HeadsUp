@@ -1,11 +1,11 @@
 import { useCallback, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
-import { getRivalry } from '../api/social';
+import { blockUser, getRivalry } from '../api/social';
 import { useTheme, useThemedStyles, avatarColor, spacing, fonts, withAlpha } from '../theme';
-import { Screen, SkeletonList, Button } from '../components/ui';
+import { Screen, SkeletonList, EmptyState, Button } from '../components/ui';
 
 // One rivalry, whole — from Saad's Reimagined drop: the face-off hero with the
 // series score, LAST 5 chips, the bragging-rights tiles, and the history as
@@ -18,10 +18,15 @@ export default function RivalryScreen({ route, navigation }) {
   const [riv, setRiv] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  const [loadError, setLoadError] = useState(null);
+
   const load = useCallback(async () => {
     try {
       const res = await getRivalry(token, id);
       setRiv(res.rivalry);
+      setLoadError(null);
+    } catch (e) {
+      setLoadError(e.message || 'Could not load this rivalry.');
     } finally {
       setLoading(false);
     }
@@ -35,6 +40,41 @@ export default function RivalryScreen({ route, navigation }) {
 
   function challenge() {
     navigation.navigate('DuelsTab', { screen: 'CreateChallenge', params: { preselect: id }, initial: false });
+  }
+
+  function confirmBlock() {
+    Alert.alert(
+      `Block ${username}?`,
+      'Shared live duels get cancelled and you disappear from each other. This also unfriends them.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await blockUser(token, id);
+              navigation.goBack();
+            } catch (e) {
+              Alert.alert("Couldn't block them", e.message);
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  if (loadError && !riv) {
+    return (
+      <Screen>
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="Couldn't load this rivalry"
+          subtitle={loadError}
+          action={<Button title="Try again" icon="refresh" onPress={() => { setLoading(true); load(); }} />}
+        />
+      </Screen>
+    );
   }
 
   if (loading || !riv) {
@@ -189,6 +229,12 @@ export default function RivalryScreen({ route, navigation }) {
             style={{ marginTop: spacing.lg }}
             onPress={challenge}
           />
+
+          <Pressable onPress={confirmBlock} hitSlop={8} style={{ alignSelf: 'center', marginTop: spacing.lg }}>
+            <Text style={{ color: colors.textFaint, fontSize: 11, fontFamily: fonts.bodyBold, letterSpacing: 0.5 }}>
+              BLOCK {username.toUpperCase()}
+            </Text>
+          </Pressable>
         </View>
       </ScrollView>
     </Screen>

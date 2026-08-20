@@ -7,6 +7,7 @@ import { useAuth } from '../auth/AuthContext';
 import { listPlayers, getBoxScore } from '../api/sports';
 import { teamColor, initials } from '../utils/teamArt';
 import ScoreFlash from '../components/ScoreFlash';
+import { etTime } from '../time';
 import { useTheme, useThemedStyles, spacing, fonts, font, withAlpha } from '../theme';
 import { Screen, Card, Avatar, SkeletonList, SectionHeader, GhostText, Kicker, BlinkDot, CondTitle } from '../components/ui';
 import PlayerAvatar from '../components/PlayerAvatar';
@@ -363,6 +364,9 @@ function RosterView({ game, sport, token, navigation, styles, colors, scheme }) 
   const [rosters, setRosters] = useState({ away: [], home: [] });
   const [loading, setLoading] = useState(true);
 
+  const [rosterError, setRosterError] = useState(null);
+  const [retryKey, setRetryKey] = useState(0);
+
   useEffect(() => {
     let active = true;
     (async () => {
@@ -371,7 +375,12 @@ function RosterView({ game, sport, token, navigation, styles, colors, scheme }) 
           listPlayers(token, { sport, team: game.away.abbrev }),
           listPlayers(token, { sport, team: game.home.abbrev }),
         ]);
-        if (active) setRosters({ away: away.players, home: home.players });
+        if (active) {
+          setRosters({ away: away.players, home: home.players });
+          setRosterError(null);
+        }
+      } catch (e) {
+        if (active) setRosterError(e.message || 'Could not load rosters.');
       } finally {
         if (active) setLoading(false);
       }
@@ -380,7 +389,7 @@ function RosterView({ game, sport, token, navigation, styles, colors, scheme }) 
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, sport]);
+  }, [token, sport, retryKey]);
 
   function openPlayer(p) {
     navigation.navigate('PlayerProfile', { id: p.id, name: p.name, team: p.team, position: p.position });
@@ -392,7 +401,13 @@ function RosterView({ game, sport, token, navigation, styles, colors, scheme }) 
         <SectionHeader style={{ marginTop: 0 }}>{title}</SectionHeader>
         <Card padded={false}>
           {players.length === 0 ? (
-            <Text style={styles.emptyRoster}>Roster unavailable.</Text>
+            rosterError ? (
+              <Pressable onPress={() => { setLoading(true); setRetryKey((k) => k + 1); }}>
+                <Text style={styles.emptyRoster}>{rosterError} Tap to retry.</Text>
+              </Pressable>
+            ) : (
+              <Text style={styles.emptyRoster}>Roster unavailable.</Text>
+            )
           ) : (
             players.map((p, i) => (
               <Pressable
@@ -448,14 +463,9 @@ function RosterView({ game, sport, token, navigation, styles, colors, scheme }) 
   );
 }
 
-// "7:30 PM" in ET from the game's UTC date (UTC-4, WNBA/MLB season).
+// "7:30 PM" in ET from the game's UTC date (real tz, not a fixed offset).
 function tipLabel(iso) {
-  const e = new Date(new Date(iso).getTime() - 4 * 3600 * 1000);
-  let h = e.getUTCHours();
-  const m = e.getUTCMinutes();
-  const ap = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  return `${h}:${String(m).padStart(2, '0')} ${ap}`;
+  return etTime(iso);
 }
 
 // Pre-game preview. Baseball turns on the probable starter, so that's the

@@ -74,7 +74,7 @@ export default function PushTapRouter() {
         break;
 
       case 'friends':
-        navigationRef.navigate('YouTab', { screen: 'Requests', initial: false });
+        navigationRef.navigate('FriendsTab');
         break;
 
       default:

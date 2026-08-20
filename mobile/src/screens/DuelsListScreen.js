@@ -80,7 +80,8 @@ function LiveRow({ token, duel, myName, onOpen, colors, styles }) {
           const res = await getLiveResult(token, duel.id);
           if (active) setLive(res);
         } catch (e) {
-          if (active) setSettled(true);
+          // Only a 409 means settled — not a dropped request.
+          if (active && e.status === 409) setSettled(true);
         }
       };
       tick();

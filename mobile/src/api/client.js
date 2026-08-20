@@ -26,6 +26,14 @@ function resolveApiUrl() {
 
 export const API_URL = resolveApiUrl();
 
+// A revoked token (password change elsewhere, account purge) must sign the
+// user OUT, not leave every screen quietly failing. AuthContext registers
+// its signOut here; apiRequest fires it on any authenticated 401.
+let onUnauthorized = null;
+export function setOnUnauthorized(fn) {
+  onUnauthorized = fn;
+}
+
 // A custom error type so screens can show the server's message.
 export class ApiError extends Error {
   constructor(message, status, errors) {
@@ -57,6 +65,8 @@ export async function apiRequest(path, { method = 'GET', body, token } = {}) {
   }
 
   if (!res.ok) {
+    if (res.status === 401 && token && onUnauthorized) onUnauthorized();
+
     throw new ApiError(
       firstErrorMessage(data) || `Request failed (${res.status})`,
       res.status,

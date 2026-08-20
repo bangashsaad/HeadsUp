@@ -48,11 +48,7 @@ const SHAPES = {
 
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
-// ET calendar day (UTC-4) — the convention the server's Slate module uses.
-function etDayISO(ms) {
-  const d = new Date(ms - 4 * 3600 * 1000);
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
-}
+import { etDayISO } from '../time';
 
 function slateLabel(iso) {
   if (iso === etDayISO(Date.now())) return 'TONIGHT';
@@ -98,6 +94,7 @@ export default function CreateChallengeScreen({ navigation, route }) {
   // Step 2 — send it to
   const [tab, setTab] = useState('everyone');
   const [selected, setSelected] = useState([]);
+  const [reloadKey, setReloadKey] = useState(0);
 
   const balance = user?.coins ?? 0;
 
@@ -120,7 +117,8 @@ export default function CreateChallengeScreen({ navigation, route }) {
     getSportsStatus(token)
       .then((r) => setSportsStatus(r.sports))
       .catch(() => {});
-  }, [token]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, reloadKey]);
 
   // Re-pull friends/groups on focus so a group made on the Friends tab shows up.
   useFocusEffect(
@@ -287,11 +285,30 @@ export default function CreateChallengeScreen({ navigation, route }) {
   if (friends.length === 0) {
     return (
       <Screen>
-        <EmptyState
-          icon="people-outline"
-          title="A duel needs a rival"
-          subtitle="Add a friend from the Friends tab first — then come back and set the terms."
-        />
+        {error ? (
+          <EmptyState
+            icon="cloud-offline-outline"
+            title="Couldn't load your crew"
+            subtitle={error}
+            action={
+              <Button
+                title="Try again"
+                icon="refresh"
+                onPress={() => {
+                  setError(null);
+                  setLoading(true);
+                  setReloadKey((k) => k + 1);
+                }}
+              />
+            }
+          />
+        ) : (
+          <EmptyState
+            icon="people-outline"
+            title="A duel needs a rival"
+            subtitle="Add a friend from the Friends tab first — then come back and set the terms."
+          />
+        )}
       </Screen>
     );
   }

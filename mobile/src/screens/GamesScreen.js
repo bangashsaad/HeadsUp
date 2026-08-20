@@ -6,6 +6,7 @@ import { useAuth } from '../auth/AuthContext';
 import { listUpcomingGames, listGamesOn, getBoxScore } from '../api/sports';
 import { teamColor, lastName } from '../utils/teamArt';
 import ScoreFlash from '../components/ScoreFlash';
+import { etDayISO, etTime, etWeekday } from '../time';
 import { useTheme, useThemedStyles, spacing, fonts, withAlpha } from '../theme';
 import { Screen, EmptyState, SkeletonList, Segmented, BlinkDot, Chip, Kicker } from '../components/ui';
 
@@ -18,31 +19,23 @@ const SPORTS = [
   { key: 'nfl', label: 'NFL' },
 ];
 
-// Shift a UTC instant to ET wall-clock (UTC-4 all WNBA season), read via getUTC*.
-function et(iso) {
-  return new Date(new Date(iso).getTime() - 4 * 3600 * 1000);
-}
-function dayKey(d) {
-  return `${d.getUTCFullYear()}-${d.getUTCMonth()}-${d.getUTCDate()}`;
-}
+// ET wall-clock via the real tz database (the old fixed -4h drifts in Nov).
 function timeLabel(iso) {
-  const e = et(iso);
-  let h = e.getUTCHours();
-  const m = e.getUTCMinutes();
-  const ap = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  return `${h}:${String(m).padStart(2, '0')} ${ap}`;
+  return etTime(iso);
+}
+
+// A "YYYY-MM-DD" ET day rendered as "Aug 17" (noon UTC dodges tz edges).
+function isoToShort(iso) {
+  const d = new Date(`${iso}T12:00:00Z`);
+  return `${MON[d.getUTCMonth()]} ${d.getUTCDate()}`;
 }
 
 // The last `n` ET calendar days, most recent first, as {iso, label}.
 function pastDays(n = 7) {
   const out = [];
-  const nowEt = new Date(Date.now() - 4 * 3600 * 1000);
   for (let i = 1; i <= n; i++) {
-    const d = new Date(nowEt.getTime() - i * 24 * 3600 * 1000);
-    const iso = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
-    const label = `${MON[d.getUTCMonth()]} ${d.getUTCDate()}`;
-    out.push({ iso, label });
+    const iso = etDayISO(Date.now() - i * 24 * 3600 * 1000);
+    out.push({ iso, label: isoToShort(iso) });
   }
   return out;
 }
@@ -51,21 +44,18 @@ function pastDays(n = 7) {
 // schedule, then finals. `_label` marks where the LIVE NOW / SCHEDULE / FINAL
 // sub-heads render.
 function buildSections(games) {
-  const now = new Date(Date.now() - 4 * 3600 * 1000);
-  const todayKey = dayKey(now);
-  const tomKey = dayKey(new Date(now.getTime() + 24 * 3600 * 1000));
+  const todayKey = etDayISO();
+  const tomKey = etDayISO(Date.now() + 24 * 3600 * 1000);
 
   const byDay = new Map();
   for (const g of games) {
-    const e = et(g.date);
-    const key = dayKey(e);
-    if (!byDay.has(key)) byDay.set(key, { e, items: [] });
+    const key = etDayISO(g.date);
+    if (!byDay.has(key)) byDay.set(key, { key, first: g.date, items: [] });
     byDay.get(key).items.push(g);
   }
 
-  return Array.from(byDay.values()).map(({ e, items }) => {
-    const key = dayKey(e);
-    let title = `${WEEK[e.getUTCDay()]} ${MON[e.getUTCMonth()]} ${e.getUTCDate()}`;
+  return Array.from(byDay.values()).map(({ key, first, items }) => {
+    let title = `${etWeekday(first).toUpperCase()} ${isoToShort(key)}`;
     if (key === todayKey) title = `TONIGHT · ${title}`;
     else if (key === tomKey) title = `TOMORROW · ${title}`;
 

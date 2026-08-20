@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { apiRequest } from '../api/client';
+import { setOnUnauthorized, apiRequest } from '../api/client';
 import { registerForPush, unregisterPush } from '../push';
 
 const TOKEN_KEY = 'auth_token';
@@ -69,6 +69,7 @@ export function AuthProvider({ children }) {
     await apiRequest('/api/me', { method: 'DELETE', token, body: { password } });
     await SecureStore.deleteItemAsync(TOKEN_KEY);
     setToken(null);
+    signOutRef.current = null;
     setUser(null);
   }
 
@@ -105,7 +106,15 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // A 401 on any authenticated call = this token is dead (changed password,
+  // purged account). Sign out instead of leaving every screen quietly broken.
+  const signOutRef = useRef(null);
+  useEffect(() => {
+    setOnUnauthorized(() => signOutRef.current?.());
+  }, []);
+
   async function signOut() {
+    signOutRef.current = null;
     try {
       if (token) {
         await unregisterPush(token);
@@ -118,6 +127,9 @@ export function AuthProvider({ children }) {
     setToken(null);
     setUser(null);
   }
+
+  // Latest closure every render; sign-out/delete null it to stop loops.
+  signOutRef.current = signOut;
 
   return (
     <AuthContext.Provider

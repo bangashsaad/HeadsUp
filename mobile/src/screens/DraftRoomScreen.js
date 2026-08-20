@@ -62,21 +62,7 @@ function buildSeatTints(ids, myId, colors) {
   return map;
 }
 
-// "7:00 PM ET" for a game today (ET), "Tmw 7:00 PM ET" for tomorrow — so you
-// know WHEN a player plays before you draft them. ET = UTC-4 in season.
-function nextGameLabel(iso) {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (isNaN(d)) return null;
-  const et = new Date(d.getTime() - 4 * 3600 * 1000);
-  const nowEt = new Date(Date.now() - 4 * 3600 * 1000);
-  const sameDay = et.getUTCDate() === nowEt.getUTCDate() && et.getUTCMonth() === nowEt.getUTCMonth();
-  let h = et.getUTCHours();
-  const m = et.getUTCMinutes();
-  const ap = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  return `${sameDay ? '' : 'Tmw '}${h}:${String(m).padStart(2, '0')} ${ap} ET`;
-}
+import { nextGameLabel } from '../time';
 
 function fmtClock(secs) {
   if (!secs) return null;
@@ -105,15 +91,21 @@ export default function DraftRoomScreen({ route, navigation }) {
   const [bursts, setBursts] = useState([]);
   const burstSeq = useRef(0);
 
+  const [connected, setConnected] = useState(true);
+
   useEffect(() => {
     const conn = connectDraft(id, token, {
-      onJoin: (reply) => setState(reply.state),
+      onJoin: (reply) => {
+        setConnected(true);
+        setState(reply.state);
+      },
       onUpdate: (payload) => setState(payload.state),
       onReaction: ({ emoji, user_id }) => {
         const key = ++burstSeq.current;
         setBursts((b) => [...b.slice(-9), { key, emoji, uid: user_id }]);
       },
       onError: () => setError('Could not join the draft room.'),
+      onDisconnect: () => setConnected(false),
     });
     connRef.current = conn;
     return () => conn.leave();
@@ -132,10 +124,17 @@ export default function DraftRoomScreen({ route, navigation }) {
     prevPhase.current = ph;
     if (prev === 'lobby' && ph !== 'lobby' && ph !== 'cancelled') {
       setFlipping(true);
-      const t = setTimeout(() => setFlipping(false), FLIP_FAILSAFE_MS);
-      return () => clearTimeout(t);
     }
   }, [state?.phase]);
+
+  // The failsafe rides the flipping flag itself — cleanup tied to phase
+  // changes could cancel it while the overlay was still up (backgrounded
+  // mid-flip), stranding a full-screen coin forever.
+  useEffect(() => {
+    if (!flipping) return;
+    const t = setTimeout(() => setFlipping(false), FLIP_FAILSAFE_MS);
+    return () => clearTimeout(t);
+  }, [flipping]);
 
   if (!state) {
     return (
@@ -164,6 +163,7 @@ export default function DraftRoomScreen({ route, navigation }) {
         duelId={id}
         opponentName={opponentName}
         conn={connRef.current}
+        connected={connected}
         error={error}
         setError={setError}
         navigation={navigation}
@@ -172,6 +172,13 @@ export default function DraftRoomScreen({ route, navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      {!connected && state.phase !== 'complete' ? (
+        <View style={{ backgroundColor: withAlpha(colors.warning, 0.15), borderBottomWidth: 1, borderBottomColor: withAlpha(colors.warning, 0.4), paddingVertical: 6, alignItems: 'center' }}>
+          <Text style={{ color: colors.warning, fontSize: 11, fontFamily: fonts.bodyExtra, letterSpacing: 1 }}>
+            RECONNECTING…
+          </Text>
+        </View>
+      ) : null}
       {body}
       <ReactionOverlay
         bursts={bursts}
@@ -419,7 +426,7 @@ function ReadyTag({ on, colors }) {
   );
 }
 
-function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, navigation }) {
+function DraftBoard({ state, myId, duelId, opponentName, conn, connected = true, error, setError, navigation }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const complete = state.phase === 'complete';
@@ -479,9 +486,13 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
   const [queue, setQueue] = useState([]);
   const queued = useMemo(() => new Set(queue), [queue]);
 
-  // Keep the server's private auto-pick order in sync with the local queue.
+  // Keep the server's private auto-pick order in sync with the local queue —
+  // but only once the user has touched it THIS session. Syncing on mount
+  // pushed the fresh empty list over the queue the server kept across a
+  // leave-and-rejoin, silently wiping the auto-pick plan.
+  const queueTouched = useRef(false);
   useEffect(() => {
-    conn?.setQueue?.(queue);
+    if (queueTouched.current) conn?.setQueue?.(queue);
   }, [queue, conn]);
 
   // Drop drafted players from the queue as they leave the pool.
@@ -495,6 +506,7 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
 
   function toggleQueue(pid) {
     impact(ImpactStyle.Light);
+    queueTouched.current = true;
     setQueue((q) => (q.includes(pid) ? q.filter((x) => x !== pid) : [...q, pid]));
   }
 
@@ -555,6 +567,11 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
 
   function pick(player) {
     if (!isMyTurn || complete) return;
+
+    if (!connected) {
+      Alert.alert('Reconnecting…', 'Hold that pick a second — the room connection dropped.');
+      return;
+    }
 
     if (player.injury?.status === 'out') {
       const why = player.injury.detail ? ` (${player.injury.detail})` : '';

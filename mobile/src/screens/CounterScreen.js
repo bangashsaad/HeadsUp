@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text } from 'react-native';
 import { useAuth } from '../auth/AuthContext';
 import { counterChallenge } from '../api/duels';
+import { getSportsStatus } from '../api/sports';
 import ChallengeForm from '../components/ChallengeForm';
 import { useThemedStyles, spacing, font } from '../theme';
 import { Screen, Card } from '../components/ui';
@@ -12,6 +13,15 @@ export default function CounterScreen({ route, navigation }) {
   const styles = useThemedStyles(makeStyles);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [sportsStatus, setSportsStatus] = useState(null);
+
+  // Same off-season gate the composer applies — countering into a dead league
+  // used to be rejected only after submit.
+  useEffect(() => {
+    getSportsStatus(token)
+      .then((r) => setSportsStatus(r.sports))
+      .catch(() => {});
+  }, [token]);
 
   async function submit(terms) {
     setSubmitting(true);
@@ -34,7 +44,13 @@ export default function CounterScreen({ route, navigation }) {
         </Text>
       </Card>
       {error ? <Text style={styles.error}>{error}</Text> : null}
-      <ChallengeForm initial={initial} onSubmit={submit} submitLabel="Send Counter" submitting={submitting} />
+      <ChallengeForm
+        initial={initial}
+        onSubmit={submit}
+        submitLabel="Send Counter"
+        submitting={submitting}
+        sportsStatus={sportsStatus}
+      />
     </Screen>
   );
 }

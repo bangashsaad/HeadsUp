@@ -23,7 +23,9 @@ function LiveDuelCard({ token, duel, onOpen, colors, styles }) {
           const res = await getLiveResult(token, duel.id);
           if (active) setLive(res);
         } catch (e) {
-          if (active) setSettled(true);
+          // Only a 409 means the duel settled; a network blip must not
+          // freeze the card on "Final" while scores keep moving.
+          if (active && e.status === 409) setSettled(true);
         }
       };
       tick();

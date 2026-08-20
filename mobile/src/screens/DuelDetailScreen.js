@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, Share, StyleSheet, Text, View } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
+import { etDayISO } from '../time';
 import { getDuel, respondToDuel, startWithGroup, getLiveResult } from '../api/duels';
 import { formatDateTime } from '../utils/datetime';
 import { useTheme, useThemedStyles, spacing, radius, font, fonts, statusTone, withAlpha } from '../theme';
@@ -26,10 +27,7 @@ const prettyKey = (k) => k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperC
 
 // "Tonight's games (Jul 13)" for the duel's slate day — ET, like the server.
 function slateTermLabel(iso) {
-  const et = (ms) => {
-    const d = new Date(ms - 4 * 3600 * 1000);
-    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
-  };
+  const et = (ms) => etDayISO(ms);
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const d = new Date(`${iso}T12:00:00Z`);
   const md = `${months[d.getUTCMonth()]} ${d.getUTCDate()}`;
@@ -94,6 +92,19 @@ export default function DuelDetailScreen({ route, navigation }) {
         <Text style={styles.termLabel}>{label}</Text>
         <Text style={styles.termValue}>{value}</Text>
       </View>
+    );
+  }
+
+  if (!duel && error) {
+    return (
+      <Screen>
+        <EmptyState
+          icon="cloud-offline-outline"
+          title="Couldn't load this duel"
+          subtitle={error}
+          action={<Button title="Try again" icon="refresh" onPress={() => { setError(null); load(); }} />}
+        />
+      </Screen>
     );
   }
 

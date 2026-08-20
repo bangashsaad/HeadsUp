@@ -1,6 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import FriendsScreen from '../screens/FriendsScreen';
 import RivalryScreen from '../screens/RivalryScreen';
+import FriendGroupsScreen from '../screens/FriendGroupsScreen';
 import { useNavHeader } from '../theme';
 
 const Stack = createNativeStackNavigator();
@@ -13,6 +14,7 @@ export default function FriendsStack() {
     <Stack.Navigator screenOptions={header}>
       <Stack.Screen name="FriendsHome" component={FriendsScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Rivalry" component={RivalryScreen} options={{ title: 'RIVALRY' }} />
+      <Stack.Screen name="FriendGroups" component={FriendGroupsScreen} options={{ title: 'Friend Groups' }} />
     </Stack.Navigator>
   );
 }
