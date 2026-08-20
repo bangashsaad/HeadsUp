@@ -78,6 +78,52 @@ defmodule HeadsUp.Coins do
   @doc "Fetches a system account by its unique code. Raises if missing."
   def system_account!(code), do: Repo.get_by!(Account, code: code)
 
+  @doc """
+  Escrow still holding coins for a duel whose row no longer exists — which
+  only happens when a duel is deleted out from under the ledger (a manual
+  test-data cleanup did exactly that in prod). Returns `[{duel_id, coins}]`.
+  """
+  def orphaned_escrow do
+    escrow = system_account!("escrow.duels")
+
+    from(e in Entry,
+      join: t in Txn,
+      on: t.id == e.txn_id,
+      where: e.account_id == ^escrow.id and not is_nil(fragment("?->>'duel_id'", t.metadata)),
+      group_by: fragment("(?->>'duel_id')::bigint", t.metadata),
+      having: sum(e.amount) != 0,
+      select: {fragment("(?->>'duel_id')::bigint", t.metadata), type(sum(e.amount), :integer)}
+    )
+    |> Repo.all()
+    |> Enum.map(fn {duel_id, held} -> {duel_id, -held} end)
+    |> Enum.reject(fn {duel_id, _} -> Repo.exists?(from(d in HeadsUp.Contests.Duel, where: d.id == ^duel_id)) end)
+  end
+
+  @doc """
+  Returns orphaned escrow (see `orphaned_escrow/0`) to the mint — the coins'
+  origin, the neutral sink — as one idempotent `reversal` per duel, so
+  `Integrity.check/0` balances again. Duels that still exist are never
+  touched: their escrow belongs to their lifecycle.
+  """
+  def reclaim_orphaned_escrow do
+    Repo.transaction(fn ->
+      for {duel_id, amount} <- orphaned_escrow(), amount > 0 do
+        {:ok, _txn} =
+          do_post(Repo, %{
+            kind: "reversal",
+            idempotency_key: "duel:#{duel_id}:orphan-reclaim",
+            metadata: %{"duel_id" => duel_id, "reason" => "orphaned_escrow"},
+            entries: [
+              %{account: {:system, "escrow.duels"}, amount: amount},
+              %{account: {:system, "mint"}, amount: -amount}
+            ]
+          })
+
+        {duel_id, amount}
+      end
+    end)
+  end
+
   ## Grants (the only faucet) -------------------------------------------------
 
   @doc "The one-time signup grant. Idempotent — safe to call again (backfill)."
