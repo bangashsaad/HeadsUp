@@ -9,6 +9,8 @@ defmodule HeadsUpWeb.YouLive do
   """
   use HeadsUpWeb, :live_view
 
+  alias HeadsUpWeb.Params
+
   alias HeadsUp.{Accounts, Coins, Contests, Social, Stats}
 
   @impl true
@@ -67,7 +69,7 @@ defmodule HeadsUpWeb.YouLive do
   def handle_event("crew-tab", %{"g" => g}, socket), do: {:noreply, assign(socket, crew_tab: g)}
 
   def handle_event("select", %{"id" => id}, socket) do
-    id = String.to_integer(id)
+    id = Params.int(id)
     riv = Stats.rivalry(socket.assigns.current_user.id, id)
     {:noreply, assign(socket, sel: id, sel_riv: riv, sel_hist: riv.history)}
   end
@@ -81,21 +83,21 @@ defmodule HeadsUpWeb.YouLive do
   end
 
   def handle_event("request-accept", %{"id" => id}, socket) do
-    case Social.accept_friend_request(socket.assigns.current_user, String.to_integer(id)) do
+    case Social.accept_friend_request(socket.assigns.current_user, Params.int(id)) do
       {:ok, _} -> {:noreply, socket |> put_flash(:info, "Friends. Now call them out.") |> load()}
       {:error, _} -> {:noreply, put_flash(socket, :error, "Couldn't accept that one.")}
     end
   end
 
   def handle_event("request-decline", %{"id" => id}, socket) do
-    case Social.delete_friendship(socket.assigns.current_user, String.to_integer(id)) do
+    case Social.delete_friendship(socket.assigns.current_user, Params.int(id)) do
       :ok -> {:noreply, socket |> put_flash(:info, "Declined.") |> load()}
       _ -> {:noreply, put_flash(socket, :error, "Couldn't decline that one.")}
     end
   end
 
   def handle_event("friend-request", %{"id" => id}, socket) do
-    id = String.to_integer(id)
+    id = Params.int(id)
 
     case Social.send_friend_request(socket.assigns.current_user, id) do
       {:ok, _} ->
@@ -112,7 +114,7 @@ defmodule HeadsUpWeb.YouLive do
   end
 
   def handle_event("block", %{"id" => id}, socket) do
-    case Social.block_user(socket.assigns.current_user, String.to_integer(id)) do
+    case Social.block_user(socket.assigns.current_user, Params.int(id)) do
       {:ok, _} -> {:noreply, socket |> put_flash(:info, "Blocked.") |> assign(sel: nil) |> load()}
       {:error, _} -> {:noreply, put_flash(socket, :error, "Couldn't block them.")}
     end
@@ -146,6 +148,9 @@ defmodule HeadsUpWeb.YouLive do
         {:noreply, put_flash(socket, :error, "Couldn't delete the account.")}
     end
   end
+
+  # Tampered or unknown events must not crash the socket.
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   # --- render (the design's markup) -------------------------------------------
 

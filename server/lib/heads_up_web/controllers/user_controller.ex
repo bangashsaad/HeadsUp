@@ -15,7 +15,8 @@ defmodule HeadsUpWeb.UserController do
   end
 
   def unblock(conn, %{"id" => id}) do
-    with :ok <- HeadsUp.Social.unblock_user(conn.assigns.current_user, String.to_integer(id)) do
+    with {uid, ""} <- Integer.parse(to_string(id)),
+         :ok <- HeadsUp.Social.unblock_user(conn.assigns.current_user, uid) do
       send_resp(conn, :no_content, "")
     end
   end

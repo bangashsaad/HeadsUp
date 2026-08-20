@@ -7,6 +7,8 @@ defmodule HeadsUpWeb.DuelsLive do
   """
   use HeadsUpWeb, :live_view
 
+  alias HeadsUpWeb.Params
+
   alias HeadsUp.Contests
 
   @impl true
@@ -38,6 +40,9 @@ defmodule HeadsUpWeb.DuelsLive do
   def handle_event("rematch", %{"id" => id}, socket),
     do: gated(socket, fn -> act(socket, :rematch, id, "Rematch sent — same terms.") end)
 
+  # Tampered or unknown events must not crash the socket.
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
+
   # The same verification bar the phone's API hits — decline/cancel stay open.
   defp gated(socket, fun) do
     if HeadsUpWeb.UserAuth.verified_for_duels?(socket.assigns.current_user) do
@@ -51,7 +56,7 @@ defmodule HeadsUpWeb.DuelsLive do
   end
 
   defp act(socket, fun, id, ok_msg) do
-    case apply(Contests, fun, [socket.assigns.current_user, String.to_integer(id)]) do
+    case apply(Contests, fun, [socket.assigns.current_user, Params.int(id)]) do
       {:ok, _} -> {:noreply, socket |> put_flash(:info, ok_msg) |> load()}
       {:error, reason} when is_binary(reason) -> {:noreply, put_flash(socket, :error, reason)}
       {:error, reason} -> {:noreply, put_flash(socket, :error, "Couldn't do that (#{inspect(reason)}).")}

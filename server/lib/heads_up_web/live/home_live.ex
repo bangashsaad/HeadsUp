@@ -10,6 +10,8 @@ defmodule HeadsUpWeb.HomeLive do
   """
   use HeadsUpWeb, :live_view
 
+  alias HeadsUpWeb.Params
+
   alias HeadsUp.{Coins, Home, Settlement, Stats}
   alias HeadsUp.Sports.Schedule
 
@@ -84,7 +86,7 @@ defmodule HeadsUpWeb.HomeLive do
   end
 
   defp do_accept(socket, id) do
-    case HeadsUp.Contests.accept_challenge(socket.assigns.current_user, String.to_integer(id)) do
+    case HeadsUp.Contests.accept_challenge(socket.assigns.current_user, Params.int(id)) do
       {:ok, _} ->
         {:noreply,
          socket
@@ -97,7 +99,7 @@ defmodule HeadsUpWeb.HomeLive do
   end
 
   def handle_event("decline", %{"id" => id}, socket) do
-    case HeadsUp.Contests.decline_challenge(socket.assigns.current_user, String.to_integer(id)) do
+    case HeadsUp.Contests.decline_challenge(socket.assigns.current_user, Params.int(id)) do
       {:ok, _} ->
         {:noreply, assign(socket, summary: Home.summary(socket.assigns.current_user))}
 
@@ -105,6 +107,9 @@ defmodule HeadsUpWeb.HomeLive do
         {:noreply, put_flash(socket, :error, error_text(reason))}
     end
   end
+
+  # Tampered or unknown events must not crash the socket.
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   defp error_text(reason) when is_binary(reason), do: reason
   defp error_text(reason), do: "Couldn't do that (#{inspect(reason)})."

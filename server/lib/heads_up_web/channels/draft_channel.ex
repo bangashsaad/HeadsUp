@@ -80,7 +80,10 @@ defmodule HeadsUpWeb.DraftChannel do
   # Never touches the engine, never persists. Unknown emojis are dropped.
   @reaction_emojis ~w(🔥 😂 😭 🥶 💀 👑)
   def handle_in("react", %{"emoji" => emoji}, socket) when emoji in @reaction_emojis do
-    broadcast!(socket, "reaction", %{emoji: emoji, user_id: socket.assigns.current_user_id})
+    unless HeadsUpWeb.Plugs.RateLimit.over_limit?(socket.assigns.current_user_id, "react", 30, 60_000) do
+      broadcast!(socket, "reaction", %{emoji: emoji, user_id: socket.assigns.current_user_id})
+    end
+
     {:noreply, socket}
   end
 

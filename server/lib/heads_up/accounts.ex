@@ -145,6 +145,22 @@ defmodule HeadsUp.Accounts do
     )
   end
 
+  @doc """
+  Sends a verification code only when the user has no live one. Issuing always
+  REPLACES the prior code, so a page that auto-sends on mount would silently
+  kill the code its user is about to type every time the socket reconnects.
+  """
+  def ensure_email_verification(%User{} = user) do
+    import Ecto.Query
+
+    live? =
+      UserToken.by_user_and_context_query(user, "verify_email")
+      |> where([t], t.inserted_at > ago(15, "minute"))
+      |> Repo.exists?()
+
+    if live?, do: :ok, else: deliver_email_verification(user)
+  end
+
   @doc "Confirms the account's email with a live code. `{:ok, user}` or `{:error, :invalid_code}`."
   def verify_email(%User{} = user, code) when is_binary(code) do
     case Repo.one(UserToken.verify_email_code_query(user.id, code, "verify_email")) do

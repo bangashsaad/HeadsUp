@@ -16,32 +16,51 @@ defmodule HeadsUpWeb.VerifyLive do
     if user.email_verified_at do
       {:ok, socket |> put_flash(:info, "You're already verified.") |> redirect(to: "/app")}
     else
-      # First arrival sends the code without an extra tap — the person is
-      # here because something told them to verify, so make it one step.
-      if connected?(socket), do: Accounts.deliver_email_verification(user)
+      # First arrival sends the code without an extra tap — but reconnects and
+      # refreshes must NOT re-issue (issuing replaces the code the user is
+      # about to type from their inbox).
+      if connected?(socket), do: Accounts.ensure_email_verification(user)
 
       {:ok, assign(socket, page_title: "Verify your email", sent: true, error: nil)}
     end
   end
 
+  # LiveView events bypass plugs, so the API's rate limits don't cover this
+  # surface — a 6-digit code needs its guessing window capped here too.
   @impl true
   def handle_event("resend", _params, socket) do
-    Accounts.deliver_email_verification(socket.assigns.current_user)
-    {:noreply, socket |> assign(sent: true) |> put_flash(:info, "New code sent.")}
+    user = socket.assigns.current_user
+
+    if HeadsUpWeb.Plugs.RateLimit.over_limit?(user.id, "verify-resend", 3, 900_000) do
+      {:noreply, put_flash(socket, :error, "Give the inbox a minute — the last code is on its way.")}
+    else
+      Accounts.deliver_email_verification(user)
+      {:noreply, socket |> assign(sent: true) |> put_flash(:info, "New code sent.")}
+    end
   end
 
   def handle_event("confirm", %{"code" => code}, socket) do
-    case Accounts.verify_email(socket.assigns.current_user, String.trim(code)) do
-      {:ok, _user} ->
-        {:noreply,
-         socket
-         |> put_flash(:info, "Verified. Challenges unlocked.")
-         |> redirect(to: "/app")}
+    user = socket.assigns.current_user
 
-      {:error, _} ->
-        {:noreply, assign(socket, error: "That code isn't right (or it expired). Try again or resend.")}
+    cond do
+      HeadsUpWeb.Plugs.RateLimit.over_limit?(user.id, "verify-confirm", 10, 900_000) ->
+        {:noreply, assign(socket, error: "Too many tries — wait a few minutes and use the newest code.")}
+
+      true ->
+        case Accounts.verify_email(user, String.trim(code)) do
+          {:ok, _user} ->
+            {:noreply,
+             socket
+             |> put_flash(:info, "Verified. Challenges unlocked.")
+             |> redirect(to: "/app")}
+
+          {:error, _} ->
+            {:noreply, assign(socket, error: "That code isn't right (or it expired). Try again or resend.")}
+        end
     end
   end
+
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   @impl true
   def render(assigns) do

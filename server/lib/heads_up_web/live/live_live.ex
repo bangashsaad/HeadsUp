@@ -59,12 +59,21 @@ defmodule HeadsUpWeb.LiveLive do
   def handle_event("draft", %{"body" => body}, socket), do: {:noreply, assign(socket, draft: body)}
 
   def handle_event("send", %{"body" => body}, socket) do
-    case Contests.post_message(socket.assigns.current_user, socket.assigns.duel_id, body) do
-      {:ok, _} -> {:noreply, assign(socket, draft: "")}
-      {:error, %Ecto.Changeset{}} -> {:noreply, put_flash(socket, :error, "Keep it under 280.")}
-      {:error, _} -> {:noreply, socket}
+    cond do
+      HeadsUpWeb.Plugs.RateLimit.over_limit?(socket.assigns.current_user.id, "chat", 20, 60_000) ->
+        {:noreply, put_flash(socket, :error, "Easy — a few messages a minute.")}
+
+      true ->
+        case Contests.post_message(socket.assigns.current_user, socket.assigns.duel_id, body) do
+          {:ok, _} -> {:noreply, assign(socket, draft: "")}
+          {:error, %Ecto.Changeset{}} -> {:noreply, put_flash(socket, :error, "Keep it under 280.")}
+          {:error, _} -> {:noreply, put_flash(socket, :error, "That didn't send — try again.")}
+        end
     end
   end
+
+  # Tampered or unknown events must not crash the socket.
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   # --- render (the design's markup) -------------------------------------------
 

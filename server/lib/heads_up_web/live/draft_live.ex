@@ -9,6 +9,8 @@ defmodule HeadsUpWeb.DraftLive do
   """
   use HeadsUpWeb, :live_view
 
+  alias HeadsUpWeb.Params
+
   alias HeadsUp.{Contests, Drafts}
   alias HeadsUp.Drafts.{Server, Supervisor}
 
@@ -72,7 +74,7 @@ defmodule HeadsUpWeb.DraftLive do
   end
 
   def handle_event("pick", %{"player-id" => id}, socket) do
-    case Server.make_pick(socket.assigns.draft_id, socket.assigns.current_user.id, String.to_integer(id)) do
+    case Server.make_pick(socket.assigns.draft_id, socket.assigns.current_user.id, Params.int(id)) do
       {:error, reason} -> {:noreply, put_flash(socket, :error, pick_error(reason))}
       _ -> {:noreply, socket}
     end
@@ -81,11 +83,13 @@ defmodule HeadsUpWeb.DraftLive do
   @reaction_emojis ~w(🔥 😂 😭 🥶 💀 👑)
 
   def handle_event("react", %{"e" => emoji}, socket) when emoji in @reaction_emojis do
-    HeadsUpWeb.Endpoint.broadcast(
-      "draft:#{socket.assigns.duel_id}",
-      "reaction",
-      %{emoji: emoji, user_id: socket.assigns.current_user.id}
-    )
+    unless HeadsUpWeb.Plugs.RateLimit.over_limit?(socket.assigns.current_user.id, "react", 30, 60_000) do
+      HeadsUpWeb.Endpoint.broadcast(
+        "draft:#{socket.assigns.duel_id}",
+        "reaction",
+        %{emoji: emoji, user_id: socket.assigns.current_user.id}
+      )
+    end
 
     {:noreply, socket}
   end
@@ -96,6 +100,9 @@ defmodule HeadsUpWeb.DraftLive do
 
   def handle_event("pos", %{"p" => ""}, socket), do: {:noreply, assign(socket, pos: nil)}
   def handle_event("pos", %{"p" => p}, socket), do: {:noreply, assign(socket, pos: p)}
+
+  # Tampered or unknown events must not crash the socket.
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   defp pick_error(:not_your_turn), do: "It's not your pick."
   defp pick_error(:already_drafted), do: "Someone just took that player."

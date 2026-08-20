@@ -130,6 +130,42 @@ defmodule HeadsUpWeb.WebParityTest do
     end
   end
 
+  describe "wave-0 hardening" do
+    test "mounting the verify page twice does not burn the emailed code", %{conn: conn, a: a} do
+      {:ok, _view, _} = live(conn, ~p"/app/verify")
+      [t1] = HeadsUp.Repo.all(HeadsUp.Accounts.UserToken.by_user_and_context_query(a, "verify_email"))
+
+      # A reconnect/refresh remounts — the code must survive it.
+      {:ok, _view, _} = live(conn, ~p"/app/verify")
+      [t2] = HeadsUp.Repo.all(HeadsUp.Accounts.UserToken.by_user_and_context_query(a, "verify_email"))
+      assert t1.id == t2.id
+    end
+
+    test "garbage ids in events no longer crash the socket", %{conn: conn} do
+      {:ok, view, _} = live(conn, ~p"/app/duels")
+      render_click(view, "accept", %{"id" => "garbage"})
+      render_click(view, "totally-unknown-event", %{"x" => "y"})
+      assert render(view) =~ "DUELS"
+    end
+
+    test "web login is rate limited", %{conn: _conn} do
+      Application.put_env(:heads_up, :rate_limiting_enabled, true)
+      on_exit(fn -> Application.put_env(:heads_up, :rate_limiting_enabled, false) end)
+
+      # 10/min mirror of the API's cap; the 11th html POST gets readable text.
+      results =
+        for _ <- 1..11 do
+          Phoenix.ConnTest.build_conn()
+          |> Plug.Conn.put_req_header("accept", "text/html")
+          |> post(~p"/login", %{"user" => %{"email" => "nobody@example.com", "password" => "wrongwrong"}})
+        end
+
+      assert Enum.any?(results, &(&1.status == 429))
+      blocked = Enum.find(results, &(&1.status == 429))
+      assert blocked.resp_body =~ "Too many attempts"
+    end
+  end
+
   describe "friend search on the web" do
     test "matches a fragment anywhere in the username and shows the sent state", %{conn: conn} do
       _target = user("nyelfragment")

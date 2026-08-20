@@ -16,6 +16,11 @@ defmodule HeadsUpWeb.SessionController do
   alias HeadsUp.Accounts
   alias HeadsUpWeb.UserAuth
 
+  # Same armor the API twins wear (auth_controller) — the website was the
+  # unlimited side door for credential stuffing and free-account farming.
+  plug HeadsUpWeb.Plugs.RateLimit, [limit: 10, window_ms: 60_000, key: "login"] when action == :create
+  plug HeadsUpWeb.Plugs.RateLimit, [limit: 5, window_ms: 3_600_000, key: "register"] when action == :signup
+
   def new(conn, _params), do: render(conn, :new, error: nil, email: nil)
 
   def create(conn, %{"user" => %{"email" => email, "password" => password}}) do
@@ -54,6 +59,17 @@ defmodule HeadsUpWeb.SessionController do
         |> put_status(:unprocessable_entity)
         |> render(:signup, changeset_errors: readable_errors(changeset), values: params)
     end
+  end
+
+  # Malformed POSTs (stripped forms, curl) get a 400 page, not a 500.
+  def create(conn, _params) do
+    conn |> put_status(:bad_request) |> render(:new, error: "That didn't come through right — try again.", email: nil)
+  end
+
+  def signup(conn, _params) do
+    conn
+    |> put_status(:bad_request)
+    |> render(:signup, changeset_errors: ["form: incomplete submission"], values: %{})
   end
 
   def delete(conn, _params) do

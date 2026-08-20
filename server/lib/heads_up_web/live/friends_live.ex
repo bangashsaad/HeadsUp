@@ -9,6 +9,8 @@ defmodule HeadsUpWeb.FriendsLive do
   """
   use HeadsUpWeb, :live_view
 
+  alias HeadsUpWeb.Params
+
   alias HeadsUp.{Social, Stats}
 
   # The app's deterministic avatar tints (mobile/src/theme.js avatarColor),
@@ -68,7 +70,7 @@ defmodule HeadsUpWeb.FriendsLive do
   def handle_event("send-request", %{"id" => id}, socket) do
     case Social.send_friend_request(socket.assigns.current_user, id) do
       {:ok, _} ->
-        {:noreply, update(socket, :sent, &MapSet.put(&1, String.to_integer(id)))}
+        {:noreply, update(socket, :sent, &MapSet.put(&1, Params.int(id)))}
 
       {:error, reason} when is_binary(reason) ->
         {:noreply, put_flash(socket, :error, reason)}
@@ -108,10 +110,10 @@ defmodule HeadsUpWeb.FriendsLive do
     do: {:noreply, assign(socket, tab: :all, edit: nil)}
 
   def handle_event("tab", %{"id" => id}, socket),
-    do: {:noreply, assign(socket, tab: String.to_integer(id), edit: nil)}
+    do: {:noreply, assign(socket, tab: Params.int(id), edit: nil)}
 
   def handle_event("edit-group", %{"id" => id}, socket) do
-    id = String.to_integer(id)
+    id = Params.int(id)
     {:noreply, assign(socket, edit: if(socket.assigns.edit == id, do: nil, else: id), tab: :all)}
   end
 
@@ -120,13 +122,21 @@ defmodule HeadsUpWeb.FriendsLive do
   def handle_event("toggle-member", %{"id" => id}, socket) do
     %{edit: gid, groups: groups, current_user: user} = socket.assigns
 
-    with %{member_ids: ids} <- Enum.find(groups, &(&1.id == gid)) do
-      id = String.to_integer(id)
-      next = if id in ids, do: List.delete(ids, id), else: ids ++ [id]
-      {:ok, _} = Social.set_friend_group_members(user, gid, next)
-    end
+    # The group can vanish mid-edit (deleted from the phone) — reload rather
+    # than crash on the nil that set_friend_group_members returns then.
+    result =
+      with %{member_ids: ids} <- Enum.find(groups, &(&1.id == gid)) do
+        id = Params.int(id)
+        next = if id in ids, do: List.delete(ids, id), else: ids ++ [id]
+        Social.set_friend_group_members(user, gid, next)
+      end
 
-    {:noreply, assign(socket, groups: Social.list_friend_groups(user))}
+    socket = assign(socket, groups: Social.list_friend_groups(user))
+
+    case result do
+      {:ok, _} -> {:noreply, socket}
+      _ -> {:noreply, socket |> assign(edit: nil) |> put_flash(:error, "That group's gone — edited elsewhere.")}
+    end
   end
 
   def handle_event("create-group", %{"name" => name}, socket) do
@@ -149,6 +159,9 @@ defmodule HeadsUpWeb.FriendsLive do
         end
     end
   end
+
+  # Tampered or unknown events must not crash the socket.
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   # Accepting from search or inbox changes the sidebar badge; keep it honest
   # without a full remount.

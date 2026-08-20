@@ -45,7 +45,7 @@ defmodule HeadsUpWeb.Plugs.RateLimit do
           conn
           |> put_resp_header("retry-after", Integer.to_string(div(window_ms, 1000)))
           |> put_status(:too_many_requests)
-          |> Phoenix.Controller.json(%{error: "Too many attempts — wait a moment and try again."})
+          |> deny_response()
           |> halt()
 
         _ ->
@@ -54,6 +54,39 @@ defmodule HeadsUpWeb.Plugs.RateLimit do
     else
       conn
     end
+  end
+
+  # Browser forms get readable text; everyone else keeps the JSON the API
+  # clients already parse. Accept-header sniffing — get_format needs fetched
+  # params, which bare requests may not have.
+  defp deny_response(conn) do
+    html? =
+      case get_req_header(conn, "accept") do
+        [accept | _] -> String.contains?(accept, "text/html")
+        _ -> false
+      end
+
+    if html? do
+      Phoenix.Controller.text(conn, "Too many attempts — wait a moment and try again.")
+    else
+      Phoenix.Controller.json(conn, %{error: "Too many attempts — wait a moment and try again."})
+    end
+  end
+
+  @doc """
+  Function-call form for LiveView events and channels, which bypass plugs
+  entirely. Key on something stable for the actor (user id). Same fail-open
+  posture: limiter off or broken means allowed.
+  """
+  def over_limit?(actor, bucket, limit, window_ms) do
+    if Application.get_env(:heads_up, :rate_limiting_enabled, true) do
+      window = div(System.system_time(:millisecond), window_ms)
+      bump({bucket, actor, window}, window_ms) > limit
+    else
+      false
+    end
+  rescue
+    _ -> false
   end
 
   # Atomic increment; the counter self-expires because the window number is

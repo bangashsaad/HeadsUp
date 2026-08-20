@@ -8,6 +8,8 @@ defmodule HeadsUpWeb.NewChallengeLive do
   """
   use HeadsUpWeb, :live_view
 
+  alias HeadsUpWeb.Params
+
   alias HeadsUp.{Coins, Contests, Social, Stats}
   alias HeadsUp.Drafts.Lineup
   alias HeadsUp.Sports.{Season, Slate}
@@ -140,10 +142,10 @@ defmodule HeadsUpWeb.NewChallengeLive do
     end
   end
 
-  def handle_event("roster", %{"n" => n}, socket), do: {:noreply, assign(socket, roster: String.to_integer(n))}
+  def handle_event("roster", %{"n" => n}, socket), do: {:noreply, assign(socket, roster: Params.int(n))}
   def handle_event("shapes-toggle", _params, socket), do: {:noreply, update(socket, :shapes_open, &(!&1))}
-  def handle_event("stake", %{"n" => n}, socket), do: {:noreply, assign(socket, stake: String.to_integer(n))}
-  def handle_event("clock", %{"n" => n}, socket), do: {:noreply, assign(socket, clock: String.to_integer(n))}
+  def handle_event("stake", %{"n" => n}, socket), do: {:noreply, assign(socket, stake: Params.int(n))}
+  def handle_event("clock", %{"n" => n}, socket), do: {:noreply, assign(socket, clock: Params.int(n))}
   def handle_event("slate", %{"id" => id}, socket), do: {:noreply, assign(socket, slate: id)}
   def handle_event("group", %{"g" => g}, socket), do: {:noreply, assign(socket, group_tab: g)}
 
@@ -151,7 +153,7 @@ defmodule HeadsUpWeb.NewChallengeLive do
     if socket.assigns.counter do
       {:noreply, socket}
     else
-      id = String.to_integer(id)
+      id = Params.int(id)
       rivals = socket.assigns.rivals
 
       rivals =
@@ -197,6 +199,9 @@ defmodule HeadsUpWeb.NewChallengeLive do
         submit(socket, attrs)
     end
   end
+
+  # Tampered or unknown events must not crash the socket.
+  def handle_event(_event, _params, socket), do: {:noreply, socket}
 
   defp put_who(attrs, [single]), do: Map.put(attrs, "opponent_id", single)
   defp put_who(attrs, many), do: Map.put(attrs, "opponent_ids", many)

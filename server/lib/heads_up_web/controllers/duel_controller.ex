@@ -13,6 +13,9 @@ defmodule HeadsUpWeb.DuelController do
   # Each challenge pushes a notification to someone else — worth a ceiling.
   plug HeadsUpWeb.Plugs.RateLimit,
        [limit: 30, window_ms: 3_600_000, key: "challenge"] when action in [:create, :counter, :rematch]
+  # Trash talk is the product, spam is not.
+  plug HeadsUpWeb.Plugs.RateLimit,
+       [limit: 20, window_ms: 60_000, key: "chat"] when action == :post_message
   action_fallback HeadsUpWeb.FallbackController
 
   # GET /api/duels
@@ -77,7 +80,7 @@ defmodule HeadsUpWeb.DuelController do
     end
   end
 
-  defp int(id) when is_binary(id), do: String.to_integer(id)
+  defp int(id) when is_binary(id), do: HeadsUpWeb.Params.int(id)
   defp int(id), do: id
 
   def live(conn, %{"id" => id}) do
