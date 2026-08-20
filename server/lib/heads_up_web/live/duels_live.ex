@@ -119,10 +119,10 @@ defmodule HeadsUpWeb.DuelsLive do
               <div style={"width:38px;height:38px;flex:none;border-radius:12px;background:#{av_bg(d, @current_user.id)};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#{av_ink(d, @current_user.id)}"}>
                 {initials(title(d, @current_user.id))}
               </div>
-              <div style="display:flex;flex-direction:column;min-width:0;flex:1">
-                <span style="font-weight:800;font-size:14px">{title(d, @current_user.id)}</span>
+              <.link navigate={~p"/app/duels/#{d.id}"} style="display:flex;flex-direction:column;min-width:0;flex:1;cursor:pointer;text-decoration:none;color:inherit">
+                <span style="font-weight:800;font-size:14px">{title(d, @current_user.id)} <span style="font-size:10px;color:#565D73;font-weight:800">· TERMS →</span></span>
                 <span style="font-size:11px;color:#8B91A7;font-weight:600;margin-top:2px">{meta_line(d)}</span>
-              </div>
+              </.link>
               <span style={"flex:none;display:inline-flex;align-items:center;gap:6px;background:#{badge_bg(d, @current_user.id)};border:1px solid #{badge_ink(d, @current_user.id)};border-radius:999px;padding:4px 12px"}>
                 <span :if={blink?(d)} class="huw-blink" style={"width:5px;height:5px;border-radius:3px;background:#{badge_ink(d, @current_user.id)}"}>
                 </span>

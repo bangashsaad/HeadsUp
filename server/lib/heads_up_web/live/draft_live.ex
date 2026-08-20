@@ -30,7 +30,8 @@ defmodule HeadsUpWeb.DraftLive do
       {:ok,
        socket
        |> assign(duel_id: duel_id, draft_id: draft.id, page_title: "Draft room")
-       |> assign(state: Server.get_state(draft.id), search: "", pos: nil, bursts: [], flip?: false)}
+       |> assign(state: Server.get_state(draft.id), search: "", pos: nil, bursts: [], flip?: false)
+       |> assign(queue: stored_queue(draft.id, user.id))}
     else
       _ ->
         {:ok, socket |> put_flash(:error, "That draft isn't yours to join.") |> redirect(to: "/app")}
@@ -101,8 +102,28 @@ defmodule HeadsUpWeb.DraftLive do
   def handle_event("pos", %{"p" => ""}, socket), do: {:noreply, assign(socket, pos: nil)}
   def handle_event("pos", %{"p" => p}, socket), do: {:noreply, assign(socket, pos: p)}
 
+  # Star a player into the private auto-pick queue (same engine call the
+  # phone's channel makes) — if the clock dies, it grabs these in order.
+  def handle_event("queue-toggle", %{"player-id" => id}, socket) do
+    id = Params.int(id)
+    queue = socket.assigns.queue
+    queue = if id in queue, do: List.delete(queue, id), else: queue ++ [id]
+    Server.set_queue(socket.assigns.draft_id, socket.assigns.current_user.id, queue)
+    {:noreply, assign(socket, queue: queue)}
+  end
+
   # Tampered or unknown events must not crash the socket.
   def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  defp stored_queue(draft_id, user_id) do
+    case Server.get_queue(draft_id, user_id) do
+      queue when is_list(queue) -> queue
+      _ -> []
+    end
+  end
+
+  defp out_confirm(p),
+    do: if(tag(p) == "OUT", do: "They're listed OUT — draft them anyway?")
 
   defp pick_error(:not_your_turn), do: "It's not your pick."
   defp pick_error(:already_drafted), do: "Someone just took that player."
@@ -239,10 +260,8 @@ defmodule HeadsUpWeb.DraftLive do
 
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));max-height:460px;overflow:auto">
             <div
-              :for={p <- pool(@state, @search, @pos, @current_user.id)}
-              phx-click={if my_turn?(@state, @current_user.id), do: "pick"}
-              phx-value-player-id={p.id}
-              style={"cursor:#{if my_turn?(@state, @current_user.id), do: "pointer", else: "default"};display:flex;align-items:center;gap:11px;padding:9px 16px;border-bottom:1px solid #14171F"}
+              :for={p <- pool(@state, @search, @pos, @current_user.id, @queue)}
+              style="display:flex;align-items:center;gap:11px;padding:9px 16px;border-bottom:1px solid #14171F"
             >
               <img
                 :if={p[:headshot_url]}
@@ -261,13 +280,31 @@ defmodule HeadsUpWeb.DraftLive do
                 <span style="font-weight:700;font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{p.name}</span>
                 <span style="font-size:10.5px;color:#565D73;font-weight:700">{p.position} · {p.team}{game_suffix(p)}</span>
               </div>
-              <div style="margin-left:auto;display:flex;align-items:center;gap:12px">
+              <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
                 <span class="hu-cond" style="font-size:20px;color:#C7CBD9">{proj(p.projection)}</span>
                 <span :if={tag(p)} style={"font-size:10px;font-weight:900;letter-spacing:1px;color:#{tag_ink(p)}"}>{tag(p)}</span>
+                <button
+                  phx-click="queue-toggle"
+                  phx-value-player-id={p.id}
+                  title="Queue for auto-pick"
+                  style={"cursor:pointer;width:30px;height:30px;border-radius:9px;border:1px solid #{if p.id in @queue, do: "rgba(200,255,46,.55)", else: "#252A3A"};background:#{if p.id in @queue, do: "rgba(200,255,46,.12)", else: "transparent"};color:#{if p.id in @queue, do: "var(--acc,#C8FF2E)", else: "#565D73"};font-size:14px"}
+                >
+                  {if p.id in @queue, do: "★", else: "☆"}
+                </button>
+                <button
+                  :if={my_turn?(@state, @current_user.id)}
+                  phx-click="pick"
+                  phx-value-player-id={p.id}
+                  data-confirm={out_confirm(p)}
+                  class="hu-cond"
+                  style="cursor:pointer;border:1px solid color-mix(in srgb,var(--acc,#C8FF2E) 55%,transparent);color:var(--acc,#C8FF2E);background:transparent;font-size:13px;border-radius:999px;padding:6px 14px"
+                >
+                  DRAFT
+                </button>
               </div>
             </div>
           </div>
-          <div :if={pool(@state, @search, @pos, @current_user.id) == []} style="padding:26px;text-align:center;font-size:12px;color:#565D73;font-weight:600">
+          <div :if={pool(@state, @search, @pos, @current_user.id, @queue) == []} style="padding:26px;text-align:center;font-size:12px;color:#565D73;font-weight:600">
             No players match — clear the search or position filter.
           </div>
         </div>
@@ -401,7 +438,7 @@ defmodule HeadsUpWeb.DraftLive do
     |> Enum.sort()
   end
 
-  defp pool(state, search, pos, user_id) do
+  defp pool(state, search, pos, user_id, queue \\ []) do
     eligible = eligible_positions(state, user_id)
     # A finished lineup un-gates the list — nothing is draftable anyway, so
     # you might as well watch the rest of the pool (same as the phone).
@@ -416,6 +453,7 @@ defmodule HeadsUpWeb.DraftLive do
         (search == "" or String.contains?(String.downcase(p.name), needle)) and
         (pos == nil or p.position == pos)
     end)
+    |> Enum.sort_by(fn p -> if(p.id in queue, do: Enum.find_index(queue, &(&1 == p.id)), else: 9_999) end)
     |> Enum.take(60)
   end
 

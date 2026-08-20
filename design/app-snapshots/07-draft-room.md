@@ -49,7 +49,282 @@ UI kit primitives the screens compose (from `src/components/ui/`):
 ## The screen source (`src/screens/DraftRoomScreen.js`)
 
 ```jsx
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { Appearance, StyleSheet } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+
+// ---------------------------------------------------------------------------
+// Tokens that don't change with light/dark.
+// ---------------------------------------------------------------------------
+export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
+export const radius = { sm: 8, md: 12, lg: 16, xl: 20, pill: 999 };
+export const font = {
+  caption: 12,
+  small: 13,
+  body: 15,
+  bodyLg: 16,
+  subtitle: 17,
+  title: 22,
+  titleLg: 28,
+  hero: 34,
+};
+export const shadow = {
+  sm: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.16, shadowRadius: 6, elevation: 2 },
+  md: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 12, elevation: 5 },
+  lg: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.26, shadowRadius: 20, elevation: 10 },
+};
+
+// ---------------------------------------------------------------------------
+// Typeface tokens ("Reimagined" design language). Each entry is a loaded
+// expo-google-fonts face; when you set one as fontFamily, do NOT also set
+// fontWeight (the weight is baked into the face name).
+//   display   – Archivo Black energy, italic: wordmark, YOU WIN., ghost VS
+//   hero      – Barlow Condensed 800 italic: scores, section titles, buttons
+//   body*     – Archivo: running text and labels
+// ---------------------------------------------------------------------------
+export const fonts = {
+  display: 'Archivo_900Black_Italic',
+  displayUpright: 'Archivo_900Black',
+  hero: 'BarlowCondensed_800ExtraBold_Italic',
+  heroUpright: 'BarlowCondensed_800ExtraBold',
+  condBold: 'BarlowCondensed_700Bold',
+  condBoldItalic: 'BarlowCondensed_700Bold_Italic',
+  condSemi: 'BarlowCondensed_600SemiBold',
+  condMedium: 'BarlowCondensed_500Medium',
+  body: 'Archivo_400Regular',
+  bodyMedium: 'Archivo_500Medium',
+  bodySemi: 'Archivo_600SemiBold',
+  bodyBold: 'Archivo_700Bold',
+  bodyExtra: 'Archivo_800ExtraBold',
+  bodyBlack: 'Archivo_900Black',
+};
+
+// hex (#RRGGBB) -> rgba() string. The JS stand-in for CSS color-mix().
+export function withAlpha(hex, alpha) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ---------------------------------------------------------------------------
+// Palettes. `onAccent` is the text/icon color that sits ON the accent (so the
+// primary button stays legible: near-black text on lime).
+// ---------------------------------------------------------------------------
+const DARK = {
+  bg: '#0A0B10',
+  bgElevated: '#0D0F16',
+  card: '#12141D',
+  cardElevated: '#191C28',
+  border: '#252A3A',
+  borderSubtle: '#1A1E2B',
+  text: '#F4F5F7',
+  textDim: '#B9BECF',
+  textFaint: '#3A4157',
+  muted: '#8B91A7',
+  placeholder: '#565D73',
+  accent: '#C8FF2E',
+  onAccent: '#0A0B10',
+  accentSoft: 'rgba(200,255,46,0.10)',
+  accentBorder: 'rgba(200,255,46,0.45)',
+  danger: '#FF4557',
+  dangerSoft: 'rgba(255,69,87,0.15)',
+  dangerBorder: 'rgba(255,69,87,0.50)',
+  warning: '#FFB021',
+  warningSoft: 'rgba(255,176,33,0.14)',
+  warningBorder: 'rgba(255,176,33,0.40)',
+  info: '#9F8BFF',
+  infoSoft: 'rgba(124,92,255,0.15)',
+  infoBorder: 'rgba(124,92,255,0.45)',
+  // Extended "Reimagined" family
+  purple: '#7C5CFF',
+  purpleText: '#9F8BFF',
+  purpleSoft: 'rgba(124,92,255,0.15)',
+  purpleBorder: 'rgba(124,92,255,0.45)',
+  cyan: '#22E5FF',
+  pink: '#FF4D8D',
+  green: '#39D98A',
+  orange: '#FF7A1A',
+  gold: '#FFB021',
+  silver: '#B9BECF',
+  bronze: '#C97C3D',
+};
+
+const LIGHT = {
+  bg: '#F4F5F8',
+  bgElevated: '#ECEEF4',
+  card: '#FFFFFF',
+  cardElevated: '#EEF1F6', // bands/chips need to recess on white cards
+  border: '#DCE0EA',
+  borderSubtle: '#E8EBF2',
+  text: '#12141D',
+  textDim: '#3A4157',
+  textFaint: '#C3C9D6',
+  muted: '#565D73',
+  placeholder: '#8B91A7',
+  accent: '#65A30D',
+  onAccent: '#FFFFFF',
+  accentSoft: 'rgba(101,163,13,0.10)',
+  accentBorder: 'rgba(101,163,13,0.32)',
+  danger: '#E11D48',
+  dangerSoft: 'rgba(225,29,72,0.08)',
+  dangerBorder: 'rgba(225,29,72,0.28)',
+  warning: '#C77700',
+  warningSoft: 'rgba(199,119,0,0.10)',
+  warningBorder: 'rgba(199,119,0,0.30)',
+  info: '#6D4AFF',
+  infoSoft: 'rgba(109,74,255,0.08)',
+  infoBorder: 'rgba(109,74,255,0.28)',
+  purple: '#6D4AFF',
+  purpleText: '#6D4AFF',
+  purpleSoft: 'rgba(109,74,255,0.08)',
+  purpleBorder: 'rgba(109,74,255,0.28)',
+  cyan: '#0891B2',
+  pink: '#DB2777',
+  green: '#0E9F6E',
+  orange: '#EA580C',
+  gold: '#B45309',
+  silver: '#64748B',
+  bronze: '#A16207',
+};
+
+export const PALETTES = { dark: DARK, light: LIGHT };
+
+// Semantic tone -> {bg, text, border} for badges/pills/banners.
+export function makeTones(c) {
+  return {
+    neutral: { bg: c.card, text: c.muted, border: c.border },
+    accent: { bg: c.accentSoft, text: c.accent, border: c.accentBorder },
+    danger: { bg: c.dangerSoft, text: c.danger, border: c.dangerBorder },
+    warning: { bg: c.warningSoft, text: c.warning, border: c.warningBorder },
+    info: { bg: c.infoSoft, text: c.info, border: c.infoBorder },
+  };
+}
+
+// Map a duel status string to a tone name.
+export function statusTone(status) {
+  switch (status) {
+    case 'accepted':
+    case 'drafted':
+    case 'settled':
+      return 'accent';
+    case 'drafting':
+      return 'danger'; // live = red, per the Reimagined language
+    case 'pending':
+    case 'countered':
+      return 'info';
+    case 'declined':
+    case 'cancelled':
+      return 'danger';
+    default:
+      return 'neutral';
+  }
+}
+
+// Deterministic avatar tint from a name (mode-independent).
+const AVATAR_TINTS = ['#FF4D8D', '#22E5FF', '#39D98A', '#FFB021', '#7C5CFF', '#5CA8FF', '#FF7A1A'];
+export function avatarColor(seed = '') {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return AVATAR_TINTS[h % AVATAR_TINTS.length];
+}
+
+// ---------------------------------------------------------------------------
+// Theme context: a persisted preference ('system' | 'light' | 'dark') resolved
+// to an active scheme, plus the matching palette + tones.
+// ---------------------------------------------------------------------------
+const MODE_KEY = 'theme_mode';
+const ThemeContext = createContext(null);
+
+export function ThemeProvider({ children }) {
+  const [mode, setModeState] = useState('dark'); // persisted preference
+  const [systemScheme, setSystemScheme] = useState(Appearance.getColorScheme() || 'dark');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const saved = await SecureStore.getItemAsync(MODE_KEY);
+        if (saved === 'light' || saved === 'dark' || saved === 'system') setModeState(saved);
+      } catch (_) {}
+    })();
+    const sub = Appearance.addChangeListener(({ colorScheme }) => setSystemScheme(colorScheme || 'dark'));
+    return () => sub.remove();
+  }, []);
+
+  function setMode(next) {
+    setModeState(next);
+    SecureStore.setItemAsync(MODE_KEY, next).catch(() => {});
+  }
+
+  const scheme = mode === 'system' ? systemScheme : mode;
+  const colors = PALETTES[scheme] || DARK;
+  const value = useMemo(
+    () => ({ mode, setMode, scheme, colors, tones: makeTones(colors) }),
+    [mode, scheme, colors]
+  );
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+}
+
+export function useTheme() {
+  return useContext(ThemeContext) || { mode: 'dark', setMode: () => {}, scheme: 'dark', colors: DARK, tones: makeTones(DARK) };
+}
+
+// Build a StyleSheet from the active theme; memoized per palette.
+// Usage: const styles = useThemedStyles((c, t) => StyleSheet.create({...}))
+export function useThemedStyles(factory) {
+  const { colors, tones } = useTheme();
+  return useMemo(() => factory(colors, tones), [colors, tones, factory]);
+}
+
+// Themed react-navigation header options (re-themes when the palette changes).
+export function useNavHeader() {
+  const { colors } = useTheme();
+  return {
+    headerStyle: { backgroundColor: colors.bg },
+    headerTintColor: colors.text,
+    headerShadowVisible: false,
+    headerTitleStyle: { fontFamily: fonts.heroUpright, fontSize: 18, letterSpacing: 0.5 },
+    headerBackTitleVisible: false,
+    contentStyle: { backgroundColor: colors.bg },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Backward-compatible static exports (dark). Anything not yet converted to
+// useTheme() keeps rendering against the dark palette and never crashes.
+// ---------------------------------------------------------------------------
+export const colors = DARK;
+export const tones = makeTones(DARK);
+
+export const navHeader = {
+  headerStyle: { backgroundColor: DARK.bg },
+  headerTintColor: DARK.text,
+  headerShadowVisible: false,
+  headerTitleStyle: { fontFamily: fonts.heroUpright, fontSize: 18, letterSpacing: 0.5 },
+};
+
+export const authStyles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: DARK.bg, justifyContent: 'center', padding: 24 },
+  title: { color: DARK.text, fontSize: 30, fontWeight: '800', textAlign: 'center' },
+  subtitle: { color: DARK.muted, fontSize: 15, textAlign: 'center', marginTop: 6, marginBottom: 28 },
+  input: {
+    backgroundColor: DARK.card,
+    color: DARK.text,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: DARK.border,
+  },
+  button: { backgroundColor: DARK.accent, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
+  buttonText: { color: DARK.onAccent, fontSize: 16, fontWeight: '700' },
+  link: { color: DARK.accent, textAlign: 'center', marginTop: 18, fontSize: 15 },
+  error: { color: DARK.danger, textAlign: 'center', marginBottom: 14, fontSize: 14 },
+});import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   ActivityIndicator,
@@ -66,6 +341,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../auth/AuthContext';
 import { connectDraft } from '../api/socket';
 import { getDuel } from '../api/duels';
@@ -95,7 +371,7 @@ const REACTION_EMOJIS = ['🔥', '😂', '😭', '🥶', '💀', '👑'];
 // callback rather than a parallel timer, so the two cannot drift apart.
 // FLIP_FAILSAFE_MS only exists because RN pauses animations in the background:
 // without it, backgrounding the app mid-flip strands the coin on screen.
-const FLIP_MS = 1300;
+const FLIP_MS = 1000;
 const FLIP_FAILSAFE_MS = 6000;
 
 // One UNIQUE color per seat (name-hash tints can collide — two players both
@@ -112,21 +388,7 @@ function buildSeatTints(ids, myId, colors) {
   return map;
 }
 
-// "7:00 PM ET" for a game today (ET), "Tmw 7:00 PM ET" for tomorrow — so you
-// know WHEN a player plays before you draft them. ET = UTC-4 in season.
-function nextGameLabel(iso) {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (isNaN(d)) return null;
-  const et = new Date(d.getTime() - 4 * 3600 * 1000);
-  const nowEt = new Date(Date.now() - 4 * 3600 * 1000);
-  const sameDay = et.getUTCDate() === nowEt.getUTCDate() && et.getUTCMonth() === nowEt.getUTCMonth();
-  let h = et.getUTCHours();
-  const m = et.getUTCMinutes();
-  const ap = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  return `${sameDay ? '' : 'Tmw '}${h}:${String(m).padStart(2, '0')} ${ap} ET`;
-}
+import { nextGameLabel } from '../time';
 
 function fmtClock(secs) {
   if (!secs) return null;
@@ -155,15 +417,21 @@ export default function DraftRoomScreen({ route, navigation }) {
   const [bursts, setBursts] = useState([]);
   const burstSeq = useRef(0);
 
+  const [connected, setConnected] = useState(true);
+
   useEffect(() => {
     const conn = connectDraft(id, token, {
-      onJoin: (reply) => setState(reply.state),
+      onJoin: (reply) => {
+        setConnected(true);
+        setState(reply.state);
+      },
       onUpdate: (payload) => setState(payload.state),
       onReaction: ({ emoji, user_id }) => {
         const key = ++burstSeq.current;
         setBursts((b) => [...b.slice(-9), { key, emoji, uid: user_id }]);
       },
       onError: () => setError('Could not join the draft room.'),
+      onDisconnect: () => setConnected(false),
     });
     connRef.current = conn;
     return () => conn.leave();
@@ -182,10 +450,17 @@ export default function DraftRoomScreen({ route, navigation }) {
     prevPhase.current = ph;
     if (prev === 'lobby' && ph !== 'lobby' && ph !== 'cancelled') {
       setFlipping(true);
-      const t = setTimeout(() => setFlipping(false), FLIP_FAILSAFE_MS);
-      return () => clearTimeout(t);
     }
   }, [state?.phase]);
+
+  // The failsafe rides the flipping flag itself — cleanup tied to phase
+  // changes could cancel it while the overlay was still up (backgrounded
+  // mid-flip), stranding a full-screen coin forever.
+  useEffect(() => {
+    if (!flipping) return;
+    const t = setTimeout(() => setFlipping(false), FLIP_FAILSAFE_MS);
+    return () => clearTimeout(t);
+  }, [flipping]);
 
   if (!state) {
     return (
@@ -214,6 +489,7 @@ export default function DraftRoomScreen({ route, navigation }) {
         duelId={id}
         opponentName={opponentName}
         conn={connRef.current}
+        connected={connected}
         error={error}
         setError={setError}
         navigation={navigation}
@@ -222,6 +498,13 @@ export default function DraftRoomScreen({ route, navigation }) {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      {!connected && state.phase !== 'complete' ? (
+        <View style={{ backgroundColor: withAlpha(colors.warning, 0.15), borderBottomWidth: 1, borderBottomColor: withAlpha(colors.warning, 0.4), paddingVertical: 6, alignItems: 'center' }}>
+          <Text style={{ color: colors.warning, fontSize: 11, fontFamily: fonts.bodyExtra, letterSpacing: 1 }}>
+            RECONNECTING…
+          </Text>
+        </View>
+      ) : null}
       {body}
       <ReactionOverlay
         bursts={bursts}
@@ -316,14 +599,11 @@ function ReactionBar({ conn }) {
   );
 }
 
-// Spinning coin between "everyone's ready" and "pick 1 is on the clock".
-//
-// A real coin has two faces, and so does this one. Hiding the backface of a
-// SINGLE face is what made the coin strobe: a hidden backface isn't drawn at
-// all while the view is rotated between 90 and 270 degrees, so across a
-// 1440-degree spin the coin vanished for exactly half the animation. Two
-// stacked faces — the back one pre-rotated 180 degrees — mean one of them is
-// always toward the viewer, and neither is ever mirrored.
+// The coin moment, from the Reimagined drop: a lime→purple ring squash-
+// flipping on its vertical axis (the design's hu2-coin keyframes — scaleX
+// through 1 → .12 → −1 → −.12, three cycles in a second) around a dark core
+// with the Archivo Black H. scaleX never hides the face, so the old
+// two-faces-against-backface-strobing dance is gone with the rotateY spin.
 function FlipOverlay({ onDone }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
@@ -335,28 +615,34 @@ function FlipOverlay({ onDone }) {
     Animated.timing(spin, {
       toValue: 1,
       duration: FLIP_MS,
-      easing: Easing.out(Easing.cubic),
+      easing: Easing.inOut(Easing.ease),
       useNativeDriver: true,
     }).start(({ finished }) => finished && done.current?.());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const rotateY = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '1440deg'] });
+  const scaleX = spin.interpolate({
+    inputRange: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
+    outputRange: [1, 0.12, -1, -0.12, 1, 0.12, -1, -0.12, 1, 0.12, 1],
+  });
 
   return (
     <View style={styles.flipWrap}>
-      <Animated.View style={[styles.coin, { transform: [{ perspective: 800 }, { rotateY }] }]}>
-        <View style={styles.coinFace}>
-          <Text style={styles.coinLetter}>H</Text>
-        </View>
-        <View style={[styles.coinFace, styles.coinFaceBack]}>
-          <Text style={styles.coinLetter}>T</Text>
-        </View>
+      <Animated.View style={{ transform: [{ scaleX }] }}>
+        <LinearGradient
+          colors={[colors.accent, colors.purple, colors.accent]}
+          start={{ x: 0.1, y: 0 }}
+          end={{ x: 0.9, y: 1 }}
+          style={styles.coin}
+        >
+          <View style={styles.coinCore}>
+            <Text style={styles.coinLetter}>H</Text>
+          </View>
+        </LinearGradient>
       </Animated.View>
       <CondTitle size={22} color={colors.muted} style={{ letterSpacing: 2, marginTop: 22 }}>
         FLIPPING…
       </CondTitle>
-      <Text style={styles.dim}>First pick goes to the coin</Text>
     </View>
   );
 }
@@ -466,7 +752,7 @@ function ReadyTag({ on, colors }) {
   );
 }
 
-function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, navigation }) {
+function DraftBoard({ state, myId, duelId, opponentName, conn, connected = true, error, setError, navigation }) {
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
   const complete = state.phase === 'complete';
@@ -526,9 +812,13 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
   const [queue, setQueue] = useState([]);
   const queued = useMemo(() => new Set(queue), [queue]);
 
-  // Keep the server's private auto-pick order in sync with the local queue.
+  // Keep the server's private auto-pick order in sync with the local queue —
+  // but only once the user has touched it THIS session. Syncing on mount
+  // pushed the fresh empty list over the queue the server kept across a
+  // leave-and-rejoin, silently wiping the auto-pick plan.
+  const queueTouched = useRef(false);
   useEffect(() => {
-    conn?.setQueue?.(queue);
+    if (queueTouched.current) conn?.setQueue?.(queue);
   }, [queue, conn]);
 
   // Drop drafted players from the queue as they leave the pool.
@@ -542,6 +832,7 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
 
   function toggleQueue(pid) {
     impact(ImpactStyle.Light);
+    queueTouched.current = true;
     setQueue((q) => (q.includes(pid) ? q.filter((x) => x !== pid) : [...q, pid]));
   }
 
@@ -602,6 +893,11 @@ function DraftBoard({ state, myId, duelId, opponentName, conn, error, setError, 
 
   function pick(player) {
     if (!isMyTurn || complete) return;
+
+    if (!connected) {
+      Alert.alert('Reconnecting…', 'Hold that pick a second — the room connection dropped.');
+      return;
+    }
 
     if (player.injury?.status === 'out') {
       const why = player.injury.detail ? ` (${player.injury.detail})` : '';
@@ -912,27 +1208,17 @@ const makeStyles = (colors) =>
       width: 92,
       height: 92,
       borderRadius: 46,
-      borderWidth: 4,
-      borderColor: colors.accent,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors.purple,
     },
-    coinFace: {
-      position: 'absolute',
-      top: 5,
-      left: 5,
-      right: 5,
-      bottom: 5,
-      borderRadius: 37,
+    coinCore: {
+      width: 78,
+      height: 78,
+      borderRadius: 39,
       backgroundColor: colors.bg,
       alignItems: 'center',
       justifyContent: 'center',
-      backfaceVisibility: 'hidden',
     },
-    // The reverse side, pre-turned so it faces away at rest and comes around
-    // as the coin spins.
-    coinFaceBack: { transform: [{ rotateY: '180deg' }] },
     coinLetter: { fontFamily: fonts.display, fontSize: 26, color: colors.accent },
 
     lobby: { flex: 1, backgroundColor: colors.bg, padding: spacing.xl, justifyContent: 'center' },

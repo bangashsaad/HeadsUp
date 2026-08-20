@@ -20,6 +20,11 @@ defmodule HeadsUpWeb.SessionController do
   # unlimited side door for credential stuffing and free-account farming.
   plug HeadsUpWeb.Plugs.RateLimit, [limit: 10, window_ms: 60_000, key: "login"] when action == :create
   plug HeadsUpWeb.Plugs.RateLimit, [limit: 5, window_ms: 3_600_000, key: "register"] when action == :signup
+  plug HeadsUpWeb.Plugs.RateLimit,
+       [limit: 5, window_ms: 900_000, key: "password_forgot"] when action == :send_reset
+
+  plug HeadsUpWeb.Plugs.RateLimit,
+       [limit: 10, window_ms: 900_000, key: "password_reset"] when action == :do_reset
 
   def new(conn, _params), do: render(conn, :new, error: nil, email: nil)
 
@@ -75,6 +80,53 @@ defmodule HeadsUpWeb.SessionController do
   def delete(conn, _params) do
     conn
     |> UserAuth.log_out_web_user()
+  end
+
+  # --- forgot / reset password (same engine as the phone: emailed code) -------
+
+  def forgot(conn, params), do: render(conn, :forgot, email: params["email"])
+
+  def send_reset(conn, %{"user" => %{"email" => email}}) do
+    # Fire-and-forget on purpose — the answer never reveals whether the
+    # account exists (the API twin behaves identically).
+    _ = Accounts.deliver_password_reset(String.trim(to_string(email)))
+
+    conn
+    |> put_flash(:info, "If that email has an account, a 6-digit code is on the way.")
+    |> redirect(to: ~p"/reset-password?email=#{String.trim(to_string(email))}")
+  end
+
+  def send_reset(conn, _params) do
+    conn |> put_status(:bad_request) |> render(:forgot, email: nil)
+  end
+
+  def reset(conn, params), do: render(conn, :reset, email: params["email"], error: nil)
+
+  def do_reset(conn, %{"user" => %{"email" => email, "code" => code, "password" => password}}) do
+    case Accounts.reset_password(String.trim(to_string(email)), String.trim(to_string(code)), password) do
+      {:ok, user} ->
+        # Every old session just died (by design); start a fresh one here.
+        conn
+        |> UserAuth.log_in_web_user(user)
+        |> put_flash(:info, "Password changed — you're signed in.")
+        |> redirect(to: "/app")
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> render(:reset, email: email, error: readable_errors(changeset) |> Enum.join(" · "))
+
+      {:error, _} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> render(:reset, email: email, error: "That code isn't right, or it expired. Codes last 15 minutes.")
+    end
+  end
+
+  def do_reset(conn, _params) do
+    conn
+    |> put_status(:bad_request)
+    |> render(:reset, email: nil, error: "That didn't come through right — try again.")
   end
 
   # Ecto errors as plain "field: message" strings — the form is hand-written

@@ -1,0 +1,32 @@
+<.auth_shell title="Forgot password" subtitle="We'll email you a 6-digit reset code.">
+  <.form :let={f} for={%{}} as={:user} action={~p"/forgot-password"} class="space-y-4">
+    <label class="block">
+      <span class="mb-1.5 block text-[11px] font-black uppercase tracking-[0.15em] text-[#8B91A7]">Email</span>
+      <input
+        type="email"
+        name="user[email]"
+        value={@email}
+        required
+        autocomplete="email"
+        autofocus
+        class="w-full rounded-xl border border-[#252A3A] bg-[#12141D] px-4 py-3 text-[#F4F5F7] outline-none focus:border-[#C8FF2E]/60"
+      />
+    </label>
+
+    <button
+      type="submit"
+      class="w-full rounded-xl bg-[#C8FF2E] px-4 py-3.5 text-[15px] font-black uppercase tracking-wide text-[#0A0B10] transition hover:brightness-110"
+    >
+      Email me the code
+    </button>
+    <% _ = f %>
+  </.form>
+
+  <p class="mt-6 text-center text-sm text-[#8B91A7]">
+    Already have a code?
+    <.link navigate={~p"/reset-password"} class="font-bold text-[#C8FF2E] hover:underline">Reset now</.link>
+  </p>
+  <p class="mt-2 text-center text-sm">
+    <.link navigate={~p"/login"} class="font-semibold text-[#565D73] hover:text-[#8B91A7]">Back to sign in</.link>
+  </p>
+</.auth_shell>

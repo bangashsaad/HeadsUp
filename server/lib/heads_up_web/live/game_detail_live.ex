@@ -235,7 +235,7 @@ defmodule HeadsUpWeb.GameDetailLive do
     <Layouts.shell current_user={@current_user} flash={@flash} shell={assigns[:shell] || %{}}>
       <div style="flex:1;display:flex;flex-direction:column;gap:14px;padding:28px 34px 50px;max-width:820px;width:100%;margin:0 auto;box-sizing:border-box;animation:huw-rise .3s ease">
             <div style="display:flex;align-items:center;justify-content:space-between">
-              <.link navigate={~p"/app/games"} style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;color:#8B91A7;font-size:12px;font-weight:800;letter-spacing:.5px"><span style="width:12px;height:12px;background:#8B91A7;-webkit-mask:url(&quot;bd75dbf4-55bf-493b-918e-df0d9a27a1cd&quot;) center/contain no-repeat;mask:url(&quot;bd75dbf4-55bf-493b-918e-df0d9a27a1cd&quot;) center/contain no-repeat"></span>SCOREBOARD</.link>
+              <.link navigate={~p"/app/games"} style="cursor:pointer;display:inline-flex;align-items:center;gap:8px;color:#8B91A7;font-size:12px;font-weight:800;letter-spacing:.5px"><span style="font-size:16px;line-height:1">&lsaquo;</span>SCOREBOARD</.link>
               <span style="font-size:10px;font-weight:900;letter-spacing:2px;color:#565D73">{@kicker}</span>
             </div>
 

@@ -45,6 +45,9 @@ defmodule HeadsUp.Drafts.Server do
   def set_queue(draft_id, user_id, player_ids),
     do: safe_call(draft_id, {:set_queue, user_id, player_ids})
 
+  @doc "Read back a user's queue, so a rejoining client doesn't clobber it."
+  def get_queue(draft_id, user_id), do: safe_call(draft_id, {:get_queue, user_id})
+
   @doc "Tell the draft a user's socket dropped; shrinks their clock to a 60s grace window."
   def disconnected(draft_id, user_id) do
     GenServer.cast(via_tuple(draft_id), {:disconnected, user_id})
@@ -309,6 +312,9 @@ defmodule HeadsUp.Drafts.Server do
 
   def handle_call({:make_pick, _uid, _pid}, _from, state),
     do: {:reply, {:error, :not_active}, state}
+
+  def handle_call({:get_queue, uid}, _from, state),
+    do: {:reply, Map.get(state.queue, uid, []), state}
 
   def handle_call({:set_queue, uid, ids}, _from, state) do
     if Map.has_key?(state.queue, uid) do

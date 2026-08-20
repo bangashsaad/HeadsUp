@@ -162,10 +162,16 @@ defmodule HeadsUpWeb.Layouts do
           </.link>
         </div>
 
-        <div :if={@shell_coins != nil} style="margin:0 12px;display:flex;align-items:center;gap:9px;border:1px solid #252A3A;background:#12141D;border-radius:12px;padding:10px 14px">
+        <.link
+          :if={@shell_coins != nil}
+          navigate="/app/coins"
+          title="Open the ledger"
+          style="cursor:pointer;margin:0 12px;display:flex;align-items:center;gap:9px;border:1px solid #252A3A;background:#12141D;border-radius:12px;padding:10px 14px"
+        >
           <span class="hu-cond" style="font-size:17px;color:#FFB021">◎ {@shell_coins}</span>
           <span style="font-size:9.5px;font-weight:900;letter-spacing:1.5px;color:#565D73">COIN WALLET</span>
-        </div>
+          <span style="margin-left:auto;font-size:11px;color:#565D73">›</span>
+        </.link>
 
         <.link
           :if={@current_user}

@@ -26,12 +26,20 @@ defmodule HeadsUpWeb.FriendsLive do
   ]
 
   @impl true
-  def mount(_params, _session, socket) do
+  def mount(params, _session, socket) do
     {:ok,
      socket
      |> assign(page_title: "Friends", q: "", tab: :all, edit: nil, results: [], sent: MapSet.new())
-     |> load()}
+     |> load()
+     |> seed_search(params["q"])}
   end
+
+  # A /u/:username share link redirects here with ?q= — run the search on
+  # arrival so the profile they tapped is the first thing on screen.
+  defp seed_search(socket, q) when is_binary(q) and byte_size(q) >= 2,
+    do: assign(socket, q: q, results: Social.search_users(q, socket.assigns.current_user))
+
+  defp seed_search(socket, _), do: socket
 
   defp load(socket) do
     user = socket.assigns.current_user

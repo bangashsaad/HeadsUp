@@ -132,6 +132,7 @@ defmodule HeadsUpWeb.ShellHook do
   # Which sidebar item this LiveView is.
   defp nav_key(HeadsUpWeb.HomeLive), do: :home
   defp nav_key(HeadsUpWeb.DuelsLive), do: :duels
+  defp nav_key(HeadsUpWeb.DuelDetailLive), do: :duels
   defp nav_key(HeadsUpWeb.DraftLive), do: :draft
   defp nav_key(HeadsUpWeb.DraftHubLive), do: :draft
   defp nav_key(HeadsUpWeb.LiveHubLive), do: :live

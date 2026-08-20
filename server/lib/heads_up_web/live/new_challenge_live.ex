@@ -22,7 +22,7 @@ defmodule HeadsUpWeb.NewChallengeLive do
   ]
   @stakes [0, 25, 100]
   @clocks [15, 30, 60]
-  @max_rivals 3
+  @max_rivals 4
 
   @impl true
   def mount(params, _session, socket) do
@@ -47,11 +47,14 @@ defmodule HeadsUpWeb.NewChallengeLive do
         rec_by_id: Map.new(h2h, &{&1.opponent.id, "#{&1.wins}–#{&1.losses} vs you"}),
         coins: Coins.balance(user.id),
         counter: counter,
+        custom_stake_open: false,
+        custom_dirty: false,
         error: nil
       )
       |> seed_terms(counter, playable)
       |> seed_rival(params)
       |> load_slates()
+      |> resnap_roster()
 
     {:ok, socket}
   end
@@ -122,7 +125,12 @@ defmodule HeadsUpWeb.NewChallengeLive do
         [] -> nil
       end
 
-    assign(socket, slate_kind: kind, slates: Enum.take(slates, 5), slate: default)
+    slates =
+      slates
+      |> Enum.take(5)
+      |> Enum.map(&Map.put(&1, :players, Contests.slate_player_count(league, &1.upcoming_teams)))
+
+    assign(socket, slate_kind: kind, slates: slates, slate: default)
   end
 
   defp slate_id("week", w), do: w.key
@@ -136,17 +144,39 @@ defmodule HeadsUpWeb.NewChallengeLive do
       sizes = Lineup.sizes_for(key)
       roster = if socket.assigns.roster in sizes, do: socket.assigns.roster, else: hd(sizes)
 
-      {:noreply, socket |> assign(league: key, rosters: sizes, roster: roster) |> load_slates()}
+      {:noreply, socket |> assign(league: key, rosters: sizes, roster: roster) |> load_slates() |> resnap_roster()}
     else
       {:noreply, socket}
     end
   end
 
-  def handle_event("roster", %{"n" => n}, socket), do: {:noreply, assign(socket, roster: Params.int(n))}
+  def handle_event("roster", %{"n" => n}, socket) do
+    n = Params.int(n)
+
+    if roster_ok?(socket.assigns, n),
+      do: {:noreply, assign(socket, roster: n, error: nil)},
+      else: {:noreply, socket}
+  end
+
   def handle_event("shapes-toggle", _params, socket), do: {:noreply, update(socket, :shapes_open, &(!&1))}
-  def handle_event("stake", %{"n" => n}, socket), do: {:noreply, assign(socket, stake: Params.int(n))}
+
+  def handle_event("stake", %{"n" => n}, socket),
+    do: {:noreply, assign(socket, stake: Params.int(n), custom_stake_open: false, custom_dirty: false, error: nil)}
+
+  def handle_event("stake-custom-open", _params, socket),
+    do: {:noreply, assign(socket, custom_stake_open: true, custom_dirty: false)}
+
+  # Free-typed stake, clamped to the ledger's hard cap; the wallet check
+  # stays at send (same as presets) so the error copy is consistent.
+  def handle_event("stake-custom", %{"n" => n}, socket) do
+    stake = n |> Params.int() |> max(0) |> min(HeadsUp.Coins.stake_max())
+    {:noreply, assign(socket, stake: stake, custom_dirty: true, error: nil)}
+  end
+
   def handle_event("clock", %{"n" => n}, socket), do: {:noreply, assign(socket, clock: Params.int(n))}
-  def handle_event("slate", %{"id" => id}, socket), do: {:noreply, assign(socket, slate: id)}
+
+  def handle_event("slate", %{"id" => id}, socket),
+    do: {:noreply, socket |> assign(slate: id, error: nil) |> resnap_roster()}
   def handle_event("group", %{"g" => g}, socket), do: {:noreply, assign(socket, group_tab: g)}
 
   def handle_event("rival", %{"id" => id}, socket) do
@@ -156,14 +186,22 @@ defmodule HeadsUpWeb.NewChallengeLive do
       id = Params.int(id)
       rivals = socket.assigns.rivals
 
-      rivals =
-        cond do
-          id in rivals -> List.delete(rivals, id)
-          length(rivals) >= @max_rivals -> rivals
-          true -> rivals ++ [id]
-        end
+      cond do
+        id in rivals ->
+          {:noreply, socket |> assign(rivals: List.delete(rivals, id), error: nil) |> resnap_roster()}
 
-      {:noreply, assign(socket, rivals: rivals)}
+        length(rivals) >= @max_rivals ->
+          {:noreply, assign(socket, error: "#{@max_rivals} rivals max — #{@max_rivals + 1} drafters per duel.")}
+
+        not fits?(socket.assigns, socket.assigns.roster, max(length(rivals) + 2, 2)) ->
+          {:noreply,
+           assign(socket,
+             error: "This slate can't field a #{socket.assigns.roster}-slot draft for #{length(rivals) + 2} players."
+           )}
+
+        true ->
+          {:noreply, socket |> assign(rivals: rivals ++ [id], error: nil) |> resnap_roster()}
+      end
     end
   end
 
@@ -182,6 +220,12 @@ defmodule HeadsUpWeb.NewChallengeLive do
 
       stake > socket.assigns.coins ->
         {:noreply, assign(socket, error: "That stake is more than your wallet.")}
+
+      not roster_ok?(socket.assigns, roster) ->
+        {:noreply,
+         assign(socket,
+           error: "This slate can't field a #{roster}-slot draft for #{length(rivals) + 1} players."
+         )}
 
       true ->
         attrs =
@@ -287,7 +331,15 @@ defmodule HeadsUpWeb.NewChallengeLive do
                 </button>
               </div>
               <div style="display:flex;gap:8px">
-                <button :for={n <- @rosters} phx-click="roster" phx-value-n={n} class="hu-cond" style={pill(@roster == n, 16)}>
+                <button
+                  :for={n <- @rosters}
+                  phx-click="roster"
+                  phx-value-n={n}
+                  disabled={not roster_ok?(assigns, n)}
+                  title={if not roster_ok?(assigns, n), do: "This slate can't feed a #{n}-slot draft"}
+                  class="hu-cond"
+                  style={pill(@roster == n, 16) <> if(roster_ok?(assigns, n), do: "", else: ";opacity:.3;cursor:not-allowed")}
+                >
                   {n} SLOTS
                 </button>
               </div>
@@ -306,16 +358,35 @@ defmodule HeadsUpWeb.NewChallengeLive do
               <span style="font-size:10.5px;font-weight:900;letter-spacing:1.5px;color:#565D73">
                 STAKE · ◎ COINS ({@coins} IN YOUR WALLET)
               </span>
-              <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                 <button
                   :for={n <- @stakes}
                   phx-click="stake"
                   phx-value-n={n}
                   disabled={n > @coins}
-                  style={pill(@stake == n, 12) <> if(n > @coins, do: ";opacity:.3;cursor:not-allowed", else: "")}
+                  style={pill(@stake == n and not @custom_stake_open, 12) <> if(n > @coins, do: ";opacity:.3;cursor:not-allowed", else: "")}
                 >
                   {if n == 0, do: "No stake", else: "◎ #{n}"}
                 </button>
+                <button
+                  :if={not custom_stake?(assigns)}
+                  phx-click="stake-custom-open"
+                  style={pill(false, 12)}
+                >
+                  Custom…
+                </button>
+                <form :if={custom_stake?(assigns)} phx-change="stake-custom" id="custom-stake" style="display:flex;align-items:center;gap:6px">
+                  <span style="font-size:12px;font-weight:800;color:var(--acc,#C8FF2E)">◎</span>
+                  <input
+                    type="number"
+                    name="n"
+                    value={if @custom_stake_open and not @custom_dirty, do: "", else: @stake}
+                    min="0"
+                    max={HeadsUp.Coins.stake_max()}
+                    placeholder="amount"
+                    style="width:92px;background:#0D0F16;border:1px solid var(--acc,#C8FF2E);border-radius:999px;color:#EDEFF7;font-size:12px;font-weight:800;padding:8px 14px;outline:none"
+                  />
+                </form>
               </div>
             </div>
 
@@ -409,7 +480,7 @@ defmodule HeadsUpWeb.NewChallengeLive do
               {if @counter, do: "SEND THE COUNTER →", else: "SEND IT →"}
             </button>
             <span style="font-size:10.5px;color:#565D73;font-weight:600;text-align:center">
-              Everyone you call out gets a seat when they accept. Max 4 drafters.
+              Everyone you call out gets a seat when they accept. Max 5 drafters.
             </span>
           </div>
         </div>
@@ -460,6 +531,46 @@ defmodule HeadsUpWeb.NewChallengeLive do
   defp group_pill(false),
     do:
       "cursor:pointer;font-size:11px;font-weight:800;letter-spacing:.5px;color:#8B91A7;background:transparent;border:1px solid #252A3A;border-radius:999px;padding:6px 14px"
+
+  # The custom-amount input shows when it's been opened, or when the current
+  # stake isn't a preset (countering a custom-stake duel lands here).
+  defp custom_stake?(%{custom_stake_open: true}), do: true
+  defp custom_stake?(%{stake: stake}), do: stake not in @stakes
+
+  # The server rejects a slate that can't field roster x drafters x 2 bodies.
+  # Mirror it here (the phone does the same) so sizes grey out BEFORE you send.
+  defp fits?(assigns, size, drafters) do
+    case slate_players(assigns) do
+      nil -> true
+      players -> players >= size * drafters * 2
+    end
+  end
+
+  defp roster_ok?(assigns, size), do: fits?(assigns, size, max(length(assigns.rivals) + 1, 2))
+
+  defp slate_players(%{slate: nil}), do: nil
+
+  defp slate_players(%{slates: slates, slate_kind: kind, slate: id}) do
+    case Enum.find(slates, &(slate_id(kind, &1) == id)) do
+      %{players: players} -> players
+      _ -> nil
+    end
+  end
+
+  # If the picked roster stops fitting (slate changed, or a rival joined),
+  # fall back to the largest size that still works.
+  defp resnap_roster(socket) do
+    %{roster: roster, rosters: rosters} = socket.assigns
+
+    if roster_ok?(socket.assigns, roster) do
+      socket
+    else
+      case rosters |> Enum.reverse() |> Enum.find(&roster_ok?(socket.assigns, &1)) do
+        nil -> socket
+        ok -> assign(socket, roster: ok)
+      end
+    end
+  end
 
   defp visible_friends(friends, _groups, "ALL"), do: friends
 

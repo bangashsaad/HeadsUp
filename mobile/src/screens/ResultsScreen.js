@@ -3,13 +3,14 @@ import { ActivityIndicator, Alert, Animated, Pressable, Share, StyleSheet, Text,
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../auth/AuthContext';
-import { getResult, rematch } from '../api/duels';
+import { getMessages, getResult, rematch, sendMessage } from '../api/duels';
 import { ApiError } from '../api/client';
 import ConfettiBurst from '../components/ConfettiBurst';
 import { notify, NotifyType } from '../haptics';
 import { useTheme, useThemedStyles, spacing, radius, font, fonts, withAlpha } from '../theme';
 import { Screen, Card, Avatar, Button, EmptyState, GhostText, Kicker, DisplayTitle, CondTitle, Pulse } from '../components/ui';
 import PlayerAvatar from '../components/PlayerAvatar';
+import TrashTalk from '../components/TrashTalk';
 
 const ordinal = (n) => (n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`);
 const medal = (rank) => (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : String(rank));
@@ -61,6 +62,10 @@ export default function ResultsScreen({ route, navigation }) {
   const pop = useRef(new Animated.Value(0.85)).current;
   const [rematching, setRematching] = useState(false);
   const [confetti, setConfetti] = useState(false);
+  // The thread carries over from the live room — receipts stay open.
+  const [chat, setChat] = useState([]);
+  const [chatDraft, setChatDraft] = useState('');
+  const [sendingChat, setSendingChat] = useState(false);
 
   async function doRematch() {
     setRematching(true);
@@ -88,11 +93,33 @@ export default function ResultsScreen({ route, navigation }) {
           else setError(e.message);
         }
       })();
+      const loadChat = () =>
+        getMessages(token, id)
+          .then((r) => active && setChat(r.messages || []))
+          .catch(() => {});
+      loadChat();
+      const chatTimer = setInterval(loadChat, 20000);
       return () => {
         active = false;
+        clearInterval(chatTimer);
       };
     }, [token, id])
   );
+
+  async function fireChat() {
+    const body = chatDraft.trim();
+    if (!body || sendingChat) return;
+    setSendingChat(true);
+    setChatDraft('');
+    try {
+      const res = await sendMessage(token, id, body);
+      setChat((c) => [...c, res.message]);
+    } catch (e) {
+      setChatDraft(body); // give the jab back rather than eating it
+    } finally {
+      setSendingChat(false);
+    }
+  }
 
   useEffect(() => {
     if (!result || celebrated.current) return;
@@ -257,6 +284,8 @@ export default function ResultsScreen({ route, navigation }) {
               <Button title={rematching ? 'Sending…' : '⚡ Rematch the group'} onPress={doRematch} disabled={rematching} />
             </Pulse>
             <Button title="Share the receipt" icon="share-outline" variant="outline" onPress={shareStandings} style={{ marginTop: spacing.sm }} />
+
+            <TrashTalk chat={chat} draft={chatDraft} setDraft={setChatDraft} onSend={fireChat} sending={sendingChat} />
           </View>
         </Screen>
         {confetti ? <ConfettiBurst /> : null}
@@ -354,6 +383,8 @@ export default function ResultsScreen({ route, navigation }) {
             <Button title={rematching ? 'Sending…' : '⚡ Instant rematch'} onPress={doRematch} disabled={rematching} />
           </Pulse>
           <Button title="Share the receipt" icon="share-outline" variant="outline" onPress={shareResult} style={{ marginTop: spacing.sm }} />
+
+          <TrashTalk chat={chat} draft={chatDraft} setDraft={setChatDraft} onSend={fireChat} sending={sendingChat} />
         </View>
       </Screen>
       {confetti ? <ConfettiBurst /> : null}

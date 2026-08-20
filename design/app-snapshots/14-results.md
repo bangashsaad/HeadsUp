@@ -49,18 +49,294 @@ UI kit primitives the screens compose (from `src/components/ui/`):
 ## The screen source (`src/screens/ResultsScreen.js`)
 
 ```jsx
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { Appearance, StyleSheet } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+
+// ---------------------------------------------------------------------------
+// Tokens that don't change with light/dark.
+// ---------------------------------------------------------------------------
+export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 };
+export const radius = { sm: 8, md: 12, lg: 16, xl: 20, pill: 999 };
+export const font = {
+  caption: 12,
+  small: 13,
+  body: 15,
+  bodyLg: 16,
+  subtitle: 17,
+  title: 22,
+  titleLg: 28,
+  hero: 34,
+};
+export const shadow = {
+  sm: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.16, shadowRadius: 6, elevation: 2 },
+  md: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 12, elevation: 5 },
+  lg: { shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.26, shadowRadius: 20, elevation: 10 },
+};
+
+// ---------------------------------------------------------------------------
+// Typeface tokens ("Reimagined" design language). Each entry is a loaded
+// expo-google-fonts face; when you set one as fontFamily, do NOT also set
+// fontWeight (the weight is baked into the face name).
+//   display   – Archivo Black energy, italic: wordmark, YOU WIN., ghost VS
+//   hero      – Barlow Condensed 800 italic: scores, section titles, buttons
+//   body*     – Archivo: running text and labels
+// ---------------------------------------------------------------------------
+export const fonts = {
+  display: 'Archivo_900Black_Italic',
+  displayUpright: 'Archivo_900Black',
+  hero: 'BarlowCondensed_800ExtraBold_Italic',
+  heroUpright: 'BarlowCondensed_800ExtraBold',
+  condBold: 'BarlowCondensed_700Bold',
+  condBoldItalic: 'BarlowCondensed_700Bold_Italic',
+  condSemi: 'BarlowCondensed_600SemiBold',
+  condMedium: 'BarlowCondensed_500Medium',
+  body: 'Archivo_400Regular',
+  bodyMedium: 'Archivo_500Medium',
+  bodySemi: 'Archivo_600SemiBold',
+  bodyBold: 'Archivo_700Bold',
+  bodyExtra: 'Archivo_800ExtraBold',
+  bodyBlack: 'Archivo_900Black',
+};
+
+// hex (#RRGGBB) -> rgba() string. The JS stand-in for CSS color-mix().
+export function withAlpha(hex, alpha) {
+  const h = hex.replace('#', '');
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ---------------------------------------------------------------------------
+// Palettes. `onAccent` is the text/icon color that sits ON the accent (so the
+// primary button stays legible: near-black text on lime).
+// ---------------------------------------------------------------------------
+const DARK = {
+  bg: '#0A0B10',
+  bgElevated: '#0D0F16',
+  card: '#12141D',
+  cardElevated: '#191C28',
+  border: '#252A3A',
+  borderSubtle: '#1A1E2B',
+  text: '#F4F5F7',
+  textDim: '#B9BECF',
+  textFaint: '#3A4157',
+  muted: '#8B91A7',
+  placeholder: '#565D73',
+  accent: '#C8FF2E',
+  onAccent: '#0A0B10',
+  accentSoft: 'rgba(200,255,46,0.10)',
+  accentBorder: 'rgba(200,255,46,0.45)',
+  danger: '#FF4557',
+  dangerSoft: 'rgba(255,69,87,0.15)',
+  dangerBorder: 'rgba(255,69,87,0.50)',
+  warning: '#FFB021',
+  warningSoft: 'rgba(255,176,33,0.14)',
+  warningBorder: 'rgba(255,176,33,0.40)',
+  info: '#9F8BFF',
+  infoSoft: 'rgba(124,92,255,0.15)',
+  infoBorder: 'rgba(124,92,255,0.45)',
+  // Extended "Reimagined" family
+  purple: '#7C5CFF',
+  purpleText: '#9F8BFF',
+  purpleSoft: 'rgba(124,92,255,0.15)',
+  purpleBorder: 'rgba(124,92,255,0.45)',
+  cyan: '#22E5FF',
+  pink: '#FF4D8D',
+  green: '#39D98A',
+  orange: '#FF7A1A',
+  gold: '#FFB021',
+  silver: '#B9BECF',
+  bronze: '#C97C3D',
+};
+
+const LIGHT = {
+  bg: '#F4F5F8',
+  bgElevated: '#ECEEF4',
+  card: '#FFFFFF',
+  cardElevated: '#EEF1F6', // bands/chips need to recess on white cards
+  border: '#DCE0EA',
+  borderSubtle: '#E8EBF2',
+  text: '#12141D',
+  textDim: '#3A4157',
+  textFaint: '#C3C9D6',
+  muted: '#565D73',
+  placeholder: '#8B91A7',
+  accent: '#65A30D',
+  onAccent: '#FFFFFF',
+  accentSoft: 'rgba(101,163,13,0.10)',
+  accentBorder: 'rgba(101,163,13,0.32)',
+  danger: '#E11D48',
+  dangerSoft: 'rgba(225,29,72,0.08)',
+  dangerBorder: 'rgba(225,29,72,0.28)',
+  warning: '#C77700',
+  warningSoft: 'rgba(199,119,0,0.10)',
+  warningBorder: 'rgba(199,119,0,0.30)',
+  info: '#6D4AFF',
+  infoSoft: 'rgba(109,74,255,0.08)',
+  infoBorder: 'rgba(109,74,255,0.28)',
+  purple: '#6D4AFF',
+  purpleText: '#6D4AFF',
+  purpleSoft: 'rgba(109,74,255,0.08)',
+  purpleBorder: 'rgba(109,74,255,0.28)',
+  cyan: '#0891B2',
+  pink: '#DB2777',
+  green: '#0E9F6E',
+  orange: '#EA580C',
+  gold: '#B45309',
+  silver: '#64748B',
+  bronze: '#A16207',
+};
+
+export const PALETTES = { dark: DARK, light: LIGHT };
+
+// Semantic tone -> {bg, text, border} for badges/pills/banners.
+export function makeTones(c) {
+  return {
+    neutral: { bg: c.card, text: c.muted, border: c.border },
+    accent: { bg: c.accentSoft, text: c.accent, border: c.accentBorder },
+    danger: { bg: c.dangerSoft, text: c.danger, border: c.dangerBorder },
+    warning: { bg: c.warningSoft, text: c.warning, border: c.warningBorder },
+    info: { bg: c.infoSoft, text: c.info, border: c.infoBorder },
+  };
+}
+
+// Map a duel status string to a tone name.
+export function statusTone(status) {
+  switch (status) {
+    case 'accepted':
+    case 'drafted':
+    case 'settled':
+      return 'accent';
+    case 'drafting':
+      return 'danger'; // live = red, per the Reimagined language
+    case 'pending':
+    case 'countered':
+      return 'info';
+    case 'declined':
+    case 'cancelled':
+      return 'danger';
+    default:
+      return 'neutral';
+  }
+}
+
+// Deterministic avatar tint from a name (mode-independent).
+const AVATAR_TINTS = ['#FF4D8D', '#22E5FF', '#39D98A', '#FFB021', '#7C5CFF', '#5CA8FF', '#FF7A1A'];
+export function avatarColor(seed = '') {
+  let h = 0;
+  for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
+  return AVATAR_TINTS[h % AVATAR_TINTS.length];
+}
+
+// ---------------------------------------------------------------------------
+// Theme context: a persisted preference ('system' | 'light' | 'dark') resolved
+// to an active scheme, plus the matching palette + tones.
+// ---------------------------------------------------------------------------
+const MODE_KEY = 'theme_mode';
+const ThemeContext = createContext(null);
+
+export function ThemeProvider({ children }) {
+  const [mode, setModeState] = useState('dark'); // persisted preference
+  const [systemScheme, setSystemScheme] = useState(Appearance.getColorScheme() || 'dark');
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const saved = await SecureStore.getItemAsync(MODE_KEY);
+        if (saved === 'light' || saved === 'dark' || saved === 'system') setModeState(saved);
+      } catch (_) {}
+    })();
+    const sub = Appearance.addChangeListener(({ colorScheme }) => setSystemScheme(colorScheme || 'dark'));
+    return () => sub.remove();
+  }, []);
+
+  function setMode(next) {
+    setModeState(next);
+    SecureStore.setItemAsync(MODE_KEY, next).catch(() => {});
+  }
+
+  const scheme = mode === 'system' ? systemScheme : mode;
+  const colors = PALETTES[scheme] || DARK;
+  const value = useMemo(
+    () => ({ mode, setMode, scheme, colors, tones: makeTones(colors) }),
+    [mode, scheme, colors]
+  );
+
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+}
+
+export function useTheme() {
+  return useContext(ThemeContext) || { mode: 'dark', setMode: () => {}, scheme: 'dark', colors: DARK, tones: makeTones(DARK) };
+}
+
+// Build a StyleSheet from the active theme; memoized per palette.
+// Usage: const styles = useThemedStyles((c, t) => StyleSheet.create({...}))
+export function useThemedStyles(factory) {
+  const { colors, tones } = useTheme();
+  return useMemo(() => factory(colors, tones), [colors, tones, factory]);
+}
+
+// Themed react-navigation header options (re-themes when the palette changes).
+export function useNavHeader() {
+  const { colors } = useTheme();
+  return {
+    headerStyle: { backgroundColor: colors.bg },
+    headerTintColor: colors.text,
+    headerShadowVisible: false,
+    headerTitleStyle: { fontFamily: fonts.heroUpright, fontSize: 18, letterSpacing: 0.5 },
+    headerBackTitleVisible: false,
+    contentStyle: { backgroundColor: colors.bg },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Backward-compatible static exports (dark). Anything not yet converted to
+// useTheme() keeps rendering against the dark palette and never crashes.
+// ---------------------------------------------------------------------------
+export const colors = DARK;
+export const tones = makeTones(DARK);
+
+export const navHeader = {
+  headerStyle: { backgroundColor: DARK.bg },
+  headerTintColor: DARK.text,
+  headerShadowVisible: false,
+  headerTitleStyle: { fontFamily: fonts.heroUpright, fontSize: 18, letterSpacing: 0.5 },
+};
+
+export const authStyles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: DARK.bg, justifyContent: 'center', padding: 24 },
+  title: { color: DARK.text, fontSize: 30, fontWeight: '800', textAlign: 'center' },
+  subtitle: { color: DARK.muted, fontSize: 15, textAlign: 'center', marginTop: 6, marginBottom: 28 },
+  input: {
+    backgroundColor: DARK.card,
+    color: DARK.text,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: DARK.border,
+  },
+  button: { backgroundColor: DARK.accent, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 8 },
+  buttonText: { color: DARK.onAccent, fontSize: 16, fontWeight: '700' },
+  link: { color: DARK.accent, textAlign: 'center', marginTop: 18, fontSize: 15 },
+  error: { color: DARK.danger, textAlign: 'center', marginBottom: 14, fontSize: 14 },
+});import { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Animated, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../auth/AuthContext';
-import { getResult, rematch } from '../api/duels';
+import { getMessages, getResult, rematch, sendMessage } from '../api/duels';
 import { ApiError } from '../api/client';
 import ConfettiBurst from '../components/ConfettiBurst';
 import { notify, NotifyType } from '../haptics';
 import { useTheme, useThemedStyles, spacing, radius, font, fonts, withAlpha } from '../theme';
 import { Screen, Card, Avatar, Button, EmptyState, GhostText, Kicker, DisplayTitle, CondTitle, Pulse } from '../components/ui';
 import PlayerAvatar from '../components/PlayerAvatar';
+import TrashTalk from '../components/TrashTalk';
 
 const ordinal = (n) => (n === 1 ? '1st' : n === 2 ? '2nd' : n === 3 ? '3rd' : `${n}th`);
 const medal = (rank) => (rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : String(rank));
@@ -112,6 +388,10 @@ export default function ResultsScreen({ route, navigation }) {
   const pop = useRef(new Animated.Value(0.85)).current;
   const [rematching, setRematching] = useState(false);
   const [confetti, setConfetti] = useState(false);
+  // The thread carries over from the live room — receipts stay open.
+  const [chat, setChat] = useState([]);
+  const [chatDraft, setChatDraft] = useState('');
+  const [sendingChat, setSendingChat] = useState(false);
 
   async function doRematch() {
     setRematching(true);
@@ -120,6 +400,7 @@ export default function ResultsScreen({ route, navigation }) {
       navigation.navigate('DuelDetail', { id: res.duel.id });
     } catch (e) {
       setRematching(false);
+      Alert.alert("Couldn't rematch", e.message);
     }
   }
 
@@ -138,11 +419,33 @@ export default function ResultsScreen({ route, navigation }) {
           else setError(e.message);
         }
       })();
+      const loadChat = () =>
+        getMessages(token, id)
+          .then((r) => active && setChat(r.messages || []))
+          .catch(() => {});
+      loadChat();
+      const chatTimer = setInterval(loadChat, 20000);
       return () => {
         active = false;
+        clearInterval(chatTimer);
       };
     }, [token, id])
   );
+
+  async function fireChat() {
+    const body = chatDraft.trim();
+    if (!body || sendingChat) return;
+    setSendingChat(true);
+    setChatDraft('');
+    try {
+      const res = await sendMessage(token, id, body);
+      setChat((c) => [...c, res.message]);
+    } catch (e) {
+      setChatDraft(body); // give the jab back rather than eating it
+    } finally {
+      setSendingChat(false);
+    }
+  }
 
   useEffect(() => {
     if (!result || celebrated.current) return;
@@ -235,7 +538,7 @@ export default function ResultsScreen({ route, navigation }) {
 
   // Group duel: ranked leaderboard instead of the VS scoreboard.
   const standings = result.standings || [];
-  if (standings.length > 2) {
+  if (standings.length > 0) {
     const mine = standings.find((s) => s.is_me);
     const b = groupBanner(mine?.rank ?? standings.length, result.is_tie);
     const bannerColor = b.color === 'accent' ? colors.accent : b.color === 'danger' ? colors.danger : colors.text;
@@ -307,6 +610,8 @@ export default function ResultsScreen({ route, navigation }) {
               <Button title={rematching ? 'Sending…' : '⚡ Rematch the group'} onPress={doRematch} disabled={rematching} />
             </Pulse>
             <Button title="Share the receipt" icon="share-outline" variant="outline" onPress={shareStandings} style={{ marginTop: spacing.sm }} />
+
+            <TrashTalk chat={chat} draft={chatDraft} setDraft={setChatDraft} onSend={fireChat} sending={sendingChat} />
           </View>
         </Screen>
         {confetti ? <ConfettiBurst /> : null}
@@ -404,6 +709,8 @@ export default function ResultsScreen({ route, navigation }) {
             <Button title={rematching ? 'Sending…' : '⚡ Instant rematch'} onPress={doRematch} disabled={rematching} />
           </Pulse>
           <Button title="Share the receipt" icon="share-outline" variant="outline" onPress={shareResult} style={{ marginTop: spacing.sm }} />
+
+          <TrashTalk chat={chat} draft={chatDraft} setDraft={setChatDraft} onSend={fireChat} sending={sendingChat} />
         </View>
       </Screen>
       {confetti ? <ConfettiBurst /> : null}
@@ -558,4 +865,103 @@ export default function PlayerAvatar({ uri, name, size = 36, style }) {
     </View>
   );
 }
+```
+
+## Shared component it uses: `TrashTalk.js`
+
+```jsx
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useAuth } from '../auth/AuthContext';
+import { useTheme, useThemedStyles, spacing, radius, font, fonts, withAlpha } from '../theme';
+import { CondTitle, Kicker } from './ui';
+
+// The rivalry's text thread — your jabs right-aligned in lime, theirs left in
+// purple, capped input, send pill. One component so the live room and the
+// post-game receipt argue in the same voice.
+export default function TrashTalk({ chat, draft, setDraft, onSend, sending, title = 'TRASH TALK' }) {
+  const { user } = useAuth();
+  const { colors } = useTheme();
+  const styles = useThemedStyles(makeStyles);
+  const myId = user?.id;
+
+  return (
+    <View style={styles.talkCard}>
+      <View style={styles.talkHead}>
+        <CondTitle size={15} color={colors.text} style={{ letterSpacing: 1 }}>
+          {title}
+        </CondTitle>
+        <Kicker size={9} tracking={1.5}>
+          Only the duel can see this
+        </Kicker>
+      </View>
+
+      {chat.length === 0 ? (
+        <Text style={styles.talkEmpty}>Say something. Scoreboard talk is free.</Text>
+      ) : (
+        <View style={styles.talkThread}>
+          {chat.slice(-30).map((m) => {
+            const mine = String(m.user_id) === String(myId);
+            return (
+              <View key={m.id} style={{ alignItems: mine ? 'flex-end' : 'flex-start' }}>
+                <Text style={[styles.talkWho, { color: mine ? colors.accent : colors.purpleText }]}>
+                  {mine ? 'YOU' : m.username.toUpperCase()}
+                </Text>
+                <View
+                  style={[
+                    styles.talkBubble,
+                    mine
+                      ? { backgroundColor: withAlpha(colors.accent, 0.1), borderColor: withAlpha(colors.accent, 0.35) }
+                      : { backgroundColor: withAlpha(colors.purple, 0.12), borderColor: withAlpha(colors.purple, 0.4) },
+                  ]}
+                >
+                  <Text style={styles.talkText}>{m.body}</Text>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <View style={styles.talkRow}>
+          <TextInput
+            value={draft}
+            onChangeText={setDraft}
+            placeholder="Talk your talk…"
+            placeholderTextColor={colors.placeholder}
+            maxLength={280}
+            style={styles.talkInput}
+            onSubmitEditing={onSend}
+            returnKeyType="send"
+          />
+          <Pressable
+            onPress={onSend}
+            disabled={sending || !draft.trim()}
+            style={({ pressed }) => [
+              styles.talkSend,
+              (sending || !draft.trim()) && { opacity: 0.35 },
+              pressed && { opacity: 0.7 },
+            ]}
+          >
+            <Text style={{ color: colors.onAccent, fontFamily: fonts.bodyBlack, fontSize: 15 }}>➤</Text>
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+const makeStyles = (colors) =>
+  StyleSheet.create({
+    talkCard: { marginTop: spacing.xl, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+    talkHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: spacing.md, paddingTop: spacing.md },
+    talkEmpty: { color: colors.placeholder, fontSize: font.small, padding: spacing.md, textAlign: 'center' },
+    talkThread: { padding: spacing.md, gap: 9 },
+    talkWho: { fontSize: 9.5, fontFamily: fonts.bodyBlack, letterSpacing: 1, marginBottom: 2 },
+    talkBubble: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, maxWidth: '80%' },
+    talkText: { color: colors.text, fontSize: 13, lineHeight: 19 },
+    talkRow: { flexDirection: 'row', gap: 8, padding: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderSubtle },
+    talkInput: { flex: 1, backgroundColor: colors.bgElevated, borderWidth: 1, borderColor: colors.border, borderRadius: 999, paddingHorizontal: 15, paddingVertical: 10, color: colors.text, fontSize: 13, fontFamily: fonts.body },
+    talkSend: { width: 40, height: 40, borderRadius: 999, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  });
 ```

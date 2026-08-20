@@ -25,7 +25,7 @@ defmodule HeadsUpWeb.YouLive do
 
     {:ok,
      socket
-     |> assign(page_title: "Profile", win_tab: "BY LEAGUE", crew_tab: "ALL", sel: sel, danger: nil)
+     |> assign(page_title: "Profile", win_tab: "BY LEAGUE", crew_tab: "ALL", sel: sel, danger: nil, blocked: [])
      |> assign(adding: false, search: "", results: [], sent_ids: MapSet.new())
      |> load()}
   end
@@ -120,8 +120,19 @@ defmodule HeadsUpWeb.YouLive do
     end
   end
 
-  def handle_event("danger", %{"which" => which}, socket),
-    do: {:noreply, assign(socket, danger: if(socket.assigns.danger == which, do: nil, else: which))}
+  def handle_event("danger", %{"which" => which}, socket) do
+    socket =
+      if which == "blocked" and socket.assigns.danger != "blocked",
+        do: assign(socket, blocked: Social.list_blocked(socket.assigns.current_user)),
+        else: socket
+
+    {:noreply, assign(socket, danger: if(socket.assigns.danger == which, do: nil, else: which))}
+  end
+
+  def handle_event("unblock", %{"id" => id}, socket) do
+    Social.unblock_user(socket.assigns.current_user, Params.int(id))
+    {:noreply, assign(socket, blocked: Social.list_blocked(socket.assigns.current_user))}
+  end
   def handle_event("danger-close", _params, socket), do: {:noreply, assign(socket, danger: nil)}
 
   def handle_event("change-password", %{"current" => cur, "new" => new}, socket) do
@@ -470,6 +481,29 @@ defmodule HeadsUpWeb.YouLive do
             <span style="width:13px;height:13px;background:#565D73;-webkit-mask:url('/icons/b6200cf4.svg') center/contain no-repeat;mask:url('/icons/b6200cf4.svg') center/contain no-repeat">
             </span>
           </.link>
+          <div phx-click="danger" phx-value-which="blocked" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:12px 18px;border-bottom:1px solid #14171F">
+            <span style="font-size:13px;font-weight:700">Blocked players</span>
+            <span style="width:13px;height:13px;background:#565D73;-webkit-mask:url('/icons/b6200cf4.svg') center/contain no-repeat;mask:url('/icons/b6200cf4.svg') center/contain no-repeat">
+            </span>
+          </div>
+          <div :if={@danger == "blocked"} style="padding:0 18px 16px;display:flex;flex-direction:column;gap:8px">
+            <p :if={@blocked == []} style="font-size:11.5px;color:#565D73;font-weight:600">
+              Nobody's blocked. Block someone from their rivalry page — it cancels shared duels and they can't reach you.
+            </p>
+            <div
+              :for={u <- @blocked}
+              style="display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid #252A3A;background:#0D0F16;border-radius:11px;padding:9px 13px"
+            >
+              <span style="font-size:12.5px;font-weight:800">{u.username}</span>
+              <button
+                phx-click="unblock"
+                phx-value-id={u.id}
+                style="cursor:pointer;background:transparent;border:1px solid #3A4157;color:#B9BECF;font-size:10.5px;font-weight:900;letter-spacing:.5px;border-radius:999px;padding:5px 12px"
+              >
+                UNBLOCK
+              </button>
+            </div>
+          </div>
           <div phx-click="danger" phx-value-which="delete" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px">
             <span style="font-size:13px;font-weight:700;color:#FF4557">Delete account</span>
             <span style="font-size:10.5px;color:#565D73;font-weight:600">Permanent — duels are anonymized, coins are gone</span>

@@ -58,6 +58,10 @@ defmodule HeadsUpWeb.Router do
     post "/login", SessionController, :create
     get "/signup", SessionController, :new_signup
     post "/signup", SessionController, :signup
+    get "/forgot-password", SessionController, :forgot
+    post "/forgot-password", SessionController, :send_reset
+    get "/reset-password", SessionController, :reset
+    post "/reset-password", SessionController, :do_reset
   end
 
   scope "/", HeadsUpWeb do
@@ -74,7 +78,9 @@ defmodule HeadsUpWeb.Router do
       layout: {HeadsUpWeb.Layouts, :root} do
       live "/app", HomeLive, :index
       live "/app/verify", VerifyLive, :index
+      live "/app/coins", CoinsLive, :index
       live "/app/duels", DuelsLive, :index
+      live "/app/duels/:id", DuelDetailLive, :show
       live "/app/new", NewChallengeLive, :new
       live "/app/draft", DraftHubLive, :index
       live "/app/draft/:id", DraftLive, :show

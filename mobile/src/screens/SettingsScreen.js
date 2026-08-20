@@ -94,6 +94,16 @@ export default function SettingsScreen({ navigation }) {
           <Text style={[styles.rowLabel, { flex: 1 }]}>Change password</Text>
           <Ionicons name="chevron-forward" size={18} color={colors.placeholder} />
         </Pressable>
+        <Pressable onPress={() => navigation.navigate('Blocked')} style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.bgElevated }]}>
+          <View style={styles.rowIcon}>
+            <Ionicons name="hand-left-outline" size={18} color={colors.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowLabel}>Blocked players</Text>
+            <Text style={styles.rowSub}>See who's blocked, undo it</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.placeholder} />
+        </Pressable>
         <Pressable onPress={confirmDelete} style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.bgElevated }]}>
           <View style={[styles.rowIcon, { backgroundColor: colors.dangerSoft }]}>
             <Ionicons name="trash-outline" size={18} color={colors.danger} />

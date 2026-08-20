@@ -8,7 +8,7 @@ next to the design instead of silently drawing it.
 
 ## What this is
 
-1-on-1 (up to 4-player) fantasy sports duels. Challenge a rival, snake-draft
+1-on-1 (up to 5-player) fantasy sports duels. Challenge a rival, snake-draft
 real players from a real slate on a ticking clock, watch both rosters score
 live off real box scores, winner takes the coin pot and the rivalry lead.
 Trash talk built in. Two clients — an iOS app and the web app at
@@ -36,9 +36,9 @@ headsupfantasy.com — one backend. **Every design ships to both.**
 |---|---|
 | Leagues | 🏀 WNBA, ⚾️ MLB, 🏈 NFL, 🏀 NBA — off-season leagues show but are dimmed/disabled ("OFF-SEASON") |
 | Roster sizes | **Per sport**: 🏀 5 or 7 · 🏈 5 or 7 · ⚾️ **6 or 9** (6 = one pitcher + five bats w/ UTIL; 9 = "the diamond": P·C·1B·2B·3B·SS·3 OF, no UTIL) — nothing else |
-| Stakes | **No stake / ◎ 25 / ◎ 100** — there is no 50. Pot = stake × number of drafters |
+| Stakes | **No stake / ◎ 25 / ◎ 100 / custom (up to ◎ 10,000, wallet-capped)**. Pot = stake × number of drafters |
 | Pick clock | **15 / 30 / 60 seconds** — no minute/hour clocks |
-| Drafters per duel | **1v1 up to 4 total** ("call out up to 3 rivals"). Never 8 |
+| Drafters per duel | **1v1 up to 5 total** ("call out up to 4 rivals"). Never 8 |
 | Slates | Basketball/baseball pick a **day** ("Tonight", "Tomorrow", "Sat Aug 16"); football picks a **week** ("Preseason Wk 2", "Week 3"). One slate per duel |
 | Draft | Snake order, coin flip for first pick, auto-pick on clock expiry, per-position slots (e.g. G/G/F/F/FLEX) |
 | Duel statuses + badge language | pending→you answer: **RESPOND** (cyan #22E5FF) · pending→you sent: **SENT** (gray) · **COUNTERED** (purple #A794FF, "terms changed") · accepted: **READY** (lime) · **DRAFTING** (red, blinking) · drafted/live: **IN PLAY** (cyan, blinking) · then settled W/L/T, declined, cancelled, expired |
@@ -77,9 +77,9 @@ profile row, and the marquee ticker across the top.
    goes or what it does ("game card → box score with fantasy leaders",
    "REMATCH → sends same terms"). Unannotated elements get built as static.
 4. **Use realistic demo data** consistent with the hard-facts table (WNBA/MLB/
-   NFL names, 5/7 slots, ◎ 25/◎ 100 stakes, seconds clocks, max 4 drafters).
+   NFL names, per-sport slots (5/7 hoops+football, 6/9 baseball), ◎ 25/◎ 100/custom stakes, seconds clocks, max 5 drafters).
 5. **Group duels exist** (3–4 players). Where a screen shows a duel, consider
-   how the 4-player version reads (seat count "2/4 in", ranked standings
+   how the multi-player version reads (seat count "2/5 in", ranked standings
    🥇🥈🥉 in results).
 6. **Don't design these (deliberately out of scope):** first-to-accept
    challenges (deferred until the clan-chat build), buying coins, player-pool

@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import ChangePasswordScreen from '../screens/ChangePasswordScreen';
+import BlockedScreen from '../screens/BlockedScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
 import CoinHistoryScreen from '../screens/CoinHistoryScreen';
@@ -28,6 +29,7 @@ export default function YouStack() {
       <Stack.Screen name="FriendGroups" component={FriendGroupsScreen} options={{ title: 'Friend Groups' }} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />
       <Stack.Screen name="ChangePassword" component={ChangePasswordScreen} options={{ title: 'Change Password' }} />
+      <Stack.Screen name="Blocked" component={BlockedScreen} options={{ title: 'Blocked Players' }} />
     </Stack.Navigator>
   );
 }

@@ -193,4 +193,95 @@ defmodule HeadsUpWeb.WebParityTest do
       assert html =~ "Nobody by that name"
     end
   end
+
+  describe "wave-3 parity builds" do
+    test "the duel detail page renders the terms and the scoring chart", %{conn: conn, a: a, b: b} do
+      {:ok, duel} =
+        Contests.create_challenge(b, %{
+          "sport" => "wnba",
+          "opponent_id" => a.id,
+          "roster_size" => 5,
+          "stake_coins" => 0,
+          "draft_starts_at" => DateTime.utc_now() |> DateTime.add(1800, :second) |> DateTime.to_iso8601()
+        })
+
+      {:ok, _view, html} = live(conn, ~p"/app/duels/#{duel.id}")
+      assert html =~ "THE TERMS"
+      assert html =~ "SCORING"
+      assert html =~ "parb"
+    end
+
+    test "the coin ledger renders real entries — grant rows have no duel link", %{conn: conn, a: a} do
+      {:ok, _} = HeadsUp.Coins.grant_signup(a.id)
+
+      {:ok, _view, html} = live(conn, ~p"/app/coins")
+      assert html =~ "COIN BALANCE"
+      assert html =~ "Welcome bonus"
+      assert html =~ "1,000"
+    end
+
+    test "forgot-password answers identically for real and ghost accounts" do
+      real =
+        Phoenix.ConnTest.build_conn()
+        |> post(~p"/forgot-password", %{"user" => %{"email" => "para@example.com"}})
+
+      ghost =
+        Phoenix.ConnTest.build_conn()
+        |> post(~p"/forgot-password", %{"user" => %{"email" => "nobody-here@example.com"}})
+
+      assert redirected_to(real) =~ "/reset-password"
+      assert redirected_to(ghost) =~ "/reset-password"
+      assert Phoenix.Flash.get(real.assigns.flash, :info) == Phoenix.Flash.get(ghost.assigns.flash, :info)
+    end
+
+    test "the web reset loop: emailed code -> new password -> signed in", %{a: a} do
+      Phoenix.ConnTest.build_conn()
+      |> post(~p"/forgot-password", %{"user" => %{"email" => a.email}})
+
+      assert_received {:email, email}
+      [code] = Regex.run(~r/\b(\d{6})\b/, email.text_body, capture: :all_but_first)
+
+      # A wrong code is refused with the error on the page.
+      bad =
+        Phoenix.ConnTest.build_conn()
+        |> post(~p"/reset-password", %{
+          "user" => %{"email" => a.email, "code" => "000000", "password" => "newpassword456"}
+        })
+
+      assert html_response(bad, 422) =~ "isn"
+
+      good =
+        Phoenix.ConnTest.build_conn()
+        |> post(~p"/reset-password", %{
+          "user" => %{"email" => a.email, "code" => code, "password" => "newpassword456"}
+        })
+
+      assert redirected_to(good) == "/app"
+      assert Accounts.get_user_by_email_and_password(a.email, "newpassword456").id == a.id
+    end
+
+    test "the blocked panel lists and lifts blocks", %{conn: conn, a: a} do
+      stranger = user("parblocked")
+      {:ok, _} = Social.block_user(a, stranger.id)
+
+      {:ok, view, _html} = live(conn, ~p"/app/you")
+      html = render_click(view, "danger", %{"which" => "blocked"})
+      assert html =~ "parblocked"
+
+      html = render_click(view, "unblock", %{"id" => to_string(stranger.id)})
+      refute html =~ "parblocked"
+      assert Social.list_blocked(a) == []
+    end
+
+    test "?q= seeds the friends search (the /u/:username landing)", %{conn: conn} do
+      _stranger = user("parqseed")
+      {:ok, _view, html} = live(conn, ~p"/app/friends?q=parqseed")
+      assert html =~ "parqseed"
+    end
+
+    test "share-link fallbacks route into the web app", %{conn: conn} do
+      assert redirected_to(get(conn, "/d/42")) == "/app/duels/42"
+      assert redirected_to(get(conn, "/u/parb")) == "/app/friends?q=parb"
+    end
+  end
 end

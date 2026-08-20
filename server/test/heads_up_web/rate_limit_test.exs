@@ -50,8 +50,15 @@ defmodule HeadsUpWeb.RateLimitTest do
   end
 
   test "fails OPEN if the table is missing — never locks real users out" do
-    :ets.delete(:heads_up_rate_limit)
-    refute hit("t_gone").halted
-    RateLimit.init_table()
+    # Hide the table by renaming, NOT by delete + init_table: a table created
+    # here belongs to this test process and dies with it, which silently
+    # disarmed the limiter for every later test in the suite.
+    :ets.rename(:heads_up_rate_limit, :heads_up_rate_limit_hidden)
+
+    try do
+      refute hit("t_gone").halted
+    after
+      :ets.rename(:heads_up_rate_limit_hidden, :heads_up_rate_limit)
+    end
   end
 end
