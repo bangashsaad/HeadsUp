@@ -83,6 +83,11 @@ defmodule HeadsUpWeb.ResultsLive do
   # Tampered or unknown events must not crash the socket.
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
+  defp medal_ink(0), do: "#FFB021"
+  defp medal_ink(1), do: "#B9BECF"
+  defp medal_ink(2), do: "#C97C3D"
+  defp medal_ink(_), do: "#565D73"
+
   # --- render ---------------------------------------------------------------
 
   @impl true
@@ -115,9 +120,17 @@ defmodule HeadsUpWeb.ResultsLive do
                 <span class="hu-cond" style="font-size:28px">{side.total}</span>
               </div>
             </div>
+            <div :if={length(@r.standings) > 2} style="display:flex;flex-direction:column;gap:5px">
+              <div :for={{side, i} <- Enum.with_index(@r.standings)} style="display:flex;align-items:center;gap:10px">
+                <span class="hu-cond" style={"width:20px;font-size:15px;color:#{medal_ink(i)}"}>{i + 1}</span>
+                <span style={"font-size:12px;font-weight:800;flex:1;color:#{if side.is_me, do: "var(--acc,#C8FF2E)", else: "#F4F5F7"}"}>
+                  {if side.is_me, do: "YOU", else: String.upcase(side.username || "?")}
+                </span>
+                <span class="hu-cond" style="font-size:20px">{side.total}</span>
+              </div>
+            </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:4px">
               <button
-                :if={length(@r.standings) == 2}
                 phx-click="rematch"
                 class="hu-cond"
                 style="cursor:pointer;background:var(--acc,#C8FF2E);color:#0A0B10;font-size:16px;letter-spacing:.5px;border-radius:999px;padding:11px 24px;border:none"

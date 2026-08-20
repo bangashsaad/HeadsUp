@@ -50,13 +50,14 @@ defmodule HeadsUpWeb.GateHTML do
           The beta is invite-only for now. Got called out by a friend? Their invite is your way in.
         </p>
 
-        <button
+        <a
           id="open-app"
+          href={@testflight_url || "headsup://"}
           class="hu-cond"
-          style={"margin-top:26px;background:#C8FF2E;color:#0A0B10;border:none;border-radius:999px;padding:16px 0;width:100%;text-align:center;font-size:20px;letter-spacing:.5px;cursor:pointer#{if @testflight_url, do: ";animation:huw-pulse 2.4s infinite"}"}
+          style={"margin-top:26px;background:#C8FF2E;color:#0A0B10;text-decoration:none;display:block;border-radius:999px;padding:16px 0;width:100%;text-align:center;font-size:20px;letter-spacing:.5px;cursor:pointer#{if @testflight_url, do: ";animation:huw-pulse 2.4s infinite"}"}
         >
           {if @testflight_url, do: "OPEN THE APP →", else: "I ALREADY HAVE IT — OPEN THE APP →"}
-        </button>
+        </a>
 
         <span :if={@testflight_url} style="font-size:11px;font-weight:700;color:#565D73;margin-top:12px;align-self:center">
           Not installed? Same button lands on TestFlight.
@@ -90,12 +91,13 @@ defmodule HeadsUpWeb.GateHTML do
       </div>
 
       <div style="padding:14px 0 18px;text-align:center;background:#0D0F16">
-        <button
+        <a
           id="escape-link"
+          href="/get-the-app/continue"
           style="background:transparent;border:none;font-size:11px;font-weight:600;color:#3A4157;text-decoration:underline;text-underline-offset:3px;cursor:pointer"
         >
           continue to the web version anyway
-        </button>
+        </a>
       </div>
 
       <%!-- SURE ABOUT THAT? — the escape-hatch sheet, hidden until the ghost link --%>
@@ -133,7 +135,13 @@ defmodule HeadsUpWeb.GateHTML do
         const tf = document.getElementById("gate").dataset.tf;
         const miss = document.getElementById("open-miss");
 
-        document.getElementById("open-app").addEventListener("click", () => {
+        document.getElementById("escape-link").addEventListener("click", (ev) => {
+          ev.preventDefault();
+          document.getElementById("escape-sheet").style.display = "flex";
+        });
+
+        document.getElementById("open-app").addEventListener("click", (ev) => {
+          ev.preventDefault();
           const t = setTimeout(() => {
             if (document.hidden) return;
             if (tf) {
@@ -147,7 +155,6 @@ defmodule HeadsUpWeb.GateHTML do
         });
 
         const sheet = document.getElementById("escape-sheet");
-        document.getElementById("escape-link").addEventListener("click", () => (sheet.style.display = "flex"));
         document.getElementById("return-safety").addEventListener("click", () => (sheet.style.display = "none"));
       })();
     </script>

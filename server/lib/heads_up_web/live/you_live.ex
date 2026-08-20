@@ -120,7 +120,8 @@ defmodule HeadsUpWeb.YouLive do
     end
   end
 
-  def handle_event("danger", %{"which" => which}, socket), do: {:noreply, assign(socket, danger: which)}
+  def handle_event("danger", %{"which" => which}, socket),
+    do: {:noreply, assign(socket, danger: if(socket.assigns.danger == which, do: nil, else: which))}
   def handle_event("danger-close", _params, socket), do: {:noreply, assign(socket, danger: nil)}
 
   def handle_event("change-password", %{"current" => cur, "new" => new}, socket) do
@@ -410,6 +411,15 @@ defmodule HeadsUpWeb.YouLive do
               </div>
             </div>
             <div style="padding:0 16px 8px;display:flex;flex-direction:column;gap:7px">
+              <div :if={@sel_riv && @sel_riv.form != []} style="display:flex;align-items:center;gap:5px">
+                <span style="font-size:9px;font-weight:900;letter-spacing:1.5px;color:#565D73;margin-right:3px">LAST {length(@sel_riv.form)}</span>
+                <span
+                  :for={l <- @sel_riv.form}
+                  style={"width:20px;height:20px;border-radius:7px;background:#{hist_bg(%{outcome: form_outcome(l)})};border:1px solid #{hist_ink(%{outcome: form_outcome(l)})};color:#{hist_ink(%{outcome: form_outcome(l)})};font-size:9.5px;font-weight:900;display:flex;align-items:center;justify-content:center"}
+                >
+                  {l}
+                </span>
+              </div>
               <span style="font-size:10px;font-weight:900;letter-spacing:1.5px;color:#565D73">LAST {length(@sel_hist)} DUELS</span>
               <p :if={@sel_hist == []} style="font-size:11px;color:#565D73;font-weight:600">Nothing settled between you yet.</p>
               <div :for={hst <- @sel_hist} style="display:flex;align-items:center;gap:9px;border:1px solid #1A1E2B;border-radius:11px;padding:8px 12px">
@@ -613,6 +623,10 @@ defmodule HeadsUpWeb.YouLive do
   defp signed(nil), do: "—"
   defp signed(n) when n >= 0, do: "+#{fmt_pts(n)}"
   defp signed(n), do: "−#{fmt_pts(abs(n))}"
+
+  defp form_outcome("W"), do: :win
+  defp form_outcome("L"), do: :loss
+  defp form_outcome(_), do: :tie
 
   defp hist_letter(%{outcome: :win}), do: "W"
   defp hist_letter(%{outcome: :loss}), do: "L"

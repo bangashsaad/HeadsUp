@@ -10,6 +10,7 @@ defmodule HeadsUpWeb.PageController do
       redirect(conn, to: "/app")
     else
       conn
+      |> put_root_layout(false)
       |> put_layout(false)
       |> render(:home)
     end

@@ -152,9 +152,10 @@ defmodule HeadsUpWeb.WebParityTest do
       Application.put_env(:heads_up, :rate_limiting_enabled, true)
       on_exit(fn -> Application.put_env(:heads_up, :rate_limiting_enabled, false) end)
 
-      # 10/min mirror of the API's cap; the 11th html POST gets readable text.
+      # 10/min mirror of the API's cap. 25 attempts, because the fixed window
+      # can roll over mid-test and split a smaller batch below the limit.
       results =
-        for _ <- 1..11 do
+        for _ <- 1..25 do
           Phoenix.ConnTest.build_conn()
           |> Plug.Conn.put_req_header("accept", "text/html")
           |> post(~p"/login", %{"user" => %{"email" => "nobody@example.com", "password" => "wrongwrong"}})

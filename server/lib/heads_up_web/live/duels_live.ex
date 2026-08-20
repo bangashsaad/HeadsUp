@@ -21,9 +21,12 @@ defmodule HeadsUpWeb.DuelsLive do
     duels = Contests.list_duels(user)
 
     assign(socket,
-      active: Enum.filter(duels, &(&1.status in ~w(pending accepted drafting drafted countered))),
+      active: Enum.filter(duels, &(&1.status in ~w(pending accepted drafting drafted))),
       settled: Enum.filter(duels, &(&1.status == "settled")),
-      dead: Enum.filter(duels, &(&1.status in ~w(declined cancelled expired)))
+      # A countered challenge was answered — the counter itself is the live
+      # pending duel. Leaving these in ACTIVE made immortal, actionless cards
+      # and a count the sidebar badge disagreed with.
+      dead: Enum.filter(duels, &(&1.status in ~w(countered declined cancelled expired)))
     )
   end
 

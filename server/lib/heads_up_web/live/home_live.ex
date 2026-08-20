@@ -47,8 +47,11 @@ defmodule HeadsUpWeb.HomeLive do
       case Settlement.live_result(duel_id) do
         {:ok, live} ->
           rendered = HeadsUpWeb.LiveJSON.show(%{live: live, current_user_id: socket.assigns.current_user.id})
-          [a, b | _] = rendered.sides ++ [nil, nil]
-          %{a: a, b: b, games: rendered.games}
+          # In a 3-4 player duel the viewer can rank below the top two — the
+          # card must still show THEIR score under YOU, vs the best other.
+          me = Enum.find(rendered.sides, & &1.is_me)
+          best_other = rendered.sides |> Enum.reject(& &1.is_me) |> List.first()
+          %{a: me || List.first(rendered.sides), b: best_other, games: rendered.games}
 
         _ ->
           nil
@@ -368,8 +371,8 @@ defmodule HeadsUpWeb.HomeLive do
   defp win_pct(%{wins: w, losses: l}) when w + l > 0, do: round(w / (w + l) * 100)
   defp win_pct(_), do: 0
 
-  defp streak_label(%{streak: %{count: c, type: t}}) when c > 1,
-    do: " · #{if t == "win", do: "🔥 "}W#{c} STREAK" |> String.replace("WL", "L")
+  defp streak_label(%{streak: %{count: c, type: "win"}}) when c > 1, do: " · 🔥 W#{c} STREAK"
+  defp streak_label(%{streak: %{count: c, type: "loss"}}) when c > 1, do: " · L#{c} STREAK"
 
   defp streak_label(_), do: ""
 

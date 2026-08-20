@@ -84,6 +84,7 @@ defmodule HeadsUpWeb.Layouts do
   def auth_shell(assigns) do
     ~H"""
     <main class="flex min-h-dvh flex-col items-center justify-center bg-[#0A0B10] px-5 py-12">
+      <.flash_group :if={assigns[:flash]} flash={@flash} />
       <div class="w-full max-w-sm">
         <.link navigate="/" class="mb-8 block text-center">
           <span class="text-2xl font-black uppercase tracking-tight text-[#F4F5F7]">
@@ -206,6 +207,9 @@ defmodule HeadsUpWeb.Layouts do
               </.link>
               <.link navigate="/app/duels" class="text-xs font-black uppercase tracking-wide text-[#8B91A7] hover:text-[#F4F5F7]">
                 Duels
+              </.link>
+              <.link navigate={@nav_draft_path || "/app/draft"} class="text-xs font-black uppercase tracking-wide text-[#8B91A7] hover:text-[#F4F5F7]">
+                Draft
               </.link>
               <.link
                 :if={@nav_live?}

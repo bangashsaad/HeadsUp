@@ -277,6 +277,7 @@ defmodule HeadsUpWeb.FriendsLive do
             <span style="font-size:11.5px;color:#8B91A7;font-weight:600">Your crew, your groups, your next victims.</span>
           </div>
           <form
+            id="crew-search"
             phx-change="search"
             phx-submit="search"
             style="display:flex;align-items:center;gap:8px;background:#12141D;border:1px solid #252A3A;border-radius:999px;padding:9px 16px;width:min(280px,100%);box-sizing:border-box"

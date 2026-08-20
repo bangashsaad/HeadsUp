@@ -87,15 +87,39 @@ defmodule HeadsUpWeb.LiveLive do
         <div style="flex:1;min-width:min(460px,100%);display:flex;flex-direction:column;gap:18px">
           <%= if @sides do %>
             <.hero sides={@sides} duel={@duel} live={@live} me_name={@current_user.username} />
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-              <.five side={elem(@sides, 0)} mine={true} />
-              <.five side={elem(@sides, 1)} mine={false} />
+
+            <%!-- group standings: everyone, ranked, with YOU marked --%>
+            <div :if={length(@live.sides) > 2} style="border-radius:14px;border:1px solid #252A3A;background:#12141D;padding:10px 14px;display:flex;flex-direction:column;gap:6px">
+              <span style="font-size:9.5px;font-weight:900;letter-spacing:1.5px;color:#565D73">STANDINGS</span>
+              <div :for={{s, i} <- Enum.with_index(@live.sides)} style="display:flex;align-items:center;gap:10px">
+                <span class="hu-cond" style={"width:18px;font-size:14px;color:#{medal_ink(i)}"}>{i + 1}</span>
+                <span style={"font-size:12.5px;font-weight:800;flex:1;color:#{if s.is_me, do: "var(--acc,#C8FF2E)", else: "#F4F5F7"}"}>
+                  {if s.is_me, do: "YOU", else: String.upcase(s.username || "?")}
+                </span>
+                <span class="hu-cond" style="font-size:15px">{pts(s.total)}</span>
+              </div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px">
+              <%= if length(@live.sides) > 2 do %>
+                <.five :for={side <- @live.sides} side={side} mine={side.is_me} />
+              <% else %>
+                <.five side={elem(@sides, 0)} mine={true} />
+                <.five side={elem(@sides, 1)} mine={false} />
+              <% end %>
             </div>
           <% else %>
-            <div style="border-radius:18px;border:1px solid #252A3A;background:#12141D;padding:40px;text-align:center">
+            <div :if={@duel.status == "settled"} style="border-radius:18px;border:1px solid #252A3A;background:#12141D;padding:40px;text-align:center">
               <p class="hu-cond" style="font-size:26px">THIS ONE'S DECIDED</p>
               <.link navigate={~p"/app/results/#{@duel_id}"} style="font-size:12px;font-weight:900;letter-spacing:1px;color:var(--acc,#C8FF2E)">
                 SEE THE FINAL RESULT →
+              </.link>
+            </div>
+            <div :if={@duel.status != "settled"} style="border-radius:18px;border:1px solid #252A3A;background:#12141D;padding:40px;text-align:center">
+              <p class="hu-cond" style="font-size:26px">NOT LIVE YET</p>
+              <p style="font-size:12px;color:#8B91A7;font-weight:600;margin-top:6px">The draft comes first — scores start when the games do.</p>
+              <.link navigate={~p"/app/duels"} style="font-size:12px;font-weight:900;letter-spacing:1px;color:var(--acc,#C8FF2E)">
+                BACK TO DUELS →
               </.link>
             </div>
           <% end %>
@@ -242,11 +266,21 @@ defmodule HeadsUpWeb.LiveLive do
   defp sides(%{live: nil}), do: nil
 
   defp sides(%{live: live}) do
-    case live.sides do
-      [a, b | _] -> if a.is_me, do: {a, b}, else: {b, a}
-      _ -> nil
+    all = live.sides || []
+    me = Enum.find(all, & &1.is_me)
+    best_other = all |> Enum.reject(& &1.is_me) |> List.first()
+
+    cond do
+      me && best_other -> {me, best_other}
+      match?([_, _ | _], all) -> {hd(all), Enum.at(all, 1)}
+      true -> nil
     end
   end
+
+  defp medal_ink(0), do: "#FFB021"
+  defp medal_ink(1), do: "#B9BECF"
+  defp medal_ink(2), do: "#C97C3D"
+  defp medal_ink(_), do: "#565D73"
 
   defp pts(nil), do: "0.0"
   defp pts(n) when is_float(n), do: :erlang.float_to_binary(n, decimals: 1)
