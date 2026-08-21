@@ -79,7 +79,6 @@ export default function CounterScreen({ route, navigation }) {
     setError(null);
     try {
       const res = await counterChallenge(token, id, terms);
-      refreshUser(); // old stake refunded, new stake escrowed
       navigation.replace('DuelDetail', { id: res.duel.id });
     } catch (e) {
       setError(e.message);
@@ -174,18 +173,10 @@ function slateLabel(iso) {
   return `${WEEKDAYS[d.getUTCDay()]} ${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
 }
 
-// Coin stakes: every player antes the same amount into escrow; winner takes
-// the pot. 0 = friendly (bragging rights only).
-const STAKES = [
-  { coins: 0, label: 'Friendly' },
-  { coins: 25, label: '◎ 25' },
-  { coins: 100, label: '◎ 100' },
-  { coins: 500, label: '◎ 500' },
-];
 
 export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, submitting, sportsStatus }) {
   const styles = useThemedStyles(makeStyles);
-  const { user, token } = useAuth();
+  const { token } = useAuth();
   const [sport, setSport] = useState(initial.sport || 'wnba');
   const [roster, setRoster] = useState(() => {
     const sizes = rosterSizesFor(initial.sport || 'wnba');
@@ -197,7 +188,6 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
     CLOCKS.some((c) => c.secs === initial.pick_clock_seconds) ? initial.pick_clock_seconds : 30
   );
   const [timeMs, setTimeMs] = useState(TIME_OPTIONS[0].ms);
-  const [stake, setStake] = useState(initial.stake_coins || 0);
   // Slates come in two shapes. Basketball and baseball answer with ET DAYS;
   // football answers with WEEKS, because a team there plays once and a single
   // night would offer two teams instead of the league. `slateId` is whichever
@@ -205,8 +195,6 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
   const [slates, setSlates] = useState([]);
   const [slateKind, setSlateKind] = useState('day');
   const [slateId, setSlateId] = useState(null);
-
-  const balance = user?.coins ?? 0;
 
   // Each sport has its own size menu — switching sports snaps to it.
   useEffect(() => {
@@ -289,7 +277,6 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
       lineup_template: `${sport}_${roster}`,
       pick_clock_seconds: clockSecs,
       draft_starts_at: new Date(Date.now() + timeMs).toISOString(),
-      stake_coins: stake,
       ...(slateId ? (slateKind === 'week' ? { slate_week: slateId } : { slate_date: slateId }) : {}),
     });
   }
@@ -363,23 +350,6 @@ export default function ChallengeForm({ initial = {}, onSubmit, submitLabel, sub
         })}
       </View>
 
-      <Text style={styles.label}>Stake</Text>
-      <View style={styles.row}>
-        {STAKES.map((s) => {
-          const affordable = s.coins <= balance;
-          return (
-            <View key={s.coins} style={!affordable && { opacity: 0.4 }}>
-              <Chip label={s.label} active={stake === s.coins} onPress={() => affordable && setStake(s.coins)} />
-            </View>
-          );
-        })}
-      </View>
-      <Text style={styles.stakeNote}>
-        {stake === 0
-          ? `Bragging rights only. You have ◎ ${balance.toLocaleString()}.`
-          : `Everyone puts in ◎ ${stake} — winner takes all. You have ◎ ${balance.toLocaleString()}.`}
-      </Text>
-
       <Text style={styles.note}>Standard {sport.toUpperCase()} scoring applies — the full chart is shown on the challenge.</Text>
 
       <Button title={submitLabel} icon="send" onPress={handleSubmit} loading={submitting} style={{ marginTop: spacing.xl }} />
@@ -401,6 +371,5 @@ const makeStyles = (colors) =>
     row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
     note: { color: colors.muted, fontSize: font.small, marginTop: spacing.lg, lineHeight: 19 },
     gateNote: { color: colors.placeholder, fontSize: font.caption, marginTop: spacing.sm },
-    stakeNote: { color: colors.gold, fontSize: font.caption, marginTop: spacing.sm },
   });
 ```

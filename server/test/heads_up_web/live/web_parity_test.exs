@@ -211,15 +211,6 @@ defmodule HeadsUpWeb.WebParityTest do
       assert html =~ "parb"
     end
 
-    test "the coin ledger renders real entries — grant rows have no duel link", %{conn: conn, a: a} do
-      {:ok, _} = HeadsUp.Coins.grant_signup(a.id)
-
-      {:ok, _view, html} = live(conn, ~p"/app/coins")
-      assert html =~ "COIN BALANCE"
-      assert html =~ "Welcome bonus"
-      assert html =~ "1,000"
-    end
-
     test "forgot-password answers identically for real and ghost accounts" do
       real =
         Phoenix.ConnTest.build_conn()

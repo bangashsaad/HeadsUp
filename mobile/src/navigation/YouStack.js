@@ -5,7 +5,6 @@ import ChangePasswordScreen from '../screens/ChangePasswordScreen';
 import BlockedScreen from '../screens/BlockedScreen';
 import LeaderboardScreen from '../screens/LeaderboardScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
-import CoinHistoryScreen from '../screens/CoinHistoryScreen';
 import VerifyEmailScreen from '../screens/VerifyEmailScreen';
 import FriendGroupsScreen from '../screens/FriendGroupsScreen';
 import { useNavHeader } from '../theme';
@@ -24,7 +23,6 @@ export default function YouStack() {
         component={UserProfileScreen}
         options={({ route }) => ({ title: route.params?.username || 'Player' })}
       />
-      <Stack.Screen name="CoinHistory" component={CoinHistoryScreen} options={{ title: 'Coin Wallet' }} />
       <Stack.Screen name="VerifyEmail" component={VerifyEmailScreen} options={{ title: 'Verify Email' }} />
       <Stack.Screen name="FriendGroups" component={FriendGroupsScreen} options={{ title: 'Friend Groups' }} />
       <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: 'Settings' }} />

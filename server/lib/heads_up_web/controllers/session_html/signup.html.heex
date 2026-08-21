@@ -1,4 +1,4 @@
-<.auth_shell title="Create your account" subtitle="Takes a few seconds. 1,000 coins on the house.">
+<.auth_shell title="Create your account" subtitle="Takes a few seconds.">
   <.form :let={f} for={%{}} as={:user} action={~p"/signup"} class="space-y-4">
     <div :if={@changeset_errors != []} class="rounded-lg border border-[#FF4557]/50 bg-[#FF4557]/10 px-3 py-2 text-sm text-[#FF4557]">
       <p :for={msg <- @changeset_errors} class="first-letter:uppercase">{msg}</p>

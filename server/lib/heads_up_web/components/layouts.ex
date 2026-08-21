@@ -104,7 +104,7 @@ defmodule HeadsUpWeb.Layouts do
   @doc """
   The design's app shell, whole this time: the 230px sidebar with its six-item
   icon nav (DUELS count, LIVE badge), the pulsing + NEW CHALLENGE button, the
-  coin wallet chip, and the profile row with your record — plus the marquee
+  and the profile row with your record — plus the marquee
   ticker across the top of the main column. Phones collapse to a top bar,
   keeping the ticker (it is the piece that makes the app feel alive).
 
@@ -127,7 +127,6 @@ defmodule HeadsUpWeb.Layouts do
         nav_live?: Map.get(assigns.shell, :live?, false),
         nav_draft_path: Map.get(assigns.shell, :draft_path),
         nav_req_count: Map.get(assigns.shell, :req_count, 0),
-        shell_coins: Map.get(assigns.shell, :coins),
         shell_record: Map.get(assigns.shell, :record)
       )
 
@@ -162,16 +161,6 @@ defmodule HeadsUpWeb.Layouts do
           </.link>
         </div>
 
-        <.link
-          :if={@shell_coins != nil}
-          navigate="/app/coins"
-          title="Open the ledger"
-          style="cursor:pointer;margin:0 12px;display:flex;align-items:center;gap:9px;border:1px solid #252A3A;background:#12141D;border-radius:12px;padding:10px 14px"
-        >
-          <span class="hu-cond" style="font-size:17px;color:#FFB021">◎ {@shell_coins}</span>
-          <span style="font-size:9.5px;font-weight:900;letter-spacing:1.5px;color:#565D73">COIN WALLET</span>
-          <span style="margin-left:auto;font-size:11px;color:#565D73">›</span>
-        </.link>
 
         <.link
           :if={@current_user}

@@ -27,8 +27,7 @@ defmodule HeadsUpWeb.AuthController do
   # POST /api/register  { "username", "email", "password" }
   def register(conn, params) do
     with {:ok, user} <- Accounts.register_user(params) do
-      # Idempotency-keyed, and the comeback bonus heals a miss — never fail a
-      # fresh registration over its welcome coins.
+      # No-op while coins are off (Coins.enabled?/0); idempotent when on.
       _ = Coins.grant_signup(user.id)
       _ = Accounts.deliver_email_verification(user)
       token = Accounts.create_user_api_token(user)
@@ -60,8 +59,7 @@ defmodule HeadsUpWeb.AuthController do
   # GET /api/me  (requires auth)
   def me(conn, _params) do
     user = conn.assigns.current_user
-    # The lazy faucet: a busted wallet gets its daily comeback bonus on the
-    # next app open — no cron needed.
+    # Lazy comeback bonus — a no-op while coins are off.
     _ = Coins.maybe_comeback(user.id)
     render(conn, :user, user: user, coins: Coins.balance(user.id))
   end

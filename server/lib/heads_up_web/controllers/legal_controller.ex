@@ -27,8 +27,7 @@ defmodule HeadsUpWeb.LegalController do
       <li><b>Your account</b> — username, email address, and a one-way
       cryptographic hash of your password. We never store your actual password
       and cannot recover it.</li>
-      <li><b>How you play</b> — duels, drafts, picks, results, and your
-      in-app coin balance and history.</li>
+      <li><b>How you play</b> — duels, drafts, picks, and results.</li>
       <li><b>Your friends and groups</b> — who you're connected to, and the
       private groups you sort them into. Group names are visible only to you.</li>
       <li><b>Activity time</b> — a timestamp of when you last used the app, so
@@ -39,8 +38,8 @@ defmodule HeadsUpWeb.LegalController do
 
     <h2>What we do NOT collect</h2>
     <ul>
-      <li>No payment or financial information. Coins are free, cannot be
-      bought, cashed out, or transferred, and have no monetary value.</li>
+      <li>No payment or financial information. There is nothing to buy, stake,
+      or win — duels are played for the record.</li>
       <li>No location data.</li>
       <li>No contacts, photos, microphone, or camera access.</li>
       <li>No advertising identifiers. We do not sell or share your data, and
@@ -57,8 +56,8 @@ defmodule HeadsUpWeb.LegalController do
     <h2>Your control</h2>
     <p>You can delete your account at any time from <b>Settings &rarr; Delete
     account</b>. Deletion erases your username, email, password, and push
-    token, removes your friendships and private groups, cancels any live duels
-    and refunds their stakes. Finished duels remain in your opponents' history
+    token, removes your friendships and private groups, and cancels any live
+    duels. Finished duels remain in your opponents' history
     under an anonymous name, because those results are their records too.</p>
 
     <p>You can turn off notifications at any time in your device settings.</p>
@@ -96,11 +95,9 @@ defmodule HeadsUpWeb.LegalController do
     <p>Tap <b>Forgot password?</b> on the login screen. We'll email you a
     six-digit code to set a new one.</p>
 
-    <h3>What are coins?</h3>
-    <p>Coins are a free scorekeeping currency for friendly stakes. They cannot
-    be purchased, cashed out, or transferred, and they have no monetary value.
-    Everyone starts with a grant, and a small daily bonus tops you up if you
-    run low.</p>
+    <h3>Is there anything to win?</h3>
+    <p>The rivalry. Every duel counts toward your lifetime head-to-head record
+    with that friend. There are no purchases, stakes, or prizes.</p>
 
     <h3>How is my duel scored?</h3>
     <p>From the real box scores of the games on the slate you picked, using the
@@ -108,13 +105,11 @@ defmodule HeadsUpWeb.LegalController do
     declared automatically once those games go final.</p>
 
     <h3>Nobody accepted my challenge</h3>
-    <p>Unanswered challenges expire automatically after about a day, and any
-    coins you staked come straight back to you.</p>
+    <p>Unanswered challenges expire automatically after about a day.</p>
 
     <h3>How do I delete my account?</h3>
     <p>In the app: <b>You &rarr; Settings &rarr; Delete account</b>. It asks
-    for your password and is permanent. Live duels are cancelled and every
-    stake is refunded.</p>
+    for your password and is permanent. Live duels are cancelled.</p>
     """))
   end
 

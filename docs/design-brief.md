@@ -10,7 +10,7 @@ next to the design instead of silently drawing it.
 
 1-on-1 (up to 5-player) fantasy sports duels. Challenge a rival, snake-draft
 real players from a real slate on a ticking clock, watch both rosters score
-live off real box scores, winner takes the coin pot and the rivalry lead.
+live off real box scores, winner takes the rivalry lead.
 Trash talk built in. Two clients — an iOS app and the web app at
 headsupfantasy.com — one backend. **Every design ships to both.**
 
@@ -27,8 +27,7 @@ headsupfantasy.com — one backend. **Every design ships to both.**
   radial/linear gradient washes on hero cards
 - **Motion:** blink (live dots), pulse (primary CTA), rise (screen entry),
   marquee (top ticker, 26s)
-- **The coin glyph is ◎** (e.g. `◎ 25`). Coins are a free in-app score — never
-  imply purchases or cash value.
+- **No coins, no ◎.** The currency layer was removed for this phase; nothing in the UI references coins, stakes, pots, or a wallet.
 
 ## Hard facts — never contradict these
 
@@ -36,7 +35,7 @@ headsupfantasy.com — one backend. **Every design ships to both.**
 |---|---|
 | Leagues | 🏀 WNBA, ⚾️ MLB, 🏈 NFL, 🏀 NBA — off-season leagues show but are dimmed/disabled ("OFF-SEASON") |
 | Roster sizes | **Per sport**: 🏀 5 or 7 · 🏈 5 or 7 · ⚾️ **6 or 9** (6 = one pitcher + five bats w/ UTIL; 9 = "the diamond": P·C·1B·2B·3B·SS·3 OF, no UTIL) — nothing else |
-| Stakes | **No stake / ◎ 25 / ◎ 100 / custom (up to ◎ 10,000, wallet-capped)**. Pot = stake × number of drafters |
+| Stakes | **None.** Coins/stakes/pots were removed from the product for this phase (ledger dormant server-side). Duels are played for the head-to-head record only — no wallet, no ◎ anywhere |
 | Pick clock | **15 / 30 / 60 seconds** — no minute/hour clocks |
 | Drafters per duel | **1v1 up to 5 total** ("call out up to 4 rivals"). Never 8 |
 | Slates | Basketball/baseball pick a **day** ("Tonight", "Tomorrow", "Sat Aug 16"); football picks a **week** ("Preseason Wk 2", "Week 3"). One slate per duel |
@@ -45,7 +44,7 @@ headsupfantasy.com — one backend. **Every design ships to both.**
 | Countering | 1v1 duels only. A counter sends the terms back to the other person |
 | Players | Real athletes with headshots, position, team, FPG projection, next-game time, and **injury tags: OUT (red) / GTD (amber)** — injuries must be visible anywhere a player can be picked |
 | Scoring | Real box scores; live totals tick during games; settlement is automatic when the last game ends |
-| Coins | 1,000 on signup, small daily comeback bonus when broke. Win = +stake, loss = −stake (shown amber ◎ on wins) |
+| Coins | **Removed for this phase.** No signup grant, no wallet, no W/L coin swing |
 | Records | W–L (+ties), win %, streaks (🔥 W3), per-rival head-to-head with last-duels history, splits by league/roster/field. **There is no "avg place" stat** |
 | Friends | Search → request → accept/decline ("WANTS IN" inbox). Private friend groups as tabs (e.g. HOOPS CREW). Blocking exists |
 | Email verification | Required before dueling — a 6-digit code screen exists; unverified users get bounced to it |
@@ -58,7 +57,7 @@ landing `/` · home `/app` · duels `/app/duels` · new challenge `/app/new` ·
 draft room `/app/draft/:id` · live duel `/app/live/:id` · results
 `/app/results/:id` · scoreboard `/app/games` · profile `/app/you` · verify
 email `/app/verify`. App shell: 230px sidebar (HOME / DUELS+count / DRAFT /
-LIVE+badge / SCOREBOARD / YOU), pulsing + NEW CHALLENGE, ◎ COIN WALLET chip,
+LIVE+badge / SCOREBOARD / YOU), pulsing + NEW CHALLENGE,
 profile row, and the marquee ticker across the top.
 
 ## Rules for every design you produce
@@ -77,12 +76,12 @@ profile row, and the marquee ticker across the top.
    goes or what it does ("game card → box score with fantasy leaders",
    "REMATCH → sends same terms"). Unannotated elements get built as static.
 4. **Use realistic demo data** consistent with the hard-facts table (WNBA/MLB/
-   NFL names, per-sport slots (5/7 hoops+football, 6/9 baseball), ◎ 25/◎ 100/custom stakes, seconds clocks, max 5 drafters).
+   NFL names, per-sport slots (5/7 hoops+football, 6/9 baseball), no stakes, seconds clocks, max 5 drafters).
 5. **Group duels exist** (3–4 players). Where a screen shows a duel, consider
    how the multi-player version reads (seat count "2/5 in", ranked standings
    🥇🥈🥉 in results).
 6. **Don't design these (deliberately out of scope):** first-to-accept
-   challenges (deferred until the clan-chat build), buying coins, player-pool
+   challenges (deferred until the clan-chat build), coins of any kind, player-pool
    browsing inside the scoreboard, any stat not in the facts table.
 
 ## How to hand a design back

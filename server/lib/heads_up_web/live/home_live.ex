@@ -12,7 +12,7 @@ defmodule HeadsUpWeb.HomeLive do
 
   alias HeadsUpWeb.Params
 
-  alias HeadsUp.{Coins, Home, Settlement, Stats}
+  alias HeadsUp.{Home, Settlement, Stats}
   alias HeadsUp.Sports.Schedule
 
   @impl true
@@ -35,7 +35,6 @@ defmodule HeadsUpWeb.HomeLive do
        summary: summary,
        record: Stats.record_for(user.id),
        h2h: Stats.head_to_head(user.id) |> Enum.take(3),
-       coins: Coins.balance(user.id),
        live_duel: live_duel,
        live_card: nil,
        slate: []
@@ -87,7 +86,6 @@ defmodule HeadsUpWeb.HomeLive do
        summary: summary,
        record: Stats.record_for(user.id),
        h2h: Stats.head_to_head(user.id) |> Enum.take(3),
-       coins: Coins.balance(user.id),
        live_duel: live_duel,
        live_card: if(live_duel, do: socket.assigns.live_card)
      )}
@@ -425,12 +423,7 @@ defmodule HeadsUpWeb.HomeLive do
   defp meta_line(duel) do
     sport = sport_emoji(duel.sport) <> " " <> String.upcase(duel.sport)
 
-    stake =
-      if duel.stake_coins > 0,
-        do: " · ◎ #{duel.stake_coins} stake · ◎ #{duel.stake_coins * 2} pot",
-        else: " · no stake"
-
-    "#{sport} · #{duel.roster_size} slots#{stake}"
+    "#{sport} · #{duel.roster_size} slots"
   end
 
   defp sport_emoji("mlb"), do: "⚾️"

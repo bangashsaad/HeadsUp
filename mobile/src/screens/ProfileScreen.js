@@ -47,7 +47,7 @@ export default function ProfileScreen({ navigation }) {
   useFocusEffect(
     useCallback(() => {
       let active = true;
-      refreshUser(); // keep the coin balance honest whenever YOU opens
+      refreshUser(); // verified flag / profile fields stay honest whenever YOU opens
       getMyStats(token)
         .then((s) => active && setStats(s))
         .catch(() => {});
@@ -104,9 +104,6 @@ export default function ProfileScreen({ navigation }) {
                 {(user?.username || '?').toUpperCase()}
               </CondTitle>
               <View style={styles.chipRow}>
-                <Pressable onPress={() => navigation.navigate('CoinHistory')} style={[styles.idChip, styles.coinChip]}>
-                  <Text style={[styles.idChipText, { color: colors.gold }]}>◎ {(user?.coins ?? 0).toLocaleString()}</Text>
-                </Pressable>
                 {rec?.streak?.count > 0 ? (
                   <View style={styles.idChip}>
                     <Text
@@ -224,13 +221,6 @@ export default function ProfileScreen({ navigation }) {
             <View style={styles.menuDivider} />
             <Row icon="person-add-outline" label="Invite a friend" sublabel="Share your username to duel" onPress={invite} />
             <View style={styles.menuDivider} />
-            <Row
-              icon="server-outline"
-              label="Coin wallet"
-              sublabel={`◎ ${(user?.coins ?? 0).toLocaleString()} — stakes, pots & bonuses`}
-              onPress={() => navigation.navigate('CoinHistory')}
-            />
-            <View style={styles.menuDivider} />
             <Row icon="settings-outline" label="Settings" sublabel="Appearance, preferences, account" onPress={() => navigation.navigate('Settings')} />
             <View style={styles.menuDivider} />
             <Row icon="help-circle-outline" label="How to play" onPress={howToPlay} />
@@ -298,7 +288,6 @@ const makeStyles = (colors) =>
       paddingHorizontal: 9,
     },
     idChipText: { fontSize: 9.5, fontFamily: fonts.bodyBlack, letterSpacing: 1 },
-    coinChip: { borderColor: withAlpha(colors.gold, 0.45), backgroundColor: withAlpha(colors.gold, 0.1) },
     statGrid: { flexDirection: 'row', gap: 8, marginTop: spacing.lg },
     trophyRow: { gap: 8, paddingHorizontal: spacing.lg },
     trophyTile: {

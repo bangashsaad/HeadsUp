@@ -28,21 +28,11 @@ function rowTitle(d) {
 
 function rowMeta(d) {
   const sport = SPORT_EMOJI[d.sport] || '🎯';
-  const pot = d.stake_coins > 0 ? ` · ◎ ${d.pot_coins || d.stake_coins * 2} pot` : '';
   if (d.group && d.status === 'pending') {
     const seated = (d.participants || []).filter((p) => p.status === 'accepted').length;
-    return `${sport} ${String(d.sport || '').toUpperCase()} · ${seated}/${d.party_size} in · ${d.roster_size} rounds${pot}`;
+    return `${sport} ${String(d.sport || '').toUpperCase()} · ${seated}/${d.party_size} in · ${d.roster_size} rounds`;
   }
-  return `${sport} ${String(d.sport || '').toUpperCase()} · ${d.group ? `${d.party_size}-way` : 'snake'} · ${d.roster_size} slots${pot}`;
-}
-
-// The receipt line's coin swing: only 1v1 duels are derivable client-side
-// (group tie splits live on the result payload instead).
-function coinDelta(d) {
-  if (!d.stake_coins || d.group) return null;
-  if (d.my_outcome === 'win') return `+${d.stake_coins}`;
-  if (d.my_outcome === 'loss') return `−${d.stake_coins}`;
-  return null;
+  return `${sport} ${String(d.sport || '').toUpperCase()} · ${d.group ? `${d.party_size}-way` : 'snake'} · ${d.roster_size} slots`;
 }
 
 function fmtDate(iso) {
@@ -199,7 +189,6 @@ export default function DuelsListScreen({ navigation }) {
     impact();
     try {
       await respondToDuel(token, d.id, action);
-      refreshUser(); // stake/refund just moved
       await load();
     } catch (e) {
       Alert.alert('That didn’t stick', e.message);
@@ -213,7 +202,6 @@ export default function DuelsListScreen({ navigation }) {
     impact();
     try {
       const res = await rematch(token, d.id);
-      refreshUser(); // the copied stake just left the wallet
       await load();
       const newId = res?.duel?.id;
       if (newId) navigation.navigate('DuelDetail', { id: newId });
@@ -325,7 +313,6 @@ export default function DuelsListScreen({ navigation }) {
                                   sport: d.sport,
                                   lineup_template: d.lineup_template,
                                   pick_clock_seconds: d.pick_clock_seconds,
-                                  stake_coins: d.stake_coins,
                                   slate_date: d.slate_date,
                                 },
                               })
@@ -425,9 +412,6 @@ export default function DuelsListScreen({ navigation }) {
                             {d.settled_at ? ` · ${fmtDate(d.settled_at)}` : ''}
                           </Text>
                         </View>
-                        {coinDelta(d) ? (
-                          <Text style={[styles.coinSwing, { color: won ? colors.gold : colors.muted }]}>◎ {coinDelta(d)}</Text>
-                        ) : null}
                       </Pressable>
                       {!d.group ? (
                         <Pressable
@@ -543,6 +527,5 @@ const makeStyles = (colors) =>
       paddingHorizontal: 11,
     },
     rematchText: { color: colors.muted, fontSize: 10, fontFamily: fonts.bodyBlack, letterSpacing: 1 },
-    coinSwing: { fontSize: 13, fontFamily: fonts.condBold, letterSpacing: 0.5 },
     error: { color: colors.danger, textAlign: 'center', marginTop: spacing.sm },
   });

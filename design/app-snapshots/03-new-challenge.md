@@ -7,7 +7,7 @@
 > into React Native. Names and layout in the code are the truth of what exists
 > today.
 
-The challenge builder (pushed from DUELS or the + CTA). Pick rivals (up to 3 — group duels), league (off-season ones dimmed OFF-SEASON), slate (day for WNBA/MLB/NBA, week for NFL), roster (🏀🏈 5/7 · ⚾️ 6/9), stake none/◎25/◎100, clock 15/30/60s, then THE TERMS receipt rail and SEND IT. Scoring chart viewable per league.
+The challenge builder (pushed from DUELS or the + CTA). Pick rivals (up to 4 — group duels), league (off-season ones dimmed OFF-SEASON), slate (day for WNBA/MLB/NBA, week for NFL), roster (🏀🏈 5/7 · ⚾️ 6/9), clock 15/30/60s, then THE TERMS receipt rail and SEND IT. Scoring chart viewable per league.
 
 ## The app's design language (real tokens, from `src/theme.js`)
 
@@ -50,7 +50,7 @@ UI kit primitives the screens compose (from `src/components/ui/`):
 
 ```jsx
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
@@ -76,12 +76,6 @@ const LEAGUES = [
 const ROSTERS_BY_LEAGUE = { mlb: [6, 9] };
 const rosterSizesFor = (lg) => ROSTERS_BY_LEAGUE[lg] || [5, 7];
 const CLOCKS = [15, 30, 60];
-const STAKES = [
-  { coins: 0, label: 'FRIENDLY' },
-  { coins: 25, label: '25' },
-  { coins: 100, label: '100' },
-];
-
 // Display copy for the Roster Shapes modal. Mirrors Drafts.Lineup — the server
 // is the authority; this only explains the shape you're picking.
 const SHAPES = {
@@ -116,7 +110,7 @@ const isPlayable = (status, key) => {
 export default function CreateChallengeScreen({ navigation, route }) {
   // Tapping a face on Home's friend strip lands here with them already picked.
   const preselect = route?.params?.preselect;
-  const { token, user, refreshUser } = useAuth();
+  const { token, refreshUser } = useAuth();
   const { colors } = useTheme();
   const styles = useThemedStyles(makeStyles);
 
@@ -136,9 +130,6 @@ export default function CreateChallengeScreen({ navigation, route }) {
   const [slateKind, setSlateKind] = useState('day');
   const [slateId, setSlateId] = useState(null);
   const [roster, setRoster] = useState(5);
-  const [stake, setStake] = useState(0);
-  const [customStake, setCustomStake] = useState('');
-  const [customOpen, setCustomOpen] = useState(false);
   const [clock, setClock] = useState(30);
   const [shapesOpen, setShapesOpen] = useState(false);
 
@@ -146,8 +137,6 @@ export default function CreateChallengeScreen({ navigation, route }) {
   const [tab, setTab] = useState('everyone');
   const [selected, setSelected] = useState([]);
   const [reloadKey, setReloadKey] = useState(0);
-
-  const balance = user?.coins ?? 0;
 
   useEffect(() => {
     (async () => {
@@ -275,22 +264,6 @@ export default function CreateChallengeScreen({ navigation, route }) {
     });
   }
 
-  const effectiveStake = stake === -1 ? Math.max(0, parseInt(customStake, 10) || 0) : stake;
-  const stakeLabel =
-    stake === -1 ? `◎ ${effectiveStake.toLocaleString()}` : stake === 0 ? 'FRIENDLY' : `◎ ${stake}`;
-  const stakeAffordable = effectiveStake <= balance;
-
-  // Leaving the custom sheet without a usable amount reverts to Friendly, so
-  // the footer can never advertise "◎ 0" as a custom stake.
-  function closeCustom() {
-    setCustomOpen(false);
-    const n = parseInt(customStake, 10) || 0;
-    if (n < 1 || n > balance) {
-      setStake(0);
-      setCustomStake('');
-    }
-  }
-
   // BUG GUARD: a thin slate can leave NO roster size viable for the current
   // table (pick 4 rivals on a big slate, then switch to a one-game night).
   // Without this the CTA stayed live and the server rejected the send.
@@ -298,10 +271,6 @@ export default function CreateChallengeScreen({ navigation, route }) {
 
   async function send() {
     if (selected.length === 0) return;
-    if (!stakeAffordable) {
-      setError(`You only have ◎ ${balance.toLocaleString()}.`);
-      return;
-    }
     setError(null);
     setSubmitting(true);
     try {
@@ -311,7 +280,6 @@ export default function CreateChallengeScreen({ navigation, route }) {
         sport: league,
         lineup_template: `${league}_${roster}`,
         pick_clock_seconds: clock,
-        stake_coins: effectiveStake,
         draft_starts_at: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
         ...(slateId ? (slateKind === 'week' ? { slate_week: slateId } : { slate_date: slateId }) : {}),
       });
@@ -424,33 +392,6 @@ export default function CreateChallengeScreen({ navigation, route }) {
             })}
           </Row>
 
-          <Row label="STAKE" styles={styles}>
-            {STAKES.map((s) => (
-              <Opt
-                key={s.coins}
-                label={s.label}
-                active={stake === s.coins}
-                disabled={s.coins > balance}
-                onPress={() => s.coins <= balance && setStake(s.coins)}
-                styles={styles}
-              />
-            ))}
-            <Opt
-              label={stake === -1 && effectiveStake > 0 ? `◎ ${effectiveStake}` : 'CUSTOM'}
-              active={stake === -1}
-              onPress={() => {
-                setStake(-1);
-                setCustomOpen(true);
-              }}
-              styles={styles}
-            />
-          </Row>
-
-          <Row label="PICK CLOCK" styles={styles} last>
-            {CLOCKS.map((c) => (
-              <Opt key={c} label={`${c}s`} active={clock === c} onPress={() => setClock(c)} styles={styles} />
-            ))}
-          </Row>
         </View>
 
         {slatePlayers != null && !anyRosterFits ? (
@@ -535,7 +476,6 @@ export default function CreateChallengeScreen({ navigation, route }) {
           <Text style={styles.summary} numberOfLines={1}>
             {league.toUpperCase()} · {roster} slots · {clock}s clock
           </Text>
-          <Text style={[styles.stakeOut, !stakeAffordable && { color: colors.danger }]}>{stakeLabel}</Text>
         </View>
         <Button
           title={cta}
@@ -558,15 +498,6 @@ export default function CreateChallengeScreen({ navigation, route }) {
         colors={colors}
       />
 
-      <CustomStakeModal
-        visible={customOpen}
-        onClose={closeCustom}
-        value={customStake}
-        onChange={setCustomStake}
-        balance={balance}
-        styles={styles}
-        colors={colors}
-      />
     </Screen>
   );
 }
@@ -661,34 +592,6 @@ function RosterShapesModal({ visible, onClose, league, roster, onPick, rosterOk,
   );
 }
 
-function CustomStakeModal({ visible, onClose, value, onChange, balance, styles, colors }) {
-  const n = parseInt(value, 10) || 0;
-  const ok = n >= 1 && n <= balance;
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.sheet} onPress={() => {}}>
-          <Text style={styles.sheetTitle}>CUSTOM STAKE</Text>
-          <Text style={styles.sheetSub}>Everyone puts in the same amount. You have ◎ {balance.toLocaleString()}.</Text>
-          <TextInput
-            value={value}
-            onChangeText={(t) => onChange(t.replace(/[^0-9]/g, ''))}
-            keyboardType="number-pad"
-            placeholder="0"
-            placeholderTextColor={colors.placeholder}
-            style={styles.stakeInput}
-            autoFocus
-          />
-          {value.length > 0 && !ok ? (
-            <Text style={styles.shapeWarn}>{n > balance ? "That's more than you have." : 'Enter at least 1 coin.'}</Text>
-          ) : null}
-          <Button title="Set Stake" onPress={onClose} disabled={!ok} style={{ marginTop: spacing.md }} />
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
 const makeStyles = (colors) =>
   StyleSheet.create({
     stepLabel: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.sm },
@@ -757,7 +660,6 @@ const makeStyles = (colors) =>
     },
     summaryRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 7 },
     summary: { color: colors.muted, fontSize: 11, fontFamily: fonts.bodyExtra, letterSpacing: 1, flex: 1 },
-    stakeOut: { color: colors.gold, fontSize: 12, fontFamily: fonts.bodyBlack, letterSpacing: 0.5 },
 
     backdrop: { flex: 1, backgroundColor: withAlpha('#000000', 0.65), justifyContent: 'center', padding: spacing.lg },
     sheet: { backgroundColor: colors.card, borderRadius: 18, borderWidth: 1, borderColor: colors.border, padding: spacing.lg },
@@ -775,16 +677,5 @@ const makeStyles = (colors) =>
     shapeSize: { color: colors.text, fontSize: 13, fontFamily: fonts.heroUpright, letterSpacing: 1 },
     shapeLine: { color: colors.muted, fontSize: 12, marginTop: 4, fontFamily: fonts.condBold, letterSpacing: 0.5 },
     shapeWarn: { color: colors.danger, fontSize: 11, marginTop: 6, fontFamily: fonts.bodyBold },
-    stakeInput: {
-      color: colors.text,
-      fontSize: 30,
-      fontFamily: fonts.hero,
-      textAlign: 'center',
-      paddingVertical: 12,
-      borderRadius: 13,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.cardElevated,
-    },
   });
 ```

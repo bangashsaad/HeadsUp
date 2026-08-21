@@ -43,7 +43,6 @@ primitive's source) for sessions that redesign the primitives themselves.
 | `19-requests.md` | Friend requests | 7 KB |
 | `20-rival-profile.md` | Rival profile | 13 KB |
 | `21-leaderboard.md` | Friend standings | 7 KB |
-| `22-coin-wallet.md` | Coin wallet | 10 KB |
 | `23-settings.md` | Settings | 10 KB |
 | `24-change-password.md` | Change password | 6 KB |
 | `25-verify-email.md` | Verify email | 6 KB |

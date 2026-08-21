@@ -68,7 +68,6 @@ export default function DuelDetailScreen({ route, navigation }) {
     setError(null);
     try {
       await respondToDuel(token, id, action);
-      refreshUser(); // stakes/refunds just moved — pull the fresh balance
       navigation.goBack();
     } catch (e) {
       setError(e.message);
@@ -194,11 +193,6 @@ export default function DuelDetailScreen({ route, navigation }) {
 
       <View style={styles.statusRow}>
         <Badge label={duel.status} tone={statusTone(duel.status)} dot />
-        {duel.stake_coins > 0 ? (
-          <View style={styles.potPill}>
-            <Text style={styles.potText}>◎ {(duel.pot_coins || duel.stake_coins * 2).toLocaleString()} POT</Text>
-          </View>
-        ) : null}
       </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -208,7 +202,6 @@ export default function DuelDetailScreen({ route, navigation }) {
         <Term label="Draft type" value={cap(duel.draft_type)} />
         <Term label="Lineup" value={`${cap((duel.lineup_template || '').split('_')[1] || '')} · ${duel.roster_size} slots`} />
         <Term label="Pick clock" value={clockLabel(duel.pick_clock_seconds)} />
-        <Term label="Stake" value={duel.stake_coins > 0 ? `◎ ${duel.stake_coins.toLocaleString()} each` : 'Friendly'} />
         {duel.slate_date ? <Term label="Slate" value={slateTermLabel(duel.slate_date)} /> : null}
         <Term label="Draft starts" value={formatDateTime(duel.draft_starts_at)} />
       </Card>
@@ -224,7 +217,7 @@ export default function DuelDetailScreen({ route, navigation }) {
         {isOpponentPending ? (
           <>
             <Button
-              title={duel.stake_coins > 0 ? `Accept & Stake ◎ ${duel.stake_coins.toLocaleString()}` : 'Accept Challenge'}
+              title="Accept Challenge"
               icon="checkmark-circle"
               onPress={() => act('accept')}
               disabled={busy}
@@ -239,7 +232,7 @@ export default function DuelDetailScreen({ route, navigation }) {
         {canRespondSeat ? (
           <>
             <Button
-              title={duel.stake_coins > 0 ? `Accept Seat & Stake ◎ ${duel.stake_coins.toLocaleString()}` : 'Accept Your Seat'}
+              title="Accept Your Seat"
               icon="checkmark-circle"
               onPress={() => act('accept')}
               disabled={busy}
@@ -449,7 +442,6 @@ function goCounter(navigation, duel) {
       sport: duel.sport,
       lineup_template: duel.lineup_template,
       pick_clock_seconds: duel.pick_clock_seconds,
-      stake_coins: duel.stake_coins,
       slate_date: duel.slate_date,
     },
   });
@@ -462,15 +454,6 @@ const makeStyles = (colors) =>
     side: { alignItems: 'center', flex: 1 },
     sideName: { color: colors.text, fontSize: 16, fontFamily: fonts.condBold, letterSpacing: 0.5, marginTop: spacing.sm, maxWidth: '90%' },
     statusRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg },
-    potPill: {
-      backgroundColor: withAlpha(colors.gold, 0.14),
-      borderColor: withAlpha(colors.gold, 0.45),
-      borderWidth: 1,
-      borderRadius: radius.pill,
-      paddingHorizontal: spacing.md,
-      paddingVertical: 4,
-    },
-    potText: { color: colors.gold, fontSize: 11, fontFamily: fonts.bodyBlack, letterSpacing: 1 },
     error: { color: colors.danger, textAlign: 'center', marginBottom: spacing.md },
     term: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 13, paddingHorizontal: spacing.lg },
     termDivider: { borderTopColor: colors.borderSubtle, borderTopWidth: StyleSheet.hairlineWidth },

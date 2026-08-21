@@ -2,7 +2,7 @@ defmodule HeadsUpWeb.ShellHook do
   @moduledoc """
   Assigns everything the design's app shell renders around a page: the marquee
   ticker (live scores, finals, tonight's tips, your duel lines), the sidebar
-  nav's duel count and LIVE flag with their targets, the coin wallet, and the
+  nav's duel count and LIVE flag with their targets, and the
   record line under your name.
 
   The game half of the ticker is shared by every viewer, so it's cached in
@@ -12,7 +12,7 @@ defmodule HeadsUpWeb.ShellHook do
   """
   import Phoenix.Component, only: [assign: 3]
 
-  alias HeadsUp.{Coins, Contests, Social, Stats}
+  alias HeadsUp.{Contests, Social, Stats}
   alias HeadsUp.Sports.Schedule
 
   @ticker_key {__MODULE__, :ticker}
@@ -34,7 +34,6 @@ defmodule HeadsUpWeb.ShellHook do
       live_path: (live_duel && "/app/live/#{live_duel.id}") || "/app/live",
       draft_path: (draft_duel && "/app/draft/#{draft_duel.id}") || "/app/draft",
       live?: live_duel != nil,
-      coins: Coins.balance(user.id),
       record: Stats.record_for(user.id),
       req_count: length(Social.list_incoming_requests(user))
     }

@@ -73,7 +73,7 @@ export default function SettingsScreen({ navigation }) {
   function confirmDelete() {
     Alert.alert(
       'Delete your account?',
-      'This is permanent. Your profile is erased, live duels are cancelled and every stake is refunded. Finished duels stay in your friends’ history under an anonymous name.',
+      'This is permanent. Your profile is erased and live duels are cancelled. Finished duels stay in your friends’ history under an anonymous name.',
       [
         { text: 'Keep my account', style: 'cancel' },
         { text: 'Delete', style: 'destructive', onPress: askPassword },
@@ -161,7 +161,7 @@ export default function SettingsScreen({ navigation }) {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[styles.rowLabel, { color: colors.danger }]}>Delete account</Text>
-            <Text style={styles.rowSub}>Permanent — live duels cancel, stakes refund</Text>
+            <Text style={styles.rowSub}>Permanent — live duels cancel</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={colors.placeholder} />
         </Pressable>

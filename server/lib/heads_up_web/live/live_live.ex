@@ -312,8 +312,7 @@ defmodule HeadsUpWeb.LiveLive do
         _ -> ""
       end
 
-    pot = duel.stake_coins * 2
-    if pot > 0, do: base <> " · ◎ #{pot} POT", else: base
+    base
   end
 
   defp initials(nil), do: "?"

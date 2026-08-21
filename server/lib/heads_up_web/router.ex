@@ -78,7 +78,6 @@ defmodule HeadsUpWeb.Router do
       layout: {HeadsUpWeb.Layouts, :root} do
       live "/app", HomeLive, :index
       live "/app/verify", VerifyLive, :index
-      live "/app/coins", CoinsLive, :index
       live "/app/duels", DuelsLive, :index
       live "/app/duels/:id", DuelDetailLive, :show
       live "/app/new", NewChallengeLive, :new

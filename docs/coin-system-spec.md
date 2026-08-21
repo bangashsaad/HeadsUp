@@ -1,3 +1,5 @@
+> **DORMANT since 2026-08-20.** Coins were removed from the product for this phase (no stakes, grants, or wallet UI). The ledger below still exists server-side behind `HeadsUp.Coins.enabled?/0`; this spec describes it for when/if it returns.
+
 # HeadsUp Coins — functional spec (v1)
 
 An in-house virtual currency. Free-only for the beta: coins cannot be bought,

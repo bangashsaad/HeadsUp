@@ -52,7 +52,7 @@ defmodule HeadsUpWeb.LiveComponentsTest do
     assert html =~ "MIKE_HOOPS"
     assert html =~ "3 FIVE" == false
     assert html =~ "RIVALRY GAME"
-    assert html =~ "◎ 50 POT"
+    refute html =~ "POT"
   end
 
   test "the hero handles integer totals without arithmetic crashes" do

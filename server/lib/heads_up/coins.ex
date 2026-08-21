@@ -36,6 +36,16 @@ defmodule HeadsUp.Coins do
   @comeback_grant 100
   @comeback_floor 25
   @stake_max 10_000
+
+  @doc """
+  Coins are OFF for this phase of the product (no stakes, no grants, no
+  wallet surfaces). The ledger stays intact and dormant: existing escrow
+  still refunds/pays out, Integrity still runs, and flipping
+  `COINS_ENABLED=1` (or `config :heads_up, :coins_enabled, true`) brings
+  staking back without a migration. UI for coins was removed outright and
+  lives in git history.
+  """
+  def enabled?, do: Application.get_env(:heads_up, :coins_enabled, false)
   # The scoreboard's ET convention (Sports.Schedule) — the comeback bonus
   # resets on the US sports calendar day, not UTC.
   @et_offset_seconds -4 * 3600
@@ -128,6 +138,10 @@ defmodule HeadsUp.Coins do
 
   @doc "The one-time signup grant. Idempotent — safe to call again (backfill)."
   def grant_signup(user_id) do
+    if not enabled?(), do: {:ok, :coins_disabled}, else: do_grant_signup(user_id)
+  end
+
+  defp do_grant_signup(user_id) do
     grant(user_id, @signup_grant, "grant:signup:#{user_id}", %{"reason" => "signup"})
   end
 
@@ -138,6 +152,10 @@ defmodule HeadsUp.Coins do
   once-a-day guard.
   """
   def maybe_comeback(user_id) do
+    if not enabled?(), do: {:ok, :coins_disabled}, else: do_maybe_comeback(user_id)
+  end
+
+  defp do_maybe_comeback(user_id) do
     if balance(user_id) < @comeback_floor do
       grant(user_id, @comeback_grant, "grant:comeback:#{user_id}:#{et_today()}", %{"reason" => "comeback"})
     else

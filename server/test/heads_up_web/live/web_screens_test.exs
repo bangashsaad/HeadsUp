@@ -92,7 +92,6 @@ defmodule HeadsUpWeb.WebScreensTest do
 
       render_click(view, "rival", %{"id" => to_string(b.id)})
       render_click(view, "roster", %{"n" => "7"})
-      render_click(view, "stake", %{"n" => "25"})
       render_click(view, "clock", %{"n" => "60"})
       render_click(view, "send", %{})
 
@@ -100,7 +99,8 @@ defmodule HeadsUpWeb.WebScreensTest do
       assert duel.challenger_id == a.id
       assert duel.opponent_id == b.id
       assert duel.roster_size == 7
-      assert duel.stake_coins == 25
+      # Coins are off: the web composer has no stake control and sends none.
+      assert duel.stake_coins == 0
       assert duel.pick_clock_seconds == 60
       assert duel.lineup_template == "wnba_7"
     end

@@ -94,8 +94,8 @@ export function AuthProvider({ children }) {
     return apiRequest('/api/password/reset', { method: 'POST', body: { email, code, password } });
   }
 
-  // Re-pull /api/me (coin balance rides the user object) after anything that
-  // moves coins: staking a duel, results landing, the wallet screen opening.
+  // Re-pull /api/me so the user object (verified flag, profile fields) stays
+  // honest after anything that could change it.
   async function refreshUser() {
     if (!token) return;
     try {

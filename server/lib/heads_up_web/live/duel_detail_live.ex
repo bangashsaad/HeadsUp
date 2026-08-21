@@ -104,7 +104,7 @@ defmodule HeadsUpWeb.DuelDetailLive do
             </span>
           </div>
           <span style="font-size:12px;color:#8B91A7;font-weight:600">
-            {String.upcase(@duel.sport)} · {@duel.roster_size} slots · {stake_text(@duel)} · {@duel.pick_clock_seconds}s clock
+            {String.upcase(@duel.sport)} · {@duel.roster_size} slots · {@duel.pick_clock_seconds}s clock
           </span>
 
           <%!-- seats (groups show everyone's answer) --%>
@@ -188,7 +188,6 @@ defmodule HeadsUpWeb.DuelDetailLive do
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
             <.term label="LEAGUE" value={String.upcase(@duel.sport)} />
             <.term label="ROSTER" value={"#{@duel.roster_size} — #{shape_line(@duel)}"} />
-            <.term label="STAKE" value={stake_text(@duel)} />
             <.term label="PICK CLOCK" value={"#{@duel.pick_clock_seconds} SECONDS"} />
             <.term label="SLATE" value={slate_text(@duel)} />
             <.term label="DRAFT" value={draft_text(@duel)} />
@@ -254,12 +253,6 @@ defmodule HeadsUpWeb.DuelDetailLive do
       duel.participants != [] -> Enum.any?(duel.participants, &(&1.user_id == my_id and &1.status == "invited"))
       true -> false
     end
-  end
-
-  defp stake_text(%{stake_coins: 0}), do: "FRIENDLY — NO STAKE"
-  defp stake_text(%{stake_coins: n} = d) do
-    seats = max(length(d.participants), 2)
-    "◎ #{n} EACH · POT ◎ #{n * seats}"
   end
 
   defp shape_line(duel) do

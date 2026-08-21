@@ -587,7 +587,8 @@ defmodule HeadsUp.Contests do
     |> Map.put("roster_size", Lineup.slot_count(template))
     |> Map.put_new("draft_type", "snake")
     |> Map.put_new("pick_clock_seconds", 60)
-    |> Map.put_new("stake_coins", 0)
+    # Coins off ⇒ every duel is friendly, whatever a (stale) client sent.
+    |> then(&if(Coins.enabled?(), do: Map.put_new(&1, "stake_coins", 0), else: Map.put(&1, "stake_coins", 0)))
     |> Map.put_new("scoring_rules", Scoring.default_rules(sport))
   end
 

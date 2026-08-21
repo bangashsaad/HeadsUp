@@ -11,7 +11,7 @@ defmodule HeadsUpWeb.YouLive do
 
   alias HeadsUpWeb.Params
 
-  alias HeadsUp.{Accounts, Coins, Contests, Social, Stats}
+  alias HeadsUp.{Accounts, Contests, Social, Stats}
 
   @impl true
   def mount(params, _session, socket) do
@@ -44,7 +44,6 @@ defmodule HeadsUpWeb.YouLive do
       friends: friends,
       groups: Social.list_friend_groups(user),
       settled: duels,
-      coins: Coins.balance(user.id)
     )
     |> then(fn s ->
       default =
@@ -181,7 +180,7 @@ defmodule HeadsUpWeb.YouLive do
           <div style="display:flex;flex-direction:column;gap:2px">
             <span class="hu-black" style="font-size:30px;letter-spacing:-.5px">{@current_user.username}</span>
             <span style="font-size:12px;color:#8B91A7;font-weight:700">
-              Duelist since {Calendar.strftime(@current_user.inserted_at, "%B %Y")}{heater(@record)} · ◎ {@coins}
+              Duelist since {Calendar.strftime(@current_user.inserted_at, "%B %Y")}{heater(@record)}
             </span>
           </div>
           <div style="margin-left:auto;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:12px 26px;padding-right:8px">
@@ -506,7 +505,7 @@ defmodule HeadsUpWeb.YouLive do
           </div>
           <div phx-click="danger" phx-value-which="delete" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 18px">
             <span style="font-size:13px;font-weight:700;color:#FF4557">Delete account</span>
-            <span style="font-size:10.5px;color:#565D73;font-weight:600">Permanent — duels are anonymized, coins are gone</span>
+            <span style="font-size:10.5px;color:#565D73;font-weight:600">Permanent — duels are anonymized</span>
           </div>
 
           <div :if={@danger == "password"} style="padding:0 18px 16px">

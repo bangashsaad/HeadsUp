@@ -1,7 +1,7 @@
 defmodule HeadsUpWeb.NewChallengeLive do
   @moduledoc """
   The challenge form in the design's two-column layout: term pickers on the
-  left (league / roster / stake / clock / slate / who answers, with friend-
+  left (league / roster / clock / slate / who answers, with friend-
   group tabs), and the sticky THE TERMS summary rail on the right with the
   send button. DOM and styles from the design export; the values and the
   payload are the app's, verbatim, into the same `Contests.create_challenge/2`.
@@ -10,7 +10,7 @@ defmodule HeadsUpWeb.NewChallengeLive do
 
   alias HeadsUpWeb.Params
 
-  alias HeadsUp.{Coins, Contests, Social, Stats}
+  alias HeadsUp.{Contests, Social, Stats}
   alias HeadsUp.Drafts.Lineup
   alias HeadsUp.Sports.{Season, Slate}
 
@@ -20,7 +20,6 @@ defmodule HeadsUpWeb.NewChallengeLive do
     %{key: "nfl", label: "🏈 NFL"},
     %{key: "nba", label: "🏀 NBA"}
   ]
-  @stakes [0, 25, 100]
   @clocks [15, 30, 60]
   @max_rivals 4
 
@@ -36,7 +35,6 @@ defmodule HeadsUpWeb.NewChallengeLive do
       |> assign(page_title: if(counter, do: "Counter offer", else: "New challenge"))
       |> assign(
         leagues: @leagues,
-        stakes: @stakes,
         clocks: @clocks,
         max_rivals: @max_rivals,
         playable: playable,
@@ -45,10 +43,7 @@ defmodule HeadsUpWeb.NewChallengeLive do
         group_tab: "ALL",
         shapes_open: false,
         rec_by_id: Map.new(h2h, &{&1.opponent.id, "#{&1.wins}–#{&1.losses} vs you"}),
-        coins: Coins.balance(user.id),
         counter: counter,
-        custom_stake_open: false,
-        custom_dirty: false,
         error: nil
       )
       |> seed_terms(counter, playable)
@@ -73,7 +68,7 @@ defmodule HeadsUpWeb.NewChallengeLive do
   defp seed_terms(socket, nil, playable) do
     league = Enum.find_value(@leagues, "wnba", &if(MapSet.member?(playable, &1.key), do: &1.key))
     sizes = Lineup.sizes_for(league)
-    assign(socket, league: league, rosters: sizes, roster: hd(sizes), stake: 0, clock: 30, rivals: [])
+    assign(socket, league: league, rosters: sizes, roster: hd(sizes), clock: 30, rivals: [])
   end
 
   defp seed_terms(socket, duel, _playable) do
@@ -84,7 +79,6 @@ defmodule HeadsUpWeb.NewChallengeLive do
       rosters: sizes,
       # Countering a legacy-size duel (mlb_5/mlb_7) re-terms onto today's menu.
       roster: if(duel.roster_size in sizes, do: duel.roster_size, else: hd(sizes)),
-      stake: duel.stake_coins,
       clock: if(duel.pick_clock_seconds in @clocks, do: duel.pick_clock_seconds, else: 30),
       rivals: [duel.challenger_id]
     )
@@ -160,19 +154,6 @@ defmodule HeadsUpWeb.NewChallengeLive do
 
   def handle_event("shapes-toggle", _params, socket), do: {:noreply, update(socket, :shapes_open, &(!&1))}
 
-  def handle_event("stake", %{"n" => n}, socket),
-    do: {:noreply, assign(socket, stake: Params.int(n), custom_stake_open: false, custom_dirty: false, error: nil)}
-
-  def handle_event("stake-custom-open", _params, socket),
-    do: {:noreply, assign(socket, custom_stake_open: true, custom_dirty: false)}
-
-  # Free-typed stake, clamped to the ledger's hard cap; the wallet check
-  # stays at send (same as presets) so the error copy is consistent.
-  def handle_event("stake-custom", %{"n" => n}, socket) do
-    stake = n |> Params.int() |> max(0) |> min(HeadsUp.Coins.stake_max())
-    {:noreply, assign(socket, stake: stake, custom_dirty: true, error: nil)}
-  end
-
   def handle_event("clock", %{"n" => n}, socket), do: {:noreply, assign(socket, clock: Params.int(n))}
 
   def handle_event("slate", %{"id" => id}, socket),
@@ -206,7 +187,7 @@ defmodule HeadsUpWeb.NewChallengeLive do
   end
 
   def handle_event("send", _params, socket) do
-    %{league: league, roster: roster, stake: stake, clock: clock, rivals: rivals} = socket.assigns
+    %{league: league, roster: roster, clock: clock, rivals: rivals} = socket.assigns
 
     cond do
       not HeadsUpWeb.UserAuth.verified_for_duels?(socket.assigns.current_user) ->
@@ -217,9 +198,6 @@ defmodule HeadsUpWeb.NewChallengeLive do
 
       rivals == [] ->
         {:noreply, assign(socket, error: "Pick at least one rival.")}
-
-      stake > socket.assigns.coins ->
-        {:noreply, assign(socket, error: "That stake is more than your wallet.")}
 
       not roster_ok?(socket.assigns, roster) ->
         {:noreply,
@@ -234,7 +212,6 @@ defmodule HeadsUpWeb.NewChallengeLive do
             "lineup_template" => "#{league}_#{roster}",
             "roster_size" => roster,
             "pick_clock_seconds" => clock,
-            "stake_coins" => stake,
             "draft_starts_at" => DateTime.utc_now() |> DateTime.add(15 * 60, :second) |> DateTime.to_iso8601()
           }
           |> put_who(rivals)
@@ -355,42 +332,6 @@ defmodule HeadsUpWeb.NewChallengeLive do
             </div>
 
             <div style="display:flex;flex-direction:column;gap:8px">
-              <span style="font-size:10.5px;font-weight:900;letter-spacing:1.5px;color:#565D73">
-                STAKE · ◎ COINS ({@coins} IN YOUR WALLET)
-              </span>
-              <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-                <button
-                  :for={n <- @stakes}
-                  phx-click="stake"
-                  phx-value-n={n}
-                  disabled={n > @coins}
-                  style={pill(@stake == n and not @custom_stake_open, 12) <> if(n > @coins, do: ";opacity:.3;cursor:not-allowed", else: "")}
-                >
-                  {if n == 0, do: "No stake", else: "◎ #{n}"}
-                </button>
-                <button
-                  :if={not custom_stake?(assigns)}
-                  phx-click="stake-custom-open"
-                  style={pill(false, 12)}
-                >
-                  Custom…
-                </button>
-                <form :if={custom_stake?(assigns)} phx-change="stake-custom" id="custom-stake" style="display:flex;align-items:center;gap:6px">
-                  <span style="font-size:12px;font-weight:800;color:var(--acc,#C8FF2E)">◎</span>
-                  <input
-                    type="number"
-                    name="n"
-                    value={if @custom_stake_open and not @custom_dirty, do: "", else: @stake}
-                    min="0"
-                    max={HeadsUp.Coins.stake_max()}
-                    placeholder="amount"
-                    style="width:92px;background:#0D0F16;border:1px solid var(--acc,#C8FF2E);border-radius:999px;color:#EDEFF7;font-size:12px;font-weight:800;padding:8px 14px;outline:none"
-                  />
-                </form>
-              </div>
-            </div>
-
-            <div style="display:flex;flex-direction:column;gap:8px">
               <span style="font-size:10.5px;font-weight:900;letter-spacing:1.5px;color:#565D73">PICK CLOCK</span>
               <div style="display:flex;gap:8px">
                 <button :for={n <- @clocks} phx-click="clock" phx-value-n={n} style={pill(@clock == n, 12)}>
@@ -463,11 +404,6 @@ defmodule HeadsUpWeb.NewChallengeLive do
             <span style="font-size:10.5px;font-weight:900;letter-spacing:1.5px;color:var(--acc,#C8FF2E)">THE TERMS</span>
             <div class="hu-cond" style="font-size:28px;line-height:1.05">{terms_headline(assigns)}</div>
             <div style="display:flex;flex-direction:column;gap:7px">
-              <.term_row label="Stake" value={if @stake > 0, do: "◎ #{@stake}", else: "Friendly"} />
-              <div style="display:flex;justify-content:space-between">
-                <span style="font-size:11.5px;color:#8B91A7;font-weight:700">Pot</span>
-                <span style="font-size:11.5px;font-weight:800;color:#FFB021">{pot(assigns)}</span>
-              </div>
               <.term_row label="Slate" value={selected_slate_label(assigns)} />
               <.term_row label="Pick clock" value={"#{@clock} sec"} />
               <.term_row label="Called out" value={rivals_summary(assigns)} />
@@ -532,11 +468,6 @@ defmodule HeadsUpWeb.NewChallengeLive do
     do:
       "cursor:pointer;font-size:11px;font-weight:800;letter-spacing:.5px;color:#8B91A7;background:transparent;border:1px solid #252A3A;border-radius:999px;padding:6px 14px"
 
-  # The custom-amount input shows when it's been opened, or when the current
-  # stake isn't a preset (countering a custom-stake duel lands here).
-  defp custom_stake?(%{custom_stake_open: true}), do: true
-  defp custom_stake?(%{stake: stake}), do: stake not in @stakes
-
   # The server rejects a slate that can't field roster x drafters x 2 bodies.
   # Mirror it here (the phone does the same) so sizes grey out BEFORE you send.
   defp fits?(assigns, size, drafters) do
@@ -584,9 +515,6 @@ defmodule HeadsUpWeb.NewChallengeLive do
   defp terms_headline(%{league: league, roster: roster}) do
     "#{String.upcase(league)} · #{roster} SLOTS · SNAKE"
   end
-
-  defp pot(%{stake: 0}), do: "—"
-  defp pot(%{stake: stake, rivals: rivals}), do: "◎ #{stake * (length(rivals) + 1)}"
 
   defp rivals_summary(%{counter: %{} = c}), do: c.challenger.username
   defp rivals_summary(%{rivals: []}), do: "nobody yet"

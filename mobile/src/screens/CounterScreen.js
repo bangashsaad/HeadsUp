@@ -28,7 +28,6 @@ export default function CounterScreen({ route, navigation }) {
     setError(null);
     try {
       const res = await counterChallenge(token, id, terms);
-      refreshUser(); // old stake refunded, new stake escrowed
       navigation.replace('DuelDetail', { id: res.duel.id });
     } catch (e) {
       setError(e.message);

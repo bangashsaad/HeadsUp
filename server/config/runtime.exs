@@ -165,3 +165,10 @@ end
 # the /install redirect. Set as a Fly secret (TESTFLIGHT_URL); nil renders the
 # gate's invite-only state.
 config :heads_up, :testflight_url, System.get_env("TESTFLIGHT_URL")
+
+# Coins (stakes, grants, wallet) are off for this phase; COINS_ENABLED=1 re-arms
+# the ledger without a deploy of new code. Only set when the variable is
+# present so config/test.exs (coins on, for the ledger's own tests) stands.
+if coins_env = System.get_env("COINS_ENABLED") do
+  config :heads_up, :coins_enabled, coins_env in ["1", "true"]
+end

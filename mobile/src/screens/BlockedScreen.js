@@ -66,7 +66,7 @@ export default function BlockedScreen() {
         <EmptyState
           icon="shield-checkmark-outline"
           title="Nobody's blocked"
-          subtitle="Block someone from their rivalry page — it cancels shared duels, refunds stakes, and they can't reach you."
+          subtitle="Block someone from their rivalry page — it cancels shared duels and they can't reach you."
         />
       </Screen>
     );

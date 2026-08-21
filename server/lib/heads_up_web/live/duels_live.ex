@@ -1,7 +1,7 @@
 defmodule HeadsUpWeb.DuelsLive do
   @moduledoc """
   The duels list in the design's exact clothes: avatar-tile rows with status
-  badges on the active tab; W/L-railed rows with the coin swing and REMATCH
+  badges on the active tab; W/L-railed rows with REMATCH
   on the past tab, dead challenges dimmed below. DOM and inline styles from
   the design export; data and actions are the app's.
   """
@@ -188,9 +188,6 @@ defmodule HeadsUpWeb.DuelsLive do
               <span style="font-weight:800;font-size:13.5px">vs {title(d, @current_user.id) |> String.replace_prefix("vs ", "")}</span>
               <span style="font-size:10.5px;color:#8B91A7;font-weight:600;margin-top:2px">{meta_line(d)}</span>
             </.link>
-            <span :if={d.stake_coins > 0} style={"font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:14px;color:#{if res(d, @current_user.id) == "W", do: "#FFB021", else: "#565D73"}"}>
-              ◎ {swing(d, @current_user.id)}
-            </span>
             <button
               :if={d.opponent_id != nil}
               phx-click="rematch"
@@ -259,9 +256,8 @@ defmodule HeadsUpWeb.DuelsLive do
 
   defp meta_line(d) do
     emoji = %{"mlb" => "⚾️", "nfl" => "🏈"} |> Map.get(d.sport, "🏀")
-    stake = if d.stake_coins > 0, do: " · ◎ #{d.stake_coins} stake", else: " · no stake"
     tail = if d.status == "countered", do: " · terms changed", else: ""
-    "#{emoji} #{String.upcase(d.sport)} · #{d.roster_size} slots#{stake}#{tail}"
+    "#{emoji} #{String.upcase(d.sport)} · #{d.roster_size} slots#{tail}"
   end
 
   # The design's badge map, verbatim: RESPOND cyan, SENT gray, COUNTERED
@@ -323,14 +319,6 @@ defmodule HeadsUpWeb.DuelsLive do
       "W" -> "#C8FF2E"
       "L" -> "#FF4557"
       _ -> "#8B91A7"
-    end
-  end
-
-  defp swing(d, me) do
-    case res(d, me) do
-      "W" -> "+#{d.stake_coins}"
-      "L" -> "−#{d.stake_coins}"
-      _ -> "0"
     end
   end
 end

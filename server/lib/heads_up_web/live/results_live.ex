@@ -1,7 +1,7 @@
 defmodule HeadsUpWeb.ResultsLive do
   @moduledoc """
   A settled duel's final scoreboard — who won, both lineups with every
-  player's points, the coin outcome, and the same trash-talk thread the live
+  player's points, and the same trash-talk thread the live
   screen carries (receipts stay open after the whistle).
 
   Renders from the SAME frozen breakdown the phone's Results screen reads
@@ -108,8 +108,6 @@ defmodule HeadsUpWeb.ResultsLive do
           <div style="flex:1;min-width:240px;display:flex;flex-direction:column;gap:8px">
             <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
               <span style={"font-size:10px;font-weight:900;letter-spacing:1.5px;color:#{letter_ink(@r.my_outcome)}"}>{badge_text(@r.my_outcome)}</span>
-              <span :if={@r.pot_coins > 0 and @r.my_outcome == "win"} style="font-size:12px;font-weight:800;color:#FFB021">◎ +{@r.pot_coins - @r.stake_coins}</span>
-              <span :if={@r.stake_coins > 0 and @r.my_outcome == "loss"} style="font-size:12px;font-weight:800;color:#565D73">◎ −{@r.stake_coins}</span>
             </div>
             <div class="hu-cond" style="font-size:34px;line-height:1">{title(@r.my_outcome)}<span style="color:var(--acc,#C8FF2E)">.</span></div>
             <div :if={length(@r.standings) == 2} style="display:flex;align-items:center;gap:18px">
