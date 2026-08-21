@@ -12,7 +12,9 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/778f9a93-60b4-4fa0-a6ef-7d873f3205a6"
+      "url": "https://u.expo.dev/778f9a93-60b4-4fa0-a6ef-7d873f3205a6",
+      "fallbackToCacheTimeout": 3000,
+      "checkAutomatically": "ON_LOAD"
     },
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -22,7 +24,10 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.headsupfantasy.app",
-      "associatedDomains": ["applinks:headsup-fantasy.fly.dev", "applinks:headsupfantasy.com"],
+      "associatedDomains": [
+        "applinks:headsup-fantasy.fly.dev",
+        "applinks:headsupfantasy.com"
+      ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }

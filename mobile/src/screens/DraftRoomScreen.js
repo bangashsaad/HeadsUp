@@ -45,7 +45,9 @@ const REACTION_EMOJIS = ['🔥', '😂', '😭', '🥶', '💀', '👑'];
 // callback rather than a parallel timer, so the two cannot drift apart.
 // FLIP_FAILSAFE_MS only exists because RN pauses animations in the background:
 // without it, backgrounding the app mid-flip strands the coin on screen.
-const FLIP_MS = 1000;
+const FLIP_MS = 1200;
+// Hold the landed coin a beat before the board appears.
+const FLIP_SETTLE_MS = 250;
 const FLIP_FAILSAFE_MS = 6000;
 
 // One UNIQUE color per seat (name-hash tints can collide — two players both
@@ -275,8 +277,10 @@ function ReactionBar({ conn }) {
 
 // The coin moment, from the Reimagined drop: a lime→purple ring squash-
 // flipping on its vertical axis (the design's hu2-coin keyframes — scaleX
-// through 1 → .12 → −1 → −.12, three cycles in a second) around a dark core
-// with the Archivo Black H. scaleX never hides the face, so the old
+// through 1 → .12 → −1 → −.12) around a dark core with the Archivo Black H.
+// Two cycles over 1.2s, linear, then a short settle: the design's three
+// cycles in one second with ease-in-out ran the middle flips at double
+// speed and read as a strobe on a phone. scaleX never hides the face, so the old
 // two-faces-against-backface-strobing dance is gone with the rotateY spin.
 function FlipOverlay({ onDone }) {
   const { colors } = useTheme();
@@ -286,18 +290,22 @@ function FlipOverlay({ onDone }) {
   done.current = onDone;
 
   useEffect(() => {
+    let settle;
     Animated.timing(spin, {
       toValue: 1,
       duration: FLIP_MS,
-      easing: Easing.inOut(Easing.ease),
+      easing: Easing.linear,
       useNativeDriver: true,
-    }).start(({ finished }) => finished && done.current?.());
+    }).start(({ finished }) => {
+      if (finished) settle = setTimeout(() => done.current?.(), FLIP_SETTLE_MS);
+    });
+    return () => clearTimeout(settle);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const scaleX = spin.interpolate({
-    inputRange: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1],
-    outputRange: [1, 0.12, -1, -0.12, 1, 0.12, -1, -0.12, 1, 0.12, 1],
+    inputRange: [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1],
+    outputRange: [1, 0.12, -1, -0.12, 1, 0.12, -1, -0.12, 1],
   });
 
   return (

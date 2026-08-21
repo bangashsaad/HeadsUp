@@ -44,7 +44,8 @@ defmodule HeadsUpWeb.DraftLive do
     # same beat the phone plays its FlipOverlay on.
     socket =
       if phase(socket.assigns.state) == :lobby and phase(state) == :active do
-        Process.send_after(self(), :end_flip, 1100)
+        # Two flips (1.2s) + a beat to land, matching the phone.
+        Process.send_after(self(), :end_flip, 1450)
         assign(socket, flip?: true)
       else
         socket
@@ -141,7 +142,7 @@ defmodule HeadsUpWeb.DraftLive do
         :if={@flip?}
         style="position:fixed;inset:0;z-index:60;background:#0A0B10;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px"
       >
-        <div style="width:92px;height:92px;border-radius:50%;background:conic-gradient(from 20deg,var(--acc,#C8FF2E),#7C5CFF,var(--acc,#C8FF2E));display:flex;align-items:center;justify-content:center;animation:huw-coin 1s ease-in-out;will-change:transform">
+        <div style="width:92px;height:92px;border-radius:50%;background:conic-gradient(from 20deg,var(--acc,#C8FF2E),#7C5CFF,var(--acc,#C8FF2E));display:flex;align-items:center;justify-content:center;animation:huw-coin 1.2s linear;will-change:transform">
           <div style="width:78px;height:78px;border-radius:50%;background:#0A0B10;display:flex;align-items:center;justify-content:center">
             <span class="hu-black" style="font-size:26px;color:var(--acc,#C8FF2E)">H</span>
           </div>
