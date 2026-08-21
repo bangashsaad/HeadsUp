@@ -39,7 +39,6 @@ defmodule HeadsUpWeb.Router do
     pipe_through [:browser, :web]
 
     get "/get-the-app", GateController, :show
-    get "/get-the-app/continue", GateController, :continue
   end
 
   # The landing gates too: a phone's first touch is the gate page, which IS

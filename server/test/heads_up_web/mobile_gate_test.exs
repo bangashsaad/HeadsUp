@@ -1,7 +1,7 @@
 defmodule HeadsUpWeb.MobileGateTest do
   @moduledoc """
   Phones get the app-gate page instead of the desktop site; computers,
-  iPads, and devices that chose HARD MODE pass untouched. Landing and
+  and iPads pass untouched; there is no escape hatch. Landing and
   legal pages stay reachable on anything.
   """
   use HeadsUpWeb.ConnCase, async: true
@@ -52,16 +52,6 @@ defmodule HeadsUpWeb.MobileGateTest do
     test "legal pages stay reachable on a phone", %{conn: conn} do
       assert conn |> with_ua(@iphone) |> get(~p"/privacy") |> html_response(200)
     end
-
-    test "the escaped-hatch cookie opens the landing back up", %{conn: conn} do
-      conn =
-        conn
-        |> with_ua(@iphone)
-        |> Plug.Test.put_req_cookie(HeadsUpWeb.MobileGate.bypass_cookie(), "1")
-        |> get(~p"/")
-
-      assert html_response(conn, 200)
-    end
   end
 
   describe "the gate page" do
@@ -71,8 +61,8 @@ defmodule HeadsUpWeb.MobileGateTest do
       assert html =~ "BETA · INVITE ONLY"
       assert html =~ "I ALREADY HAVE IT — OPEN THE APP"
       assert html =~ "winners hand them out"
-      assert html =~ "SURE ABOUT THAT?"
-      assert html =~ "HARD MODE"
+      refute html =~ "HARD MODE"
+      refute html =~ "continue to the web version"
       refute html =~ "TestFlight."
     end
 
@@ -86,25 +76,6 @@ defmodule HeadsUpWeb.MobileGateTest do
       assert html =~ "OPEN THE APP →"
       assert html =~ "Same button lands on TestFlight"
       assert html =~ "testflight.apple.com/join/TEST123"
-    end
-  end
-
-  describe "the escape hatch" do
-    test "HARD MODE sets the cookie and the site opens up", %{conn: conn} do
-      conn = conn |> with_ua(@iphone) |> get(~p"/get-the-app/continue")
-      assert redirected_to(conn) == "/app"
-      assert conn.resp_cookies[HeadsUpWeb.MobileGate.bypass_cookie()].value == "1"
-      # Session-scoped: no max_age, so the gate is back once the browser closes.
-      refute Map.has_key?(conn.resp_cookies[HeadsUpWeb.MobileGate.bypass_cookie()], :max_age)
-
-      # Same phone, cookie carried: no more gate (auth takes over instead).
-      conn =
-        Phoenix.ConnTest.build_conn()
-        |> with_ua(@iphone)
-        |> Plug.Test.put_req_cookie(HeadsUpWeb.MobileGate.bypass_cookie(), "1")
-        |> get(~p"/login")
-
-      assert html_response(conn, 200) =~ "Sign in"
     end
   end
 
@@ -124,8 +95,8 @@ defmodule HeadsUpWeb.MobileGateTest do
     end
   end
 
-  describe "the retired 180-day cookie" do
-    test "no longer opens the site — every phone is back at the gate", %{conn: conn} do
+  describe "no bypass of any kind" do
+    test "the retired cookie does nothing — every phone is at the gate", %{conn: conn} do
       conn =
         conn
         |> Plug.Conn.put_req_header("user-agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) Mobile/15E148 Safari/604.1")
@@ -133,6 +104,9 @@ defmodule HeadsUpWeb.MobileGateTest do
         |> get(~p"/")
 
       assert redirected_to(conn) == "/get-the-app"
+
+      # And the route that used to mint a bypass is gone.
+      assert Phoenix.ConnTest.build_conn() |> get("/get-the-app/continue") |> response(404)
     end
 
     test "the in-page backstop ships on the landing and is path-guarded", %{conn: conn} do

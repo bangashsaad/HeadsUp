@@ -2,8 +2,8 @@ defmodule HeadsUpWeb.GateHTML do
   use HeadsUpWeb, :html
 
   # Saad's App Gate design, verbatim: the ghost VS, the purple glow, the big
-  # italic headline, one lime CTA, the real-slate ticker, and the escape
-  # hatch that opens the SURE ABOUT THAT? sheet instead of just leaving.
+  # italic headline, one lime CTA, and the real-slate ticker. No escape hatch:
+  # phones get the app, period (the earlier SURE ABOUT THAT? sheet is gone).
   def show(assigns) do
     ~H"""
     <div
@@ -90,55 +90,12 @@ defmodule HeadsUpWeb.GateHTML do
         </div>
       </div>
 
-      <div style="padding:14px 0 18px;text-align:center;background:#0D0F16">
-        <a
-          id="escape-link"
-          href="/get-the-app/continue"
-          style="background:transparent;border:none;font-size:11px;font-weight:600;color:#3A4157;text-decoration:underline;text-underline-offset:3px;cursor:pointer"
-        >
-          continue to the web version anyway
-        </a>
-      </div>
-
-      <%!-- SURE ABOUT THAT? — the escape-hatch sheet, hidden until the ghost link --%>
-      <div id="escape-sheet" style="display:none;position:fixed;inset:0;z-index:50;flex-direction:column;justify-content:flex-end">
-        <div style="position:absolute;inset:0;background:rgba(7,8,12,.55)"></div>
-        <div style="position:relative;background:#12141D;border-top:1px solid #252A3A;border-radius:22px 22px 0 0;padding:24px 26px 30px;display:flex;flex-direction:column">
-          <span style="width:36px;height:4px;border-radius:2px;background:#252A3A;align-self:center;margin-bottom:18px"></span>
-          <span class="hu-cond" style="font-size:24px;letter-spacing:.5px;color:#F4F5F7">SURE ABOUT THAT?</span>
-          <p style="font-size:13px;line-height:1.6;color:#8B91A7;margin:8px 0 0">
-            The web version isn't built for phones — drafting on a 390px grid is choosing hard mode. It'll work, it just won't be pretty.
-          </p>
-          <button
-            id="return-safety"
-            class="hu-cond"
-            style="margin-top:18px;background:#C8FF2E;color:#0A0B10;border:none;border-radius:999px;padding:14px 0;text-align:center;font-size:17px;letter-spacing:.5px;cursor:pointer"
-          >
-            RETURN TO SAFETY →
-          </button>
-          <a
-            href="/get-the-app/continue"
-            class="hu-cond"
-            style="margin-top:10px;border:1px solid #252A3A;color:#8B91A7;border-radius:999px;padding:13px 0;text-align:center;font-size:15px;letter-spacing:.5px;cursor:pointer;text-decoration:none"
-          >
-            CONTINUE TO WEB — HARD MODE
-          </a>
-          <span style="font-size:10px;font-weight:600;color:#3A4157;margin-top:12px;align-self:center">
-            We won't ask again on this device.
-          </span>
-        </div>
-      </div>
     </div>
 
     <script>
       (() => {
         const tf = document.getElementById("gate").dataset.tf;
         const miss = document.getElementById("open-miss");
-
-        document.getElementById("escape-link").addEventListener("click", (ev) => {
-          ev.preventDefault();
-          document.getElementById("escape-sheet").style.display = "flex";
-        });
 
         document.getElementById("open-app").addEventListener("click", (ev) => {
           ev.preventDefault();
@@ -153,9 +110,6 @@ defmodule HeadsUpWeb.GateHTML do
           addEventListener("pagehide", () => clearTimeout(t), { once: true });
           location.href = "headsup://";
         });
-
-        const sheet = document.getElementById("escape-sheet");
-        document.getElementById("return-safety").addEventListener("click", () => (sheet.style.display = "none"));
       })();
     </script>
     """

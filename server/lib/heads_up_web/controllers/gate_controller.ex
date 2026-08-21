@@ -16,16 +16,4 @@ defmodule HeadsUpWeb.GateController do
       ticker: HeadsUpWeb.ShellHook.game_ticker()
     )
   end
-
-  @doc """
-  The escape hatch's HARD MODE choice: hand over the desktop site for this
-  browser session only (no max_age ⇒ the cookie dies with the browser, and
-  the gate is back next visit). A cookie rather than the design's
-  localStorage note — the server picks gate-vs-site before any JavaScript.
-  """
-  def continue(conn, _params) do
-    conn
-    |> put_resp_cookie(HeadsUpWeb.MobileGate.bypass_cookie(), "1", same_site: "Lax")
-    |> redirect(to: "/app")
-  end
 end
