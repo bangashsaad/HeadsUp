@@ -94,6 +94,8 @@ defmodule HeadsUpWeb.MobileGateTest do
       conn = conn |> with_ua(@iphone) |> get(~p"/get-the-app/continue")
       assert redirected_to(conn) == "/app"
       assert conn.resp_cookies[HeadsUpWeb.MobileGate.bypass_cookie()].value == "1"
+      # Session-scoped: no max_age, so the gate is back once the browser closes.
+      refute Map.has_key?(conn.resp_cookies[HeadsUpWeb.MobileGate.bypass_cookie()], :max_age)
 
       # Same phone, cookie carried: no more gate (auth takes over instead).
       conn =
@@ -119,6 +121,27 @@ defmodule HeadsUpWeb.MobileGateTest do
 
       conn = get(conn, ~p"/install")
       assert redirected_to(conn) == "https://testflight.apple.com/join/TEST123"
+    end
+  end
+
+  describe "the retired 180-day cookie" do
+    test "no longer opens the site — every phone is back at the gate", %{conn: conn} do
+      conn =
+        conn
+        |> Plug.Conn.put_req_header("user-agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) Mobile/15E148 Safari/604.1")
+        |> Plug.Test.put_req_cookie("mobile_web_ok", "1")
+        |> get(~p"/")
+
+      assert redirected_to(conn) == "/get-the-app"
+    end
+
+    test "the in-page backstop ships on the landing and is path-guarded", %{conn: conn} do
+      html = conn |> get(~p"/") |> html_response(200)
+      assert html =~ "location.replace('/get-the-app')"
+      # The script itself decides by path, so the (ungated) legal pages are safe
+      # even though they share the root layout.
+      assert html =~ "login|signup|app|forgot-password|reset-password"
+      assert html =~ "navigator.maxTouchPoints>1"
     end
   end
 end

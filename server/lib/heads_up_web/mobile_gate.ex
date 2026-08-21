@@ -6,14 +6,19 @@ defmodule HeadsUpWeb.MobileGate do
 
   Gates PHONE user agents only: iPhone/iPod, Android phones (Android UAs
   carry "Mobile" on phones and not on tablets). iPads and computers pass
-  untouched. The gate page's escape hatch sets a long-lived cookie that
-  turns this plug off for the device — the web version stays reachable,
-  just never by accident.
+  untouched. The gate page's escape hatch sets a SESSION cookie that turns
+  this plug off until the browser closes — the web version stays reachable,
+  never by accident, and never for long: the first version remembered the
+  choice for 180 days, so one curious tap hid the gate for half a year.
+
+  Safari's "Request Desktop Website" reports a Mac user-agent and slips past
+  this plug; `phone_gate_script/0` is the in-page backstop for that case.
   """
   import Plug.Conn
   import Phoenix.Controller, only: [redirect: 2]
 
-  @bypass_cookie "mobile_web_ok"
+  # v2: the old `mobile_web_ok` (180-day) cookie is deliberately ignored.
+  @bypass_cookie "mobile_web_session"
   @phone_ua ~r/iPhone|iPod|Windows Phone/
   @android_phone ~r/Android(?=.*Mobile)/
   # Crawlers and link-preview fetchers use phone user-agents (Google indexes
@@ -36,6 +41,18 @@ defmodule HeadsUpWeb.MobileGate do
       not phone?(conn) -> conn
       true -> conn |> redirect(to: "/get-the-app") |> halt()
     end
+  end
+
+  @doc """
+  Inline backstop for phones whose user-agent lies (Safari "Request Desktop
+  Website"): a touch device with a phone-sized screen on a gated path goes to
+  the gate unless this session's escape cookie is set. Ungated paths (legal,
+  the gate itself) are never touched.
+  """
+  def phone_gate_script do
+    """
+    (function(){try{var c=document.cookie.indexOf('#{@bypass_cookie}=1')>-1;var p=location.pathname;var g=p==='/'||/^\/(login|signup|app|forgot-password|reset-password)(\/|$)/.test(p);var phone=navigator.maxTouchPoints>1&&Math.min(screen.width,screen.height)<600;if(g&&phone&&!c){location.replace('/get-the-app')}}catch(e){}})();
+    """
   end
 
   defp phone?(conn) do
