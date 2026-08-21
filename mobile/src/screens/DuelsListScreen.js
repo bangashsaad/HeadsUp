@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View, Pressable, RefreshControl, Alert } 
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../auth/AuthContext';
+import { useDuelEvents } from '../realtime/DuelEvents';
 import { listDuels, getLiveResult, respondToDuel, rematch } from '../api/duels';
 import { setDraftLive } from '../state/attention';
 import { impact } from '../haptics';
@@ -162,6 +163,8 @@ export default function DuelsListScreen({ navigation }) {
     }
   }, [token]);
 
+  // Live: any duel you're seated on moved (or the app came back) -> refetch.
+  useDuelEvents(() => load(), [load]);
   useFocusEffect(
     useCallback(() => {
       load();

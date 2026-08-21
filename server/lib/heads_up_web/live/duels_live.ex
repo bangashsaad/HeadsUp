@@ -13,8 +13,15 @@ defmodule HeadsUpWeb.DuelsLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    if connected?(socket), do: HeadsUpWeb.Endpoint.subscribe(HeadsUp.Contests.Events.topic(socket.assigns.current_user.id))
     {:ok, socket |> assign(page_title: "Duels", tab: "active") |> load()}
   end
+
+  # A rival accepted / declined / countered, a draft started, a duel settled:
+  # the list re-renders without a refresh.
+  @impl true
+  def handle_info(%Phoenix.Socket.Broadcast{event: "duel_changed"}, socket), do: {:noreply, load(socket)}
+  def handle_info(_other, socket), do: {:noreply, socket}
 
   defp load(socket) do
     user = socket.assigns.current_user

@@ -13,7 +13,7 @@ defmodule HeadsUp.Contests do
   alias HeadsUp.Accounts.User
   alias HeadsUp.Coins
   alias HeadsUp.Social
-  alias HeadsUp.Contests.{Duel, Message, Participant, Scoring}
+  alias HeadsUp.Contests.{Duel, Events, Message, Participant, Scoring}
   alias HeadsUp.Drafts.Lineup
   alias HeadsUp.Sports.{Player, Season, Slate}
 
@@ -57,7 +57,7 @@ defmodule HeadsUp.Contests do
               |> Repo.transaction()
               |> case do
                 {:ok, %{duel: duel}} ->
-                  {:ok, duel} |> seed_participants() |> with_users() |> notify_challenged()
+                  {:ok, duel} |> seed_participants() |> with_users() |> notify_challenged() |> tap_changed()
 
                 {:error, _step, %Ecto.Changeset{} = changeset, _} ->
                   {:error, changeset}
@@ -166,7 +166,7 @@ defmodule HeadsUp.Contests do
   def accept_challenge(%User{} = user, id) do
     case Repo.get(Duel, id) do
       %Duel{opponent_id: nil, status: "pending"} = duel -> seat_respond(user, duel, "accepted")
-      _ -> transition(user, id, :opponent, "pending", "accepted")
+      _ -> user |> transition(id, :opponent, "pending", "accepted") |> notify_accepted(user)
     end
   end
 
@@ -209,7 +209,7 @@ defmodule HeadsUp.Contests do
 
       with {:ok, fresh} <- duel |> Duel.status_changeset("accepted") |> Repo.update() do
         notify_group_ready(fresh, Enum.map(accepted, & &1.user_id) -- [duel.challenger_id])
-        {:ok, preload_all(fresh)}
+        {:ok, preload_all(fresh)} |> tap_changed()
       end
     else
       {:error, :not_enough_players}
@@ -308,8 +308,12 @@ defmodule HeadsUp.Contests do
           end)
           |> Repo.transaction()
           |> case do
-            {:ok, %{counter: counter}} -> {:ok, counter} |> seed_participants() |> with_users() |> notify_challenged()
-            {:error, _step, changeset, _} -> {:error, changeset}
+            {:ok, %{counter: counter}} ->
+              Events.duel_changed(original.id)
+              {:ok, counter} |> seed_participants() |> with_users() |> notify_challenged() |> tap_changed()
+
+            {:error, _step, changeset, _} ->
+              {:error, changeset}
           end
         else
           true -> {:error, "That duel can't be countered."}
@@ -327,7 +331,7 @@ defmodule HeadsUp.Contests do
   """
   def start_draft(duel_id) do
     case Repo.get(Duel, duel_id) do
-      %Duel{status: "accepted"} = duel -> duel |> Duel.status_changeset("drafting") |> Repo.update()
+      %Duel{status: "accepted"} = duel -> duel |> Duel.status_changeset("drafting") |> Repo.update() |> tap_changed()
       %Duel{} = duel -> {:ok, duel}
       nil -> {:error, :not_found}
     end
@@ -351,6 +355,7 @@ defmodule HeadsUp.Contests do
           scoring_window_end: window_end
         })
         |> Repo.update()
+        |> tap_changed()
 
       # Terminal states are a quiet no-op success, NEVER a flip: a duel the
       # janitor (or anyone) cancelled mid-draft must not resurrect to
@@ -402,7 +407,7 @@ defmodule HeadsUp.Contests do
             # Every path that kills a live duel lands here — so this is where
             # the draft room (if one is ticking) learns it's over.
             HeadsUp.Drafts.notify_duel_cancelled(fresh.id)
-            {:ok, fresh}
+            {:ok, fresh} |> tap_changed()
 
           {:error, _step, reason, _} ->
             {:error, reason}
@@ -874,7 +879,7 @@ defmodule HeadsUp.Contests do
           %{type: "duel", duel_id: fresh.id}
         )
 
-        {:ok, fresh}
+        {:ok, fresh} |> tap_changed()
 
       {:error, _step, :already_resolved, _} ->
         {:error, :already_resolved}
@@ -911,7 +916,7 @@ defmodule HeadsUp.Contests do
         end)
         |> Repo.transaction()
         |> case do
-          {:ok, %{duel: fresh}} -> {:ok, fresh} |> sync_seat(uid, to_status) |> with_users()
+          {:ok, %{duel: fresh}} -> {:ok, fresh} |> sync_seat(uid, to_status) |> with_users() |> tap_changed()
           {:error, _step, reason, _} -> {:error, reason}
         end
     end
@@ -1087,7 +1092,7 @@ defmodule HeadsUp.Contests do
         true -> :ok
       end
 
-      {:ok, preload_all(fresh)}
+      {:ok, preload_all(fresh)} |> tap_changed()
     end
   end
 
@@ -1110,6 +1115,29 @@ defmodule HeadsUp.Contests do
   end
 
   defp seed_participants(other), do: other
+
+  # Fan the change out to everyone seated (web re-renders, phones refetch).
+  defp tap_changed({:ok, %Duel{} = duel} = result) do
+    Events.duel_changed(duel.id)
+    result
+  end
+
+  defp tap_changed(other), do: other
+
+  # The one push that was missing: a 1v1 accept told nobody. Groups already
+  # get "everyone's in"; the challenger of a 1v1 now hears it too.
+  defp notify_accepted({:ok, %Duel{} = duel} = result, %User{} = acceptor) do
+    HeadsUp.Notifications.notify_user(
+      duel.challenger_id,
+      "#{acceptor.username} accepted ⚡",
+      "The draft room's open — get in and ready up.",
+      %{type: "draft", duel_id: duel.id}
+    )
+
+    result
+  end
+
+  defp notify_accepted(other, _acceptor), do: other
 
   # Mirror an accept/decline onto the actor's seat row (cancel leaves seats be).
   defp sync_seat({:ok, duel} = result, uid, to_status) when to_status in ["accepted", "declined"] do

@@ -10,6 +10,7 @@ defmodule HeadsUpWeb.LiveHubLive do
 
   @impl true
   def mount(_params, _session, socket) do
+    if connected?(socket), do: HeadsUpWeb.Endpoint.subscribe(HeadsUp.Contests.Events.topic(socket.assigns.current_user.id))
     target =
       socket.assigns.current_user
       |> Contests.list_duels()
@@ -21,6 +22,19 @@ defmodule HeadsUpWeb.LiveHubLive do
       {:ok, assign(socket, page_title: "Live")}
     end
   end
+
+  # A duel just became drafted — jump into it.
+  @impl true
+  def handle_info(%Phoenix.Socket.Broadcast{event: "duel_changed"}, socket) do
+    target =
+      socket.assigns.current_user
+      |> Contests.list_duels()
+      |> Enum.find(&(&1.status in ~w(drafted)))
+
+    if target, do: {:noreply, push_navigate(socket, to: "/app/live/#{target.id}")}, else: {:noreply, socket}
+  end
+
+  def handle_info(_other, socket), do: {:noreply, socket}
 
   @impl true
   def render(assigns) do

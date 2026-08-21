@@ -16,12 +16,28 @@ defmodule HeadsUpWeb.DuelDetailLive do
 
     with {duel_id, ""} <- Integer.parse(id_str),
          %{} = duel <- Contests.get_duel(user, duel_id) do
+      if connected?(socket), do: HeadsUpWeb.Endpoint.subscribe(HeadsUp.Contests.Events.topic(socket.assigns.current_user.id))
       {:ok, assign(socket, page_title: "Duel", duel: duel)}
     else
       _ ->
         {:ok, socket |> put_flash(:error, "That duel isn't yours.") |> redirect(to: "/app/duels")}
     end
   end
+
+  # The other side moved — re-read this duel (only this one).
+  @impl true
+  def handle_info(%Phoenix.Socket.Broadcast{event: "duel_changed", payload: %{duel_id: id}}, socket) do
+    if id == socket.assigns.duel.id do
+      case Contests.get_duel(socket.assigns.current_user, id) do
+        %{} = duel -> {:noreply, assign(socket, duel: duel)}
+        _ -> {:noreply, socket}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_info(_other, socket), do: {:noreply, socket}
 
   @impl true
   def handle_event("accept", _params, socket) do

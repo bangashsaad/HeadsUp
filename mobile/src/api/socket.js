@@ -10,6 +10,27 @@ const WS_URL = API_URL.replace(/^http/, 'ws') + '/socket';
 //                auto-rejoins, and the fresh join reply lands in onJoin again.
 // Returns { ready, makePick, leave } — makePick returns the Phoenix push so the
 // caller can attach .receive('error', ...) for rejected picks.
+// The user's personal feed: the server pushes `duel_changed` {duel_id, status}
+// whenever a duel you're seated on moves (accepted, declined, countered,
+// drafting, drafted, settled, cancelled). One socket for the app session.
+export function connectUser(userId, token, handlers) {
+  const socket = new Socket(WS_URL, { params: { token } });
+  socket.onError(() => handlers.onDisconnect?.());
+  socket.onClose(() => handlers.onDisconnect?.());
+  socket.connect();
+
+  const channel = socket.channel(`user:${userId}`, {});
+  channel.on('duel_changed', (payload) => handlers.onDuelChanged?.(payload));
+  channel.join().receive('error', (reply) => handlers.onError?.(reply));
+
+  return {
+    leave: () => {
+      channel.leave();
+      socket.disconnect();
+    },
+  };
+}
+
 export function connectDraft(duelId, token, handlers) {
   const socket = new Socket(WS_URL, { params: { token } });
   socket.onError(() => handlers.onDisconnect?.());

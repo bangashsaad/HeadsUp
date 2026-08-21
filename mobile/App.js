@@ -27,6 +27,7 @@ import AuthStack from './src/navigation/AuthStack';
 import MainTabs from './src/navigation/MainTabs';
 import PushTapRouter from './src/navigation/PushTapRouter';
 import { navigationRef } from './src/navigation/ref';
+import { DuelEventsProvider } from './src/realtime/DuelEvents';
 
 // Share links (headsupfantasy.com/d/42, /u/name) and headsup:// deep links
 // land on the screen they name. Paths with no screen here are ignored.
@@ -102,7 +103,9 @@ export default function App() {
       <ThemeProvider>
         <PreferencesProvider>
           <AuthProvider>
-            <RootNavigator />
+            <DuelEventsProvider>
+              <RootNavigator />
+            </DuelEventsProvider>
           </AuthProvider>
         </PreferencesProvider>
       </ThemeProvider>

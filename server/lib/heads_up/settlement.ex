@@ -215,6 +215,11 @@ defmodule HeadsUp.Settlement do
         is_tie
       )
     end)
+    |> Ecto.Multi.run(:fanout, fn _repo, %{duel: fresh} ->
+      # Everyone seated learns it settled (web re-renders, phones refetch).
+      HeadsUp.Contests.Events.duel_changed(fresh.id)
+      {:ok, :sent}
+    end)
     |> Repo.transaction()
     |> case do
       {:ok, %{result: result, duel: settled}} ->

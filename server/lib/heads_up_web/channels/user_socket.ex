@@ -7,6 +7,7 @@ defmodule HeadsUpWeb.UserSocket do
   use Phoenix.Socket
 
   channel "draft:*", HeadsUpWeb.DraftChannel
+  channel "user:*", HeadsUpWeb.UserChannel
 
   @impl true
   def connect(%{"token" => token}, socket, _connect_info) do

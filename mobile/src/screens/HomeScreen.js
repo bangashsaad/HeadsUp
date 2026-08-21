@@ -4,6 +4,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
+import { useDuelEvents } from '../realtime/DuelEvents';
 import { getHome } from '../api/me';
 import { listUpcomingGames } from '../api/sports';
 import { listRequests } from '../api/social';
@@ -76,6 +77,8 @@ export default function HomeScreen({ navigation }) {
       .catch(() => {});
   }, [token]);
 
+  // Live: any duel you're seated on moved (or the app came back) -> refetch.
+  useDuelEvents(() => load(), [load]);
   useFocusEffect(
     useCallback(() => {
       load();

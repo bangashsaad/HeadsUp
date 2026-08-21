@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet, Text, View, Pressable } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../auth/AuthContext';
+import { useDuelEvents } from '../realtime/DuelEvents';
 import { listDuels, getLiveResult } from '../api/duels';
 import { useTheme, useThemedStyles, spacing, fonts, withAlpha } from '../theme';
 import { Screen, Badge, Button, Kicker, CondTitle, GhostText, SkeletonList } from '../components/ui';
@@ -140,6 +141,8 @@ export default function LiveHubScreen({ navigation }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
+  // Live: any duel you're seated on moved (or the app came back) -> refetch.
+  useDuelEvents(() => load(), [load]);
   useFocusEffect(
     useCallback(() => {
       load();

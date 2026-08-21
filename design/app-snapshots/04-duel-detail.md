@@ -54,6 +54,7 @@ import { ActivityIndicator, Pressable, Share, StyleSheet, Text, View } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth } from '../auth/AuthContext';
+import { useDuelEvents } from '../realtime/DuelEvents';
 import { etDayISO } from '../time';
 import { getDuel, respondToDuel, startWithGroup, getLiveResult } from '../api/duels';
 import { formatDateTime } from '../utils/datetime';
@@ -105,6 +106,8 @@ export default function DuelDetailScreen({ route, navigation }) {
     }
   }, [token, id]);
 
+  // The other side accepted / countered / cancelled: re-read this duel live.
+  useDuelEvents((e) => { if (e.duel_id == null || String(e.duel_id) === String(id)) load(); }, [load, id]);
   useFocusEffect(
     useCallback(() => {
       load();

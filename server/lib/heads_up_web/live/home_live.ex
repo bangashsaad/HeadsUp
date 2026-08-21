@@ -23,6 +23,7 @@ defmodule HeadsUpWeb.HomeLive do
     live_duel = List.first(summary.awaiting)
 
     if connected?(socket) do
+      HeadsUpWeb.Endpoint.subscribe(HeadsUp.Contests.Events.topic(user.id))
       if live_duel, do: send(self(), {:load_live_card, live_duel.id})
       send(self(), :load_slate)
     end
@@ -72,6 +73,24 @@ defmodule HeadsUpWeb.HomeLive do
       |> Enum.take(6)
 
     {:noreply, assign(socket, slate: games)}
+  end
+
+  # Something on the board moved — recompute the dashboard's duel-shaped bits.
+  def handle_info(%Phoenix.Socket.Broadcast{event: "duel_changed"}, socket) do
+    user = socket.assigns.current_user
+    summary = Home.summary(user)
+    live_duel = List.first(summary.awaiting)
+    if live_duel, do: send(self(), {:load_live_card, live_duel.id})
+
+    {:noreply,
+     assign(socket,
+       summary: summary,
+       record: Stats.record_for(user.id),
+       h2h: Stats.head_to_head(user.id) |> Enum.take(3),
+       coins: Coins.balance(user.id),
+       live_duel: live_duel,
+       live_card: if(live_duel, do: socket.assigns.live_card)
+     )}
   end
 
   def handle_info(_other, socket), do: {:noreply, socket}
